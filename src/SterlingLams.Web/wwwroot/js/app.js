@@ -82,6 +82,21 @@ function updateCartBadge(count) {
     badge.classList.toggle('hidden', count === 0);
 }
 
+// ─── Toast Notification ───────────────────────────────────────────────────
+function showToast(message, duration = 3000) {
+    const toast = document.getElementById('toast');
+    const msg   = document.getElementById('toast-message');
+    if (!toast || !msg) return;
+    msg.textContent = message;
+    toast.classList.remove('translate-y-4', 'opacity-0', 'pointer-events-none');
+    toast.classList.add('translate-y-0', 'opacity-100');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
+        toast.classList.add('translate-y-4', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+    }, duration);
+}
+
 // ─── Wishlist Toggle (list page) ──────────────────────────────────────────
 document.querySelectorAll('.wishlist-toggle').forEach(btn => {
     btn.addEventListener('click', async (e) => {

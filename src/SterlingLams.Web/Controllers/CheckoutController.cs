@@ -57,6 +57,9 @@ public class CheckoutController : Controller
         {
             Cart = cart,
             Subtotal = cart.Subtotal,
+            DiscountAmount = cart.DiscountAmount,
+            AppliedDiscountCode = cart.AppliedDiscountCode,
+            DiscountDescription = cart.DiscountDescription,
             DeliveryFee = 0,
             PaystackPublicKey = _config["Payment:Paystack:PublicKey"],
             AvailableStores = stores.Select(s => new StorePickupOptionViewModel

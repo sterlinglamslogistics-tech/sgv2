@@ -23,4 +23,14 @@ public class CartViewModel
     public string FormattedSubtotal => $"₦{Subtotal:N0}";
     public int TotalItems => Items.Sum(i => i.Quantity);
     public bool IsEmpty => !Items.Any();
+
+    // Discount
+    public string? AppliedDiscountCode { get; set; }
+    public string? DiscountDescription { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public bool HasDiscount => DiscountAmount > 0;
+    public string FormattedDiscount => $"-₦{DiscountAmount:N0}";
+
+    public decimal Total => Subtotal - DiscountAmount;
+    public string FormattedTotal => $"₦{Total:N0}";
 }

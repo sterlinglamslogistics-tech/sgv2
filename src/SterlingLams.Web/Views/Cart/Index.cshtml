@@ -22,6 +22,7 @@
             {
                 <div class="flex gap-6 py-6 border-b border-neutral-100">
                     <img src="@item.ImageUrl" alt="@item.ProductName"
+                         loading="lazy"
                          class="w-28 h-28 object-cover flex-shrink-0" />
                     <div class="flex-1 min-w-0">
                         <h3 class="font-light text-neutral-800 mb-1">@item.ProductName</h3>
@@ -64,11 +65,73 @@
                 </a>
             </div>
             <div class="md:w-72">
-                <div class="flex justify-between text-sm mb-4">
+                <!-- Discount Code -->
+                <div class="mb-6">
+                    <p class="text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Discount Code</p>
+                    @if (Model.HasDiscount)
+                    {
+                        <div id="discount-applied" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 px-4 py-3">
+                            <div>
+                                <span class="text-xs font-medium text-emerald-800 tracking-wide">@Model.AppliedDiscountCode</span>
+                                @if (!string.IsNullOrEmpty(Model.DiscountDescription))
+                                {
+                                    <p class="text-[11px] text-emerald-600">@Model.DiscountDescription</p>
+                                }
+                            </div>
+                            <button id="remove-discount" class="text-xs text-emerald-700 hover:text-emerald-900 transition-colors">✕</button>
+                        </div>
+                        <div id="discount-input-wrap" class="hidden">
+                            <div class="flex gap-2">
+                                <input id="discount-code" type="text" placeholder="Enter code" maxlength="50"
+                                       class="flex-1 border border-neutral-200 text-sm px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-neutral-900" />
+                                <button id="apply-discount" class="bg-neutral-900 text-white text-xs tracking-widest px-4 py-2 hover:bg-neutral-700 transition-colors">Apply</button>
+                            </div>
+                            <p id="discount-error" class="text-xs text-red-500 mt-1 hidden"></p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="discount-applied" class="hidden flex items-center justify-between bg-emerald-50 border border-emerald-200 px-4 py-3">
+                            <div>
+                                <span id="applied-code-label" class="text-xs font-medium text-emerald-800 tracking-wide"></span>
+                                <p id="applied-code-desc" class="text-[11px] text-emerald-600"></p>
+                            </div>
+                            <button id="remove-discount" class="text-xs text-emerald-700 hover:text-emerald-900 transition-colors">✕</button>
+                        </div>
+                        <div id="discount-input-wrap">
+                            <div class="flex gap-2">
+                                <input id="discount-code" type="text" placeholder="Enter code" maxlength="50"
+                                       class="flex-1 border border-neutral-200 text-sm px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-neutral-900" />
+                                <button id="apply-discount" class="bg-neutral-900 text-white text-xs tracking-widest px-4 py-2 hover:bg-neutral-700 transition-colors">Apply</button>
+                            </div>
+                            <p id="discount-error" class="text-xs text-red-500 mt-1 hidden"></p>
+                        </div>
+                    }
+                </div>
+
+                <div class="flex justify-between text-sm mb-2">
                     <span class="text-neutral-500">Subtotal</span>
                     <span id="subtotal-display" class="font-light">@Model.FormattedSubtotal</span>
                 </div>
-                <p class="text-xs text-neutral-400 mb-6">Shipping and taxes calculated at checkout.</p>
+                @if (Model.HasDiscount)
+                {
+                    <div id="discount-line" class="flex justify-between text-sm mb-2">
+                        <span class="text-emerald-600">Discount (@Model.AppliedDiscountCode)</span>
+                        <span id="discount-amount-display" class="text-emerald-600">@Model.FormattedDiscount</span>
+                    </div>
+                }
+                else
+                {
+                    <div id="discount-line" class="hidden flex justify-between text-sm mb-2">
+                        <span class="text-emerald-600">Discount (<span id="discount-code-label"></span>)</span>
+                        <span id="discount-amount-display" class="text-emerald-600"></span>
+                    </div>
+                }
+                <div class="flex justify-between text-sm font-medium border-t border-neutral-100 pt-3 mb-2">
+                    <span>Total</span>
+                    <span id="total-display" class="font-light">@Model.FormattedTotal</span>
+                </div>
+                <p class="text-xs text-neutral-400 mb-6">Shipping calculated at checkout.</p>
                 <a asp-controller="Checkout" asp-action="Index"
                    class="block text-center bg-neutral-900 text-white text-xs tracking-[0.2em] uppercase py-4 hover:bg-neutral-700 transition-colors">
                     Proceed to Checkout
@@ -77,3 +140,119 @@
         </div>
     }
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    const token = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+    // ── Quantity buttons ───────────────────────────────────────────────────
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const row   = btn.closest('[data-product-id]') ?? btn.parentElement.parentElement.parentElement.parentElement;
+            const pid   = btn.dataset.productId;
+            const vid   = btn.dataset.variantId ?? '';
+            const delta = parseInt(btn.dataset.delta, 10);
+            const display = btn.parentElement.querySelector('.qty-display');
+            const newQty  = Math.max(0, parseInt(display.textContent, 10) + delta);
+
+            const res  = await fetch('/Cart/UpdateQuantity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `productId=${pid}&variantId=${vid}&quantity=${newQty}&__RequestVerificationToken=${encodeURIComponent(token())}`
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (newQty <= 0) { location.reload(); return; }
+                display.textContent = newQty;
+                document.getElementById('subtotal-display').textContent = data.subtotal;
+                document.getElementById('total-display').textContent    = data.subtotal;
+                updateCartBadge(data.cartCount);
+            }
+        });
+    });
+
+    // ── Remove item ────────────────────────────────────────────────────────
+    document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const pid = btn.dataset.productId;
+            const vid = btn.dataset.variantId ?? '';
+            const res = await fetch('/Cart/Remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `productId=${pid}&variantId=${vid}&__RequestVerificationToken=${encodeURIComponent(token())}`
+            });
+            const data = await res.json();
+            if (data.success) location.reload();
+        });
+    });
+
+    // ── Discount code ──────────────────────────────────────────────────────
+    const applyBtn      = document.getElementById('apply-discount');
+    const removeBtn     = document.getElementById('remove-discount');
+    const codeInput     = document.getElementById('discount-code');
+    const errorEl       = document.getElementById('discount-error');
+    const appliedEl     = document.getElementById('discount-applied');
+    const inputWrap     = document.getElementById('discount-input-wrap');
+    const discountLine  = document.getElementById('discount-line');
+    const discountAmt   = document.getElementById('discount-amount-display');
+    const totalDisplay  = document.getElementById('total-display');
+    const codeLabel     = document.getElementById('discount-code-label');
+    const appliedLabel  = document.getElementById('applied-code-label');
+    const appliedDesc   = document.getElementById('applied-code-desc');
+
+    if (applyBtn && codeInput) {
+        applyBtn.addEventListener('click', async () => {
+            const code = codeInput.value.trim();
+            if (!code) return;
+            applyBtn.disabled = true;
+            applyBtn.textContent = '…';
+
+            const res  = await fetch('/Cart/ApplyDiscount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `code=${encodeURIComponent(code)}&__RequestVerificationToken=${encodeURIComponent(token())}`
+            });
+            const data = await res.json();
+            applyBtn.disabled = false;
+            applyBtn.textContent = 'Apply';
+
+            if (data.success) {
+                if (errorEl) { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
+                if (appliedEl) {
+                    if (appliedLabel) appliedLabel.textContent = data.code;
+                    if (appliedDesc)  appliedDesc.textContent  = data.description ?? '';
+                    appliedEl.classList.remove('hidden');
+                }
+                if (inputWrap) inputWrap.classList.add('hidden');
+                if (discountLine) discountLine.classList.remove('hidden');
+                if (codeLabel)   codeLabel.textContent  = data.code;
+                if (discountAmt) discountAmt.textContent = data.discount;
+                if (totalDisplay) totalDisplay.textContent = data.total;
+            } else {
+                if (errorEl) { errorEl.textContent = data.message; errorEl.classList.remove('hidden'); }
+            }
+        });
+
+        codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyBtn.click(); } });
+    }
+
+    if (removeBtn) {
+        removeBtn.addEventListener('click', async () => {
+            const res  = await fetch('/Cart/RemoveDiscount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `__RequestVerificationToken=${encodeURIComponent(token())}`
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (appliedEl) appliedEl.classList.add('hidden');
+                if (inputWrap) inputWrap.classList.remove('hidden');
+                if (discountLine) discountLine.classList.add('hidden');
+                if (totalDisplay) totalDisplay.textContent = data.total;
+            }
+        });
+    }
+}());
+</script>
+}

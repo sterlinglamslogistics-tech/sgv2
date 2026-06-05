@@ -93,24 +93,37 @@
             }
 
             <!-- ─── Actions ───────────────────────────────────────────── -->
-            <div class="flex gap-3 mb-8">
-                <button id="add-to-cart"
-                        data-product-id="@Model.Id"
-                        @(!Model.IsAvailableAnywhere ? "disabled" : "")
-                        class="flex-1 bg-neutral-900 text-white text-xs tracking-[0.2em] uppercase py-4 px-8 hover:bg-neutral-700 transition-colors duration-300 disabled:opacity-40 disabled:cursor-not-allowed">
-                    @(Model.IsAvailableAnywhere ? "Add to Bag" : "Out of Stock")
-                </button>
-                <button id="wishlist-btn"
-                        data-product-id="@Model.Id"
-                        aria-label="@(Model.IsInWishlist ? "Remove from wishlist" : "Add to wishlist")"
-                        class="border border-neutral-300 px-4 hover:border-neutral-900 transition-colors">
-                    <svg class="w-5 h-5 @(Model.IsInWishlist ? "fill-neutral-900" : "")"
-                         fill="@(Model.IsInWishlist ? "currentColor" : "none")"
-                         stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-                    </svg>
-                </button>
+            <div class="mb-8">
+                <!-- Quantity -->
+                <p class="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-3">Quantity</p>
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="flex items-center border border-neutral-300">
+                        <button id="qty-minus" type="button"
+                                class="w-10 h-10 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors text-lg leading-none">−</button>
+                        <span id="qty-display" class="w-12 text-center text-sm border-x border-neutral-300 py-2">1</span>
+                        <button id="qty-plus" type="button"
+                                class="w-10 h-10 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors text-lg leading-none">+</button>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button id="add-to-cart"
+                            data-product-id="@Model.Id"
+                            @(!Model.IsAvailableAnywhere ? "disabled" : "")
+                            class="flex-1 bg-neutral-900 text-white text-xs tracking-[0.2em] uppercase py-4 px-8 hover:bg-neutral-700 transition-colors duration-300 disabled:opacity-40 disabled:cursor-not-allowed">
+                        @(Model.IsAvailableAnywhere ? "Add to Bag" : "Out of Stock")
+                    </button>
+                    <button id="wishlist-btn"
+                            data-product-id="@Model.Id"
+                            aria-label="@(Model.IsInWishlist ? "Remove from wishlist" : "Add to wishlist")"
+                            class="border border-neutral-300 px-4 hover:border-neutral-900 transition-colors">
+                        <svg class="w-5 h-5 @(Model.IsInWishlist ? "fill-neutral-900" : "")"
+                             fill="@(Model.IsInWishlist ? "currentColor" : "none")"
+                             stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Reserve for pickup -->
@@ -173,6 +186,7 @@
                     <a asp-controller="Products" asp-action="Detail" asp-route-slug="@p.Slug" class="group">
                         <div class="aspect-square bg-neutral-50 mb-3 overflow-hidden">
                             <img src="@p.PrimaryImageUrl" alt="@p.Name"
+                                 loading="lazy"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         </div>
                         <h3 class="text-sm font-light text-neutral-700 group-hover:text-neutral-900 transition-colors">@p.Name</h3>
@@ -188,8 +202,18 @@
 <script>
 (function () {
     let selectedVariantId = null;
+    let qty = 1;
 
-    // Variant selection
+    // ── Qty selector ──────────────────────────────────────────────────────
+    const qtyDisplay = document.getElementById('qty-display');
+    document.getElementById('qty-minus')?.addEventListener('click', () => {
+        if (qty > 1) { qty--; qtyDisplay.textContent = qty; }
+    });
+    document.getElementById('qty-plus')?.addEventListener('click', () => {
+        if (qty < 10) { qty++; qtyDisplay.textContent = qty; }
+    });
+
+    // ── Variant selection ─────────────────────────────────────────────────
     document.querySelectorAll('.variant-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('border-neutral-900', 'bg-neutral-900', 'text-white'));
@@ -198,24 +222,35 @@
         });
     });
 
-    // Add to cart
-    document.getElementById('add-to-cart')?.addEventListener('click', async () => {
+    // ── Add to cart ───────────────────────────────────────────────────────
+    document.getElementById('add-to-cart')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'Adding…';
+
         const productId = @Model.Id;
-        const body = new URLSearchParams({ productId, quantity: 1 });
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        const body = new URLSearchParams({ productId, quantity: qty, __RequestVerificationToken: token });
         if (selectedVariantId) body.append('variantId', selectedVariantId);
 
-        const res = await fetch('/Cart/Add', { method: 'POST', body, headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '' } });
-        const data = await res.json();
-        if (data.success) {
-            const badge = document.getElementById('cart-badge');
-            if (badge) badge.textContent = data.cartCount;
+        try {
+            const res  = await fetch('/Cart/Add', { method: 'POST', body });
+            const data = await res.json();
+            if (data.success) {
+                updateCartBadge(data.cartCount);
+                showToast(`Added to bag — ${qty > 1 ? qty + ' items' : '@Model.Name'}`);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Add to Bag';
         }
     });
 
-    // Wishlist toggle
+    // ── Wishlist toggle ───────────────────────────────────────────────────
     document.getElementById('wishlist-btn')?.addEventListener('click', async () => {
         const productId = @Model.Id;
-        const res = await fetch('/Wishlist/Toggle', { method: 'POST', body: new URLSearchParams({ productId }), headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '' } });
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        const res = await fetch('/Wishlist/Toggle', { method: 'POST', body: new URLSearchParams({ productId, __RequestVerificationToken: token }) });
         const data = await res.json();
         if (data.success) location.reload();
     });

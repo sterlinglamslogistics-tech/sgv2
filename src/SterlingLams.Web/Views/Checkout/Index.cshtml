@@ -129,6 +129,7 @@
                         {
                             <div class="flex gap-3">
                                 <img src="@item.ImageUrl" alt="@item.ProductName"
+                                     loading="lazy"
                                      class="w-16 h-16 object-cover flex-shrink-0" />
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs text-neutral-700 leading-snug">@item.ProductName</p>
@@ -148,6 +149,13 @@
                             <span class="text-neutral-500 font-light">Subtotal</span>
                             <span>@Model.FormattedSubtotal</span>
                         </div>
+                        @if (Model.HasDiscount)
+                        {
+                            <div class="flex justify-between text-sm">
+                                <span class="text-emerald-600 font-light">Discount (@Model.AppliedDiscountCode)</span>
+                                <span class="text-emerald-600">@Model.FormattedDiscount</span>
+                            </div>
+                        }
                         <div class="flex justify-between text-sm">
                             <span class="text-neutral-500 font-light">Delivery</span>
                             <span>@Model.FormattedDeliveryFee</span>

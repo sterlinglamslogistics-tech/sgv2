@@ -22,10 +22,15 @@ public class CheckoutViewModel
     // Totals
     public decimal Subtotal { get; set; }
     public decimal DeliveryFee { get; set; }
-    public decimal Total => Subtotal + DeliveryFee;
+    public decimal DiscountAmount { get; set; }
+    public string? AppliedDiscountCode { get; set; }
+    public string? DiscountDescription { get; set; }
+    public decimal Total => Subtotal - DiscountAmount + DeliveryFee;
     public string FormattedTotal => $"₦{Total:N0}";
     public string FormattedSubtotal => $"₦{Subtotal:N0}";
     public string FormattedDeliveryFee => DeliveryFee == 0 ? "Free" : $"₦{DeliveryFee:N0}";
+    public string FormattedDiscount => $"-₦{DiscountAmount:N0}";
+    public bool HasDiscount => DiscountAmount > 0;
 }
 
 public enum FulfillmentChoice

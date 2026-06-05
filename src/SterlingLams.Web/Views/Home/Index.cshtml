@@ -105,6 +105,7 @@
                     <a asp-controller="Products" asp-action="Detail" asp-route-slug="@p.Slug" class="group">
                         <div class="aspect-square bg-neutral-100 mb-4 overflow-hidden relative">
                             <img src="@p.PrimaryImageUrl" alt="@p.Name"
+                                 loading="lazy"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                             <div class="absolute inset-0 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 <span class="bg-white text-neutral-900 text-xs tracking-widest uppercase px-6 py-2 shadow-lg">Quick View</span>

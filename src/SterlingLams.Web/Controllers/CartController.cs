@@ -94,6 +94,50 @@ public class CartController : Controller
         return Json(new { success = true, cartCount = cart.TotalItems });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> ApplyDiscount(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return Json(new { success = false, message = "Please enter a discount code." });
+
+        var cart = GetCart();
+        var discount = await _db.DiscountCodes
+            .FirstOrDefaultAsync(d => d.Code == code.Trim().ToUpper());
+
+        if (discount == null || !discount.IsValid(cart.Subtotal))
+        {
+            string reason = "Invalid or expired discount code.";
+            if (discount != null && discount.MinimumOrderAmount.HasValue && cart.Subtotal < discount.MinimumOrderAmount.Value)
+                reason = $"Minimum order of ₦{discount.MinimumOrderAmount.Value:N0} required.";
+            return Json(new { success = false, message = reason });
+        }
+
+        cart.AppliedDiscountCode = discount.Code;
+        cart.DiscountDescription = discount.Description ?? discount.Code;
+        cart.DiscountAmount = discount.CalculateDiscount(cart.Subtotal);
+        SaveCart(cart);
+
+        return Json(new
+        {
+            success = true,
+            code = cart.AppliedDiscountCode,
+            description = cart.DiscountDescription,
+            discount = cart.FormattedDiscount,
+            total = cart.FormattedTotal
+        });
+    }
+
+    [HttpPost]
+    public IActionResult RemoveDiscount()
+    {
+        var cart = GetCart();
+        cart.AppliedDiscountCode = null;
+        cart.DiscountDescription = null;
+        cart.DiscountAmount = 0;
+        SaveCart(cart);
+        return Json(new { success = true, total = cart.FormattedTotal });
+    }
+
     // Partial for mini-cart in nav dropdown
     public IActionResult MiniCart()
     {

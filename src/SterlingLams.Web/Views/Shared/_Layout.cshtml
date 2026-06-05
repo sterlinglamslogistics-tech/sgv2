@@ -43,6 +43,12 @@
     <!-- ─── Footer ──────────────────────────────────────────────────────── -->
     @await Html.PartialAsync("_Footer")
 
+    <!-- ─── Toast ───────────────────────────────────────────────────────── -->
+    <div id="toast"
+         class="fixed bottom-6 right-6 z-[9999] bg-neutral-900 text-white text-xs tracking-wide px-5 py-3 shadow-xl transition-all duration-300 translate-y-4 opacity-0 pointer-events-none max-w-xs">
+        <span id="toast-message"></span>
+    </div>
+
     <!-- Scripts -->
     <script src="~/js/app.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
