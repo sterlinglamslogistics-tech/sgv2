@@ -1,64 +1,153 @@
 @model SterlingLams.Web.Areas.Admin.ViewModels.AdminProductListViewModel
 @{
     ViewData["Title"] = "Products";
+    bool hasFilters = !string.IsNullOrEmpty(Model.SearchQuery) ||
+                      !string.IsNullOrEmpty(Model.CategoryFilter) ||
+                      !string.IsNullOrEmpty(Model.StatusFilter) ||
+                      Model.MinPrice.HasValue || Model.MaxPrice.HasValue;
 }
 
-<!-- Toolbar -->
-<div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-    <form method="get" class="flex gap-2 flex-1">
-        <input type="text" name="q" value="@Model.SearchQuery"
-               placeholder="Search products…"
-               class="flex-1 border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
-        <button type="submit"
-                class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
-            Search
-        </button>
-    </form>
+<!-- Toolbar: search/filters + action buttons -->
+<form method="get" id="filter-form" class="mb-6 space-y-3">
 
-    <div class="flex gap-2 flex-wrap">
-        <!-- Import from WooCommerce CSV -->
-        <form asp-area="Admin" asp-controller="Products" asp-action="ImportFromWooCommerce"
-              method="post" enctype="multipart/form-data"
-              onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').textContent='Importing…';">
-            @Html.AntiForgeryToken()
-            <label class="flex items-center gap-2 px-4 py-2 border border-emerald-400 text-emerald-700 text-xs rounded-sm hover:bg-emerald-50 transition-colors cursor-pointer">
-                <span>↑ Import WooCommerce CSV</span>
-                <input type="file" name="csvFile" accept=".csv" class="hidden"
-                       onchange="this.closest('form').querySelector('button[type=submit]').click()" />
-            </label>
-            <button type="submit" class="hidden"></button>
-        </form>
-        <!-- Import from ERPNext (full product catalog upsert) -->
-        <form asp-area="Admin" asp-controller="Products" asp-action="ImportFromERPNext" method="post"
-              onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Importing…';">
-            @Html.AntiForgeryToken()
+    <!-- Row 1: search + action buttons -->
+    <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex gap-2 flex-1">
+            <input type="text" name="q" value="@Model.SearchQuery"
+                   placeholder="Search by name…"
+                   class="flex-1 border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
             <button type="submit"
-                    class="px-4 py-2 border border-amber-300 text-amber-700 text-xs rounded-sm hover:bg-amber-50 transition-colors">
-                ↓ Import from ERPNext
+                    class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
+                Search
             </button>
-        </form>
-        <!-- Sync inventory quantities only -->
-        <form asp-area="Admin" asp-controller="Products" asp-action="SyncFromERPNext" method="post"
-              onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Syncing…';">
-            @Html.AntiForgeryToken()
-            <button type="submit"
-                    class="px-4 py-2 border border-neutral-300 text-neutral-700 text-xs rounded-sm hover:bg-neutral-50 transition-colors">
-                ↺ Sync Inventory
-            </button>
-        </form>
-        <a asp-area="Admin" asp-controller="Products" asp-action="Create"
-           class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
-            + New Product
-        </a>
+            @if (hasFilters)
+            {
+                <a asp-area="Admin" asp-controller="Products" asp-action="Index"
+                   class="px-4 py-2 border border-neutral-300 text-neutral-500 text-xs rounded-sm hover:border-neutral-500 transition-colors whitespace-nowrap">
+                    ✕ Clear
+                </a>
+            }
+        </div>
+
+        <div class="flex gap-2 flex-wrap">
+            <!-- Import WooCommerce CSV -->
+            <form asp-area="Admin" asp-controller="Products" asp-action="ImportFromWooCommerce"
+                  method="post" enctype="multipart/form-data"
+                  onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Importing…';">
+                @Html.AntiForgeryToken()
+                <label class="flex items-center gap-2 px-4 py-2 border border-emerald-400 text-emerald-700 text-xs rounded-sm hover:bg-emerald-50 transition-colors cursor-pointer">
+                    <span>↑ Import WooCommerce CSV</span>
+                    <input type="file" name="csvFile" accept=".csv" class="hidden"
+                           onchange="this.closest('form').querySelector('button[type=submit]').click()" />
+                </label>
+                <button type="submit" class="hidden"></button>
+            </form>
+            <!-- Sync inventory -->
+            <form asp-area="Admin" asp-controller="Products" asp-action="SyncFromERPNext" method="post"
+                  onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Syncing…';">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="px-4 py-2 border border-neutral-300 text-neutral-700 text-xs rounded-sm hover:bg-neutral-50 transition-colors">
+                    ↺ Sync Inventory
+                </button>
+            </form>
+            <a asp-area="Admin" asp-controller="Products" asp-action="Create"
+               class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
+                + New Product
+            </a>
+        </div>
     </div>
-</div>
+
+    <!-- Row 2: filters -->
+    <div class="flex flex-wrap gap-3 items-end">
+
+        <!-- Category -->
+        <div>
+            <label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Category</label>
+            <select name="category"
+                    class="border border-neutral-200 rounded-sm px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-400 bg-white"
+                    onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.AvailableCategories)
+                {
+                    <option value="@cat.Slug" selected="@(Model.CategoryFilter == cat.Slug)">@cat.Name</option>
+                }
+            </select>
+        </div>
+
+        <!-- Status -->
+        <div>
+            <label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Status</label>
+            <select name="status"
+                    class="border border-neutral-200 rounded-sm px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-400 bg-white"
+                    onchange="this.form.submit()">
+                <option value="">All Status</option>
+                <option value="active"   selected="@(Model.StatusFilter == "active")">Active</option>
+                <option value="inactive" selected="@(Model.StatusFilter == "inactive")">Inactive</option>
+                <option value="featured" selected="@(Model.StatusFilter == "featured")">Featured</option>
+                <option value="new"      selected="@(Model.StatusFilter == "new")">New Arrival</option>
+            </select>
+        </div>
+
+        <!-- Price Range -->
+        <div>
+            <label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Price (₦)</label>
+            <div class="flex items-center gap-1">
+                <input type="number" name="minPrice" value="@Model.MinPrice" placeholder="Min"
+                       class="w-24 border border-neutral-200 rounded-sm px-2 py-1.5 text-xs focus:outline-none focus:border-neutral-400" />
+                <span class="text-neutral-300 text-xs">—</span>
+                <input type="number" name="maxPrice" value="@Model.MaxPrice" placeholder="Max"
+                       class="w-24 border border-neutral-200 rounded-sm px-2 py-1.5 text-xs focus:outline-none focus:border-neutral-400" />
+                <button type="submit" class="px-3 py-1.5 border border-neutral-200 text-neutral-600 text-xs rounded-sm hover:bg-neutral-50 transition-colors">
+                    Go
+                </button>
+            </div>
+        </div>
+
+        <!-- Result count -->
+        <p class="text-xs text-neutral-400 ml-auto self-center">
+            @Model.TotalCount product@(Model.TotalCount == 1 ? "" : "s")
+            @if (hasFilters) { <span>matching filters</span> }
+        </p>
+    </div>
+</form>
+
+<!-- Active filter chips -->
+@if (hasFilters)
+{
+    <div class="flex flex-wrap gap-2 mb-4">
+        @if (!string.IsNullOrEmpty(Model.SearchQuery))
+        {
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">
+                Name: "@Model.SearchQuery"
+            </span>
+        }
+        @if (!string.IsNullOrEmpty(Model.CategoryFilter))
+        {
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">
+                Category: @(Model.AvailableCategories.FirstOrDefault(c => c.Slug == Model.CategoryFilter)?.Name ?? Model.CategoryFilter)
+            </span>
+        }
+        @if (!string.IsNullOrEmpty(Model.StatusFilter))
+        {
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">
+                Status: @Model.StatusFilter
+            </span>
+        }
+        @if (Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
+        {
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">
+                Price: ₦@(Model.MinPrice?.ToString("N0") ?? "0") — ₦@(Model.MaxPrice?.ToString("N0") ?? "∞")
+            </span>
+        }
+    </div>
+}
 
 <!-- Table -->
 <div class="bg-white rounded-sm border border-neutral-100 overflow-hidden">
     <table class="w-full text-sm">
         <thead>
             <tr class="bg-neutral-50 border-b border-neutral-100">
-                <th class="px-4 py-3 w-12"></th>
+                <th class="px-4 py-3 w-14"></th>
                 <th class="text-left px-4 py-3 text-xs text-neutral-400 font-medium">Name</th>
                 <th class="text-left px-4 py-3 text-xs text-neutral-400 font-medium">Category</th>
                 <th class="text-left px-4 py-3 text-xs text-neutral-400 font-medium">Price</th>
@@ -69,36 +158,61 @@
         <tbody class="divide-y divide-neutral-50">
             @if (!Model.Products.Any())
             {
-                <tr><td colspan="6" class="px-6 py-12 text-center text-neutral-400 text-sm">No products found. Use <strong>Import WooCommerce CSV</strong> to import your catalogue.</td></tr>
+                <tr>
+                    <td colspan="6" class="px-6 py-16 text-center text-neutral-400 text-sm">
+                        @if (hasFilters)
+                        {
+                            <span>No products match your filters. <a asp-area="Admin" asp-controller="Products" asp-action="Index" class="underline hover:text-neutral-700">Clear filters</a></span>
+                        }
+                        else
+                        {
+                            <span>No products yet. Use <strong>↑ Import WooCommerce CSV</strong> to import your catalogue.</span>
+                        }
+                    </td>
+                </tr>
             }
             @foreach (var p in Model.Products)
             {
                 var thumb = p.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.Url;
                 <tr class="hover:bg-neutral-50 transition-colors">
+                    <!-- Thumbnail -->
                     <td class="px-4 py-2">
                         @if (!string.IsNullOrEmpty(thumb))
                         {
                             <img src="@thumb" alt="@p.Name"
-                                 class="w-10 h-10 object-cover rounded-sm border border-neutral-100" />
+                                 class="w-12 h-12 object-cover rounded-sm border border-neutral-100"
+                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                            <div class="w-12 h-12 rounded-sm bg-neutral-100 items-center justify-center hidden">
+                                <svg class="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
                         }
                         else
                         {
-                            <div class="w-10 h-10 rounded-sm bg-neutral-100 flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-sm bg-neutral-100 flex items-center justify-center">
                                 <svg class="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                             </div>
                         }
                     </td>
+
+                    <!-- Name + badges -->
                     <td class="px-4 py-3">
                         <p class="text-xs font-medium text-neutral-800">@p.Name</p>
-                        <div class="flex gap-1 mt-0.5">
-                            @if (p.IsFeatured) { <span class="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">Featured</span> }
-                            @if (p.IsNewArrival) { <span class="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">New</span> }
+                        <div class="flex gap-1 mt-0.5 flex-wrap">
+                            @if (p.IsFeatured)  { <span class="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">Featured</span> }
+                            @if (p.IsNewArrival){ <span class="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">New</span> }
+                            @if (!string.IsNullOrEmpty(p.Sku))
+                            { <span class="text-[9px] text-neutral-400 font-mono">@p.Sku</span> }
                         </div>
                     </td>
+
                     <td class="px-4 py-3 text-xs text-neutral-500">@(p.Category?.Name ?? "—")</td>
                     <td class="px-4 py-3 text-xs font-medium">₦@p.Price.ToString("N0")</td>
+
+                    <!-- Status -->
                     <td class="px-4 py-3">
                         @if (p.IsActive)
                         {
@@ -109,6 +223,8 @@
                             <span class="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">Inactive</span>
                         }
                     </td>
+
+                    <!-- Actions -->
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-3">
                             <a asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@p.Id"
@@ -142,16 +258,21 @@
     </table>
 </div>
 
-<!-- Pagination -->
+<!-- Pagination — preserves all active filters -->
 @if (Model.TotalPages > 1)
 {
     <div class="flex items-center justify-end gap-2 mt-4">
-        @for (int p = 1; p <= Model.TotalPages; p++)
+        @for (int pg = 1; pg <= Model.TotalPages; pg++)
         {
             <a asp-area="Admin" asp-controller="Products" asp-action="Index"
-               asp-route-page="@p" asp-route-q="@Model.SearchQuery"
-               class="px-3 py-1.5 text-xs rounded-sm border transition-colors @(p == Model.CurrentPage ? "bg-neutral-900 text-white border-neutral-900" : "border-neutral-200 text-neutral-600 hover:border-neutral-400")">
-                @p
+               asp-route-page="@pg"
+               asp-route-q="@Model.SearchQuery"
+               asp-route-category="@Model.CategoryFilter"
+               asp-route-status="@Model.StatusFilter"
+               asp-route-minPrice="@Model.MinPrice"
+               asp-route-maxPrice="@Model.MaxPrice"
+               class="px-3 py-1.5 text-xs rounded-sm border transition-colors @(pg == Model.CurrentPage ? "bg-neutral-900 text-white border-neutral-900" : "border-neutral-200 text-neutral-600 hover:border-neutral-400")">
+                @pg
             </a>
         }
     </div>

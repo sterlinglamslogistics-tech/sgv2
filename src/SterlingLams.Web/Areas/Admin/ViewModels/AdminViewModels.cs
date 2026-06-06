@@ -91,8 +91,14 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
     {
         public List<Product> Products { get; set; } = new();
         public string SearchQuery { get; set; } = "";
+        public string CategoryFilter { get; set; } = "";
+        public string StatusFilter { get; set; } = "";
+        public decimal? MinPrice { get; set; }
+        public decimal? MaxPrice { get; set; }
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; } = 1;
+        public int TotalCount { get; set; }
+        public List<Category> AvailableCategories { get; set; } = new();
     }
 
     public class AdminProductEditViewModel

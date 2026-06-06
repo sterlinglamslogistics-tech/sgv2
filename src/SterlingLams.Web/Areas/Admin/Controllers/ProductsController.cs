@@ -33,18 +33,39 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             _wooImporter = wooImporter;
         }
 
-        public async Task<IActionResult> Index(string q = "", int page = 1)
+        public async Task<IActionResult> Index(
+            string q = "", string category = "", string status = "",
+            decimal? minPrice = null, decimal? maxPrice = null, int page = 1)
         {
             ViewData["Title"] = "Products";
 
             var query = _db.Products
                 .Include(p => p.Category)
+                .Include(p => p.Images)          // ← images for thumbnails
                 .AsQueryable();
 
+            // ── Filters ──────────────────────────────────────────────────────
             if (!string.IsNullOrWhiteSpace(q))
                 query = query.Where(p => EF.Functions.ILike(p.Name, $"%{q}%"));
 
-            var total = await query.CountAsync();
+            if (!string.IsNullOrWhiteSpace(category))
+                query = query.Where(p => p.Category != null && p.Category.Slug == category);
+
+            if (minPrice.HasValue)
+                query = query.Where(p => p.Price >= minPrice.Value);
+
+            if (maxPrice.HasValue)
+                query = query.Where(p => p.Price <= maxPrice.Value);
+
+            switch (status)
+            {
+                case "active":   query = query.Where(p => p.IsActive);           break;
+                case "inactive": query = query.Where(p => !p.IsActive);          break;
+                case "featured": query = query.Where(p => p.IsFeatured);         break;
+                case "new":      query = query.Where(p => p.IsNewArrival);       break;
+            }
+
+            var total    = await query.CountAsync();
             var products = await query
                 .OrderBy(p => p.Name)
                 .Skip((page - 1) * PageSize)
@@ -53,10 +74,16 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
             var vm = new AdminProductListViewModel
             {
-                Products = products,
-                SearchQuery = q,
-                CurrentPage = page,
-                TotalPages = (int)Math.Ceiling(total / (double)PageSize)
+                Products            = products,
+                SearchQuery         = q,
+                CategoryFilter      = category,
+                StatusFilter        = status,
+                MinPrice            = minPrice,
+                MaxPrice            = maxPrice,
+                CurrentPage         = page,
+                TotalCount          = total,
+                TotalPages          = (int)Math.Ceiling(total / (double)PageSize),
+                AvailableCategories = await _db.Categories.OrderBy(c => c.Name).ToListAsync(),
             };
 
             return View(vm);
