@@ -1,45 +1,54 @@
 @model SterlingLams.Web.Models.ViewModels.ProfileViewModel
 @{
     ViewData["Title"] = "My Account";
+    var tab = Model.ActiveTab;
 }
 
-<div class="max-w-4xl mx-auto px-6 py-16">
-    <div class="mb-10">
+<div class="max-w-3xl mx-auto px-6 py-16">
+
+    <!-- Header -->
+    <div class="mb-8">
         <p class="section-label">Your account</p>
-        <h1 class="font-cormorant text-4xl font-light">Hello, @Model.FirstName</h1>
+        <div class="flex items-baseline justify-between">
+            <h1 class="font-cormorant text-4xl font-light">Hello, @Model.FirstName</h1>
+            <form asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="text-xs text-neutral-400 hover:text-neutral-700 transition-colors">Sign out</button>
+            </form>
+        </div>
     </div>
 
-    <div class="grid md:grid-cols-3 gap-10">
-
-        <!-- ─── Sidebar nav ──────────────────────────────────────────────── -->
-        <aside class="md:col-span-1">
-            <nav class="flex flex-col gap-1">
-                @foreach (var (label, action) in new[] {
-                    ("My Profile", "Profile"),
-                    ("My Orders", "Orders"),
-                    ("Change Password", "ChangePassword"),
-                })
+    <!-- Tab bar -->
+    <div class="flex border-b border-neutral-200 mb-10 gap-0">
+        @foreach (var (label, slug) in new[] { ("Profile", "profile"), ("Orders", "orders"), ("Security", "security") })
+        {
+            <a asp-action="Profile" asp-route-tab="@slug"
+               class="px-5 py-3 text-xs tracking-[0.15em] uppercase transition-colors border-b-2 -mb-px
+                      @(tab == slug ? "border-neutral-900 text-neutral-900 font-medium" : "border-transparent text-neutral-400 hover:text-neutral-700")">
+                @label
+                @if (slug == "orders" && Model.RecentOrders.Any())
                 {
-                    <a asp-action="@action"
-                       class="text-sm py-3 border-b border-neutral-100 text-neutral-600 hover:text-neutral-900 transition-colors @(ViewContext.RouteData.Values["action"]?.ToString() == action ? "text-neutral-900 font-medium" : "")">
-                        @label
-                    </a>
+                    <span class="ml-1.5 text-[10px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded-full">@Model.RecentOrders.Count</span>
                 }
-                <form asp-action="Logout" method="post" class="mt-2">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="text-sm text-neutral-400 hover:text-neutral-700 transition-colors py-2">
-                        Sign out
-                    </button>
-                </form>
-            </nav>
-        </aside>
+            </a>
+        }
+    </div>
 
-        <!-- ─── Main content ────────────────────────────────────────────── -->
-        <div class="md:col-span-2 space-y-10">
+    <!-- ─── Profile Tab ──────────────────────────────────────────────────── -->
+    @if (tab == "profile")
+    {
+        <div class="space-y-10">
 
-            <!-- Account Info -->
+            <!-- View -->
             <section>
-                <h2 class="font-cormorant text-2xl font-light mb-6">Account Details</h2>
+                <div class="flex items-baseline justify-between mb-6">
+                    <h2 class="font-cormorant text-2xl font-light">Account Details</h2>
+                    <button onclick="document.getElementById('edit-form').classList.toggle('hidden');this.classList.toggle('hidden')"
+                            class="text-xs tracking-widest uppercase text-neutral-400 hover:text-neutral-900 transition-colors">
+                        Edit
+                    </button>
+                </div>
+
                 <dl class="space-y-4">
                     <div class="flex flex-col sm:flex-row sm:gap-6">
                         <dt class="text-xs tracking-[0.15em] uppercase text-neutral-400 w-32 flex-shrink-0 pt-0.5">Name</dt>
@@ -49,13 +58,10 @@
                         <dt class="text-xs tracking-[0.15em] uppercase text-neutral-400 w-32 flex-shrink-0 pt-0.5">Email</dt>
                         <dd class="text-sm text-neutral-700">@Model.Email</dd>
                     </div>
-                    @if (!string.IsNullOrEmpty(Model.Phone))
-                    {
-                        <div class="flex flex-col sm:flex-row sm:gap-6">
-                            <dt class="text-xs tracking-[0.15em] uppercase text-neutral-400 w-32 flex-shrink-0 pt-0.5">Phone</dt>
-                            <dd class="text-sm text-neutral-700">@Model.Phone</dd>
-                        </div>
-                    }
+                    <div class="flex flex-col sm:flex-row sm:gap-6">
+                        <dt class="text-xs tracking-[0.15em] uppercase text-neutral-400 w-32 flex-shrink-0 pt-0.5">Phone</dt>
+                        <dd class="text-sm text-neutral-700">@(string.IsNullOrEmpty(Model.Phone) ? "—" : Model.Phone)</dd>
+                    </div>
                     <div class="flex flex-col sm:flex-row sm:gap-6">
                         <dt class="text-xs tracking-[0.15em] uppercase text-neutral-400 w-32 flex-shrink-0 pt-0.5">Member since</dt>
                         <dd class="text-sm text-neutral-700">@Model.CreatedAt.ToString("MMMM yyyy")</dd>
@@ -63,46 +69,115 @@
                 </dl>
             </section>
 
-            <!-- Recent Orders -->
-            @if (Model.RecentOrders.Any())
+            <!-- Edit form (hidden by default) -->
+            <section id="edit-form" class="hidden border-t border-neutral-100 pt-8">
+                <h2 class="font-cormorant text-2xl font-light mb-6">Edit Profile</h2>
+                <form asp-action="UpdateProfile" method="post" class="space-y-4 max-w-sm">
+                    @Html.AntiForgeryToken()
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">First Name</label>
+                            <input name="FirstName" value="@Model.FirstName" required class="form-input" />
+                        </div>
+                        <div>
+                            <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Last Name</label>
+                            <input name="LastName" value="@Model.LastName" required class="form-input" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Phone</label>
+                        <input name="Phone" type="tel" value="@Model.Phone" placeholder="+234 800 000 0000" class="form-input" />
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="btn-primary text-sm py-3 px-8">Save Changes</button>
+                        <button type="button"
+                                onclick="document.getElementById('edit-form').classList.add('hidden');document.querySelector('[onclick*=edit-form]').classList.remove('hidden')"
+                                class="btn-outline text-sm py-3 px-8">Cancel</button>
+                    </div>
+                </form>
+            </section>
+
+        </div>
+    }
+
+    <!-- ─── Orders Tab ───────────────────────────────────────────────────── -->
+    @if (tab == "orders")
+    {
+        <section>
+            <h2 class="font-cormorant text-2xl font-light mb-6">Your Orders</h2>
+
+            @if (!Model.RecentOrders.Any())
             {
-                <section>
-                    <div class="flex justify-between items-baseline mb-6">
-                        <h2 class="font-cormorant text-2xl font-light">Recent Orders</h2>
-                        <a asp-action="Orders" class="text-xs tracking-widest uppercase text-neutral-400 hover:text-neutral-900 transition-colors">
-                            View all
-                        </a>
-                    </div>
-                    <div class="space-y-3">
-                        @foreach (var order in Model.RecentOrders)
-                        {
-                            <a asp-action="OrderDetail" asp-route-id="@order.Id"
-                               class="flex items-center justify-between py-4 border-b border-neutral-100 hover:bg-neutral-50 -mx-4 px-4 transition-colors group">
-                                <div>
-                                    <p class="text-sm text-neutral-800 font-light">@order.OrderNumber</p>
-                                    <p class="text-xs text-neutral-400 mt-0.5">@order.CreatedAt.ToString("d MMM yyyy") · @order.ItemCount piece@(order.ItemCount == 1 ? "" : "s")</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm text-neutral-700">@order.FormattedTotal</p>
-                                    <span class="text-[10px] tracking-widest uppercase @(order.Status == "Delivered" ? "text-emerald-600" : "text-neutral-400")">
-                                        @order.Status
-                                    </span>
-                                </div>
-                            </a>
-                        }
-                    </div>
-                </section>
+                <div class="text-center py-16">
+                    <p class="text-neutral-400 font-light mb-6">You haven't placed any orders yet.</p>
+                    <a asp-controller="Products" asp-action="Index" class="btn-outline">Start Shopping</a>
+                </div>
             }
             else
             {
-                <section>
-                    <h2 class="font-cormorant text-2xl font-light mb-4">Recent Orders</h2>
-                    <p class="text-sm text-neutral-400 font-light">You haven't placed any orders yet.</p>
-                    <a asp-controller="Products" asp-action="Index" class="btn-outline mt-6 inline-block">
-                        Start Shopping
-                    </a>
-                </section>
+                <div class="divide-y divide-neutral-100">
+                    @foreach (var order in Model.RecentOrders)
+                    {
+                        var statusColor = order.Status switch
+                        {
+                            "Delivered" => "text-emerald-600",
+                            "Cancelled" => "text-red-500",
+                            "Confirmed" or "Processing" => "text-blue-600",
+                            _ => "text-neutral-400"
+                        };
+                        <a asp-action="OrderDetail" asp-route-id="@order.Id"
+                           class="flex items-center justify-between py-5 hover:bg-neutral-50 -mx-4 px-4 transition-colors group">
+                            <div>
+                                <p class="text-sm text-neutral-800 font-medium font-mono">@order.OrderNumber</p>
+                                <p class="text-xs text-neutral-400 mt-0.5">
+                                    @order.CreatedAt.ToString("d MMM yyyy") &nbsp;·&nbsp;
+                                    @order.ItemCount piece@(order.ItemCount == 1 ? "" : "s")
+                                </p>
+                            </div>
+                            <div class="text-right flex items-center gap-4">
+                                <div>
+                                    <p class="text-sm text-neutral-700 font-medium">@order.FormattedTotal</p>
+                                    <span class="text-[10px] tracking-widest uppercase @statusColor">@order.Status</span>
+                                </div>
+                                <svg class="w-4 h-4 text-neutral-300 group-hover:text-neutral-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+                        </a>
+                    }
+                </div>
             }
-        </div>
-    </div>
+        </section>
+    }
+
+    <!-- ─── Security Tab ─────────────────────────────────────────────────── -->
+    @if (tab == "security")
+    {
+        <section>
+            <h2 class="font-cormorant text-2xl font-light mb-6">Change Password</h2>
+
+            <form asp-action="ChangePassword" method="post" class="space-y-4 max-w-sm">
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly" class="text-sm text-red-600 bg-red-50 px-4 py-3 border border-red-100 rounded-sm"></div>
+
+                <div>
+                    <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Current Password</label>
+                    <input name="CurrentPassword" type="password" autocomplete="current-password" required class="form-input" />
+                </div>
+                <div>
+                    <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">New Password</label>
+                    <input name="NewPassword" type="password" autocomplete="new-password" required minlength="8" class="form-input" />
+                    <p class="text-[11px] text-neutral-400 mt-1">Minimum 8 characters.</p>
+                </div>
+                <div>
+                    <label class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Confirm New Password</label>
+                    <input name="ConfirmNewPassword" type="password" autocomplete="new-password" required minlength="8" class="form-input" />
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="btn-primary text-sm py-3 px-8">Update Password</button>
+                </div>
+            </form>
+        </section>
+    }
 </div>

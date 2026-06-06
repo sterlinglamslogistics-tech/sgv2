@@ -1,26 +1,73 @@
+@using Microsoft.EntityFrameworkCore
+@using SterlingLams.Web.Services
+@using SterlingLams.Web.Data
+@inject ISettingsService SettingsService
+@inject ApplicationDbContext Db
+@{
+    var instagram  = await SettingsService.GetAsync("general.instagram_url");
+    var whatsapp   = await SettingsService.GetAsync("general.whatsapp_number");
+    var facebook   = await SettingsService.GetAsync("general.facebook_url");
+    var tiktok     = await SettingsService.GetAsync("general.tiktok_url");
+    var tagline    = await SettingsService.GetAsync("general.tagline", "Timeless luxury jewellery crafted with the finest materials.");
+
+    var activeStores = await Db.Stores
+        .Where(s => s.IsActive)
+        .OrderBy(s => s.Name)
+        .ToListAsync();
+}
+
 <footer class="bg-neutral-900 text-white mt-24">
     <div class="max-w-7xl mx-auto px-6 py-16">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+
             <!-- Brand -->
             <div class="md:col-span-1">
-                <span class="font-cormorant text-2xl font-light tracking-[0.3em] uppercase">
-                    Sterlin Glams
-                </span>
-                <p class="mt-4 text-neutral-400 text-sm leading-relaxed font-light">
-                    Timeless luxury jewellery crafted with the finest materials. Three stores across Lagos.
-                </p>
+                <a asp-controller="Home" asp-action="Index">
+                    <span class="font-cormorant text-2xl font-light tracking-[0.3em] uppercase">
+                        Sterlin Glams
+                    </span>
+                </a>
+                <p class="mt-4 text-neutral-400 text-sm leading-relaxed font-light">@tagline</p>
+
+                <!-- Social links — only shown when configured in Admin → Settings -->
                 <div class="flex gap-4 mt-6">
-                    <a href="#" aria-label="Instagram" class="text-neutral-400 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-                        </svg>
-                    </a>
-                    <a href="#" aria-label="WhatsApp" class="text-neutral-400 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.554 4.118 1.525 5.848L.057 23.57a.5.5 0 00.607.606l5.764-1.448A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.9 9.9 0 01-5.045-1.374l-.362-.215-3.738.938.977-3.65-.236-.374A9.9 9.9 0 112.1 12 9.9 9.9 0 0112 21.9z"/>
-                        </svg>
-                    </a>
+                    @if (!string.IsNullOrEmpty(instagram))
+                    {
+                        <a href="@instagram" target="_blank" rel="noopener" aria-label="Instagram"
+                           class="text-neutral-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                            </svg>
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(facebook))
+                    {
+                        <a href="@facebook" target="_blank" rel="noopener" aria-label="Facebook"
+                           class="text-neutral-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(tiktok))
+                    {
+                        <a href="@tiktok" target="_blank" rel="noopener" aria-label="TikTok"
+                           class="text-neutral-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.79a8.18 8.18 0 004.78 1.52V6.86a4.85 4.85 0 01-1.01-.17z"/>
+                            </svg>
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(whatsapp))
+                    {
+                        <a href="https://wa.me/@(whatsapp.Replace("+","").Replace(" ",""))" target="_blank" rel="noopener" aria-label="WhatsApp"
+                           class="text-neutral-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.554 4.118 1.525 5.848L.057 23.57a.5.5 0 00.607.606l5.764-1.448A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.9 9.9 0 01-5.045-1.374l-.362-.215-3.738.938.977-3.65-.236-.374A9.9 9.9 0 112.1 12 9.9 9.9 0 0112 21.9z"/>
+                            </svg>
+                        </a>
+                    }
                 </div>
             </div>
 
@@ -28,11 +75,11 @@
             <div>
                 <h4 class="text-xs tracking-[0.2em] uppercase text-neutral-400 mb-5">Shop</h4>
                 <ul class="space-y-3">
-                    <li><a asp-controller="Products" asp-action="Index" asp-route-category="rings" class="text-sm text-neutral-300 hover:text-white transition-colors">Rings</a></li>
+                    <li><a asp-controller="Products" asp-action="Index" asp-route-category="rings"     class="text-sm text-neutral-300 hover:text-white transition-colors">Rings</a></li>
                     <li><a asp-controller="Products" asp-action="Index" asp-route-category="necklaces" class="text-sm text-neutral-300 hover:text-white transition-colors">Necklaces</a></li>
                     <li><a asp-controller="Products" asp-action="Index" asp-route-category="bracelets" class="text-sm text-neutral-300 hover:text-white transition-colors">Bracelets</a></li>
-                    <li><a asp-controller="Products" asp-action="Index" asp-route-category="earrings" class="text-sm text-neutral-300 hover:text-white transition-colors">Earrings</a></li>
-                    <li><a asp-controller="Products" asp-action="Index" asp-route-isNewArrival="true" class="text-sm text-neutral-300 hover:text-white transition-colors">New Arrivals</a></li>
+                    <li><a asp-controller="Products" asp-action="Index" asp-route-category="earrings"  class="text-sm text-neutral-300 hover:text-white transition-colors">Earrings</a></li>
+                    <li><a asp-controller="Products" asp-action="Index" asp-route-isNewArrival="true"  class="text-sm text-neutral-300 hover:text-white transition-colors">New Arrivals</a></li>
                 </ul>
             </div>
 
@@ -40,39 +87,43 @@
             <div>
                 <h4 class="text-xs tracking-[0.2em] uppercase text-neutral-400 mb-5">Company</h4>
                 <ul class="space-y-3">
-                    <li><a asp-controller="Home" asp-action="About" class="text-sm text-neutral-300 hover:text-white transition-colors">Our Story</a></li>
-                    <li><a asp-controller="Stores" asp-action="Index" class="text-sm text-neutral-300 hover:text-white transition-colors">Our Stores</a></li>
-                    <li><a asp-controller="Home" asp-action="Contact" class="text-sm text-neutral-300 hover:text-white transition-colors">Contact</a></li>
+                    <li><a asp-controller="Home"   asp-action="About"   class="text-sm text-neutral-300 hover:text-white transition-colors">Our Story</a></li>
+                    <li><a asp-controller="Stores" asp-action="Index"   class="text-sm text-neutral-300 hover:text-white transition-colors">Our Stores</a></li>
+                    <li><a asp-controller="Home"   asp-action="Contact" class="text-sm text-neutral-300 hover:text-white transition-colors">Contact</a></li>
                 </ul>
             </div>
 
-            <!-- Stores -->
+            <!-- Stores — pulled live from DB -->
             <div>
                 <h4 class="text-xs tracking-[0.2em] uppercase text-neutral-400 mb-5">Our Stores</h4>
-                <ul class="space-y-4">
-                    <li class="text-sm text-neutral-400 font-light">
-                        <span class="text-white block">Sterlin Glams Abuja</span>
-                        <span>Elboogie Place Adj. Kilimanjaro, 3rd Ave, Gwarinpa, Abuja</span>
-                    </li>
-                    <li class="text-sm text-neutral-400 font-light">
-                        <span class="text-white block">Sterlin Glams Allen</span>
-                        <span>47 Allen Ave, Studio 24 Bldg, Ikeja, Lagos</span>
-                    </li>
-                    <li class="text-sm text-neutral-400 font-light">
-                        <span class="text-white block">Sterlin Glams Ikota</span>
-                        <span>Shop J22, Ikota Shopping Complex, Ajah, Lagos</span>
-                    </li>
-                </ul>
+                @if (activeStores.Any())
+                {
+                    <ul class="space-y-4">
+                        @foreach (var store in activeStores)
+                        {
+                            <li class="text-sm text-neutral-400 font-light">
+                                <span class="text-white block">@store.Name</span>
+                                <span>@store.Address, @store.City</span>
+                                @if (!string.IsNullOrEmpty(store.Phone))
+                                {
+                                    <a href="tel:@store.Phone" class="block text-neutral-500 hover:text-neutral-300 transition-colors mt-0.5 text-xs">@store.Phone</a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-sm text-neutral-500">Coming soon.</p>
+                }
             </div>
         </div>
 
         <div class="border-t border-neutral-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p class="text-xs text-neutral-500">
-                &copy; @DateTime.UtcNow.Year Sterlin Glams. All rights reserved.
-            </p>
+            <p class="text-xs text-neutral-500">&copy; @DateTime.UtcNow.Year Sterlin Glams. All rights reserved.</p>
             <div class="flex gap-6">
-                <a asp-controller="Home" asp-action="Privacy" class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Privacy Policy</a>
-                <a asp-controller="Home" asp-action="Terms" class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Terms of Service</a>
+                <a asp-controller="Home" asp-action="Privacy"        class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Privacy Policy</a>
+                <a asp-controller="Home" asp-action="Terms"          class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Terms of Service</a>
                 <a asp-controller="Home" asp-action="PaymentReturns" class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Payment &amp; Returns</a>
             </div>
         </div>

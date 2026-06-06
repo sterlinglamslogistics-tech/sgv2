@@ -53,9 +53,27 @@ public class ProfileViewModel
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string ActiveTab { get; set; } = "profile";
 
     public List<OrderSummaryViewModel> RecentOrders { get; set; } = new();
     public List<SterlingLams.Web.Models.Domain.Address> Addresses { get; set; } = new();
+
+    // Inline change-password form
+    public ChangePasswordViewModel ChangePassword { get; set; } = new();
+}
+
+public class UpdateProfileViewModel
+{
+    [Required(ErrorMessage = "First name is required")]
+    [StringLength(50)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Last name is required")]
+    [StringLength(50)]
+    public string LastName { get; set; } = string.Empty;
+
+    [Phone]
+    public string? Phone { get; set; }
 }
 
 public class OrderSummaryViewModel

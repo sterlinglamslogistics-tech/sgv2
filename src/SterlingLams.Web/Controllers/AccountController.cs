@@ -127,7 +127,7 @@ public class AccountController : Controller
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> Profile()
+    public async Task<IActionResult> Profile(string tab = "profile")
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
@@ -135,7 +135,6 @@ public class AccountController : Controller
         var orders = await _db.Orders
             .Where(o => o.UserId == user.Id)
             .OrderByDescending(o => o.CreatedAt)
-            .Take(5)
             .Select(o => new OrderSummaryViewModel
             {
                 Id = o.Id,
@@ -153,16 +152,39 @@ public class AccountController : Controller
 
         var vm = new ProfileViewModel
         {
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email ?? string.Empty,
-            Phone = user.PhoneNumber,
-            CreatedAt = user.CreatedAt,
+            FirstName   = user.FirstName,
+            LastName    = user.LastName,
+            Email       = user.Email ?? string.Empty,
+            Phone       = user.PhoneNumber,
+            CreatedAt   = user.CreatedAt,
+            ActiveTab   = tab,
             RecentOrders = orders,
-            Addresses = addresses
+            Addresses   = addresses
         };
 
         return View(vm);
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileViewModel model)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Please correct the form errors.";
+            return RedirectToAction(nameof(Profile), new { tab = "profile" });
+        }
+
+        user.FirstName   = model.FirstName.Trim();
+        user.LastName    = model.LastName.Trim();
+        user.PhoneNumber = model.Phone?.Trim();
+        await _userManager.UpdateAsync(user);
+
+        TempData["Success"] = "Profile updated successfully.";
+        return RedirectToAction(nameof(Profile), new { tab = "profile" });
     }
 
     // ─── Orders List ─────────────────────────────────────────────────────────
@@ -223,7 +245,7 @@ public class AccountController : Controller
         {
             await _signInManager.RefreshSignInAsync(user);
             TempData["Success"] = "Password updated successfully.";
-            return RedirectToAction(nameof(Profile));
+            return RedirectToAction(nameof(Profile), new { tab = "security" });
         }
 
         foreach (var error in result.Errors)
