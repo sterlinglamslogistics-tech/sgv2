@@ -163,6 +163,9 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public List<ProductInventoryRow> Products { get; set; } = new();
         public DateTime? LastSyncedAt { get; set; }
         public string SearchQuery { get; set; } = "";
+        public string CategoryFilter { get; set; } = "";
+        public string StockFilter { get; set; } = "";
+        public List<Category> AvailableCategories { get; set; } = new();
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; } = 1;
         public int TotalCount { get; set; }

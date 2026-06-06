@@ -35,21 +35,102 @@
     </div>
 </div>
 
-<!-- Search -->
-<form method="get" class="flex gap-2 mb-4">
-    <input type="text" name="q" value="@Model.SearchQuery"
-           placeholder="Search products…"
-           class="flex-1 max-w-xs border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
-    <button type="submit"
-            class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
-        Search
-    </button>
-    @if (!string.IsNullOrEmpty(Model.SearchQuery))
+@{
+    bool hasFilters = !string.IsNullOrEmpty(Model.SearchQuery) ||
+                      !string.IsNullOrEmpty(Model.CategoryFilter) ||
+                      !string.IsNullOrEmpty(Model.StockFilter);
+}
+
+<!-- Filter bar -->
+<form method="get" class="bg-white rounded-sm border border-neutral-100 p-4 mb-4 space-y-3">
+    <!-- Row 1: name search -->
+    <div class="flex gap-2">
+        <input type="text" name="q" value="@Model.SearchQuery"
+               placeholder="Search by product name…"
+               class="flex-1 max-w-xs border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+        <button type="submit"
+                class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">
+            Search
+        </button>
+        @if (hasFilters)
+        {
+            <a asp-area="Admin" asp-controller="Inventory" asp-action="Index"
+               class="px-4 py-2 border border-neutral-300 text-neutral-500 text-xs rounded-sm hover:border-neutral-500 transition-colors whitespace-nowrap">
+                ✕ Clear All
+            </a>
+        }
+    </div>
+
+    <!-- Row 2: category + stock status + apply -->
+    <div class="flex flex-wrap gap-3 items-end">
+
+        <!-- Category -->
+        <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-neutral-400 uppercase tracking-widest">Category</label>
+            <select name="category"
+                    class="border border-neutral-200 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-neutral-400 bg-white min-w-[140px]">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.AvailableCategories)
+                {
+                    <option value="@cat.Slug" selected="@(Model.CategoryFilter == cat.Slug)">@cat.Name</option>
+                }
+            </select>
+        </div>
+
+        <!-- Stock Status -->
+        <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-neutral-400 uppercase tracking-widest">Stock Status</label>
+            <select name="stock"
+                    class="border border-neutral-200 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-neutral-400 bg-white min-w-[150px]">
+                <option value="">All Stock Levels</option>
+                <option value="outofstock" selected="@(Model.StockFilter == "outofstock")">Out of Stock</option>
+                <option value="low"        selected="@(Model.StockFilter == "low")">Low Stock</option>
+                <option value="instock"    selected="@(Model.StockFilter == "instock")">In Stock</option>
+                <option value="norecord"   selected="@(Model.StockFilter == "norecord")">No Record</option>
+            </select>
+        </div>
+
+        <!-- Apply -->
+        <button type="submit"
+                class="px-6 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors self-end">
+            Apply Filters
+        </button>
+
+        <!-- Result count -->
+        <p class="text-xs text-neutral-400 self-end ml-auto">
+            <strong class="text-neutral-700">@Model.TotalCount</strong>
+            product@(Model.TotalCount == 1 ? "" : "s")
+            @if (hasFilters) { <span>matching filters</span> }
+        </p>
+    </div>
+
+    <!-- Active chips -->
+    @if (hasFilters)
     {
-        <a asp-area="Admin" asp-controller="Inventory" asp-action="Index"
-           class="px-4 py-2 border border-neutral-200 text-neutral-500 text-xs rounded-sm hover:border-neutral-400 transition-colors">
-            ✕ Clear
-        </a>
+        <div class="flex flex-wrap gap-2 pt-1 border-t border-neutral-50">
+            @if (!string.IsNullOrEmpty(Model.SearchQuery))
+            {
+                <span class="text-[11px] bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">Name: "@Model.SearchQuery"</span>
+            }
+            @if (!string.IsNullOrEmpty(Model.CategoryFilter))
+            {
+                <span class="text-[11px] bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">
+                    Category: @(Model.AvailableCategories.FirstOrDefault(c => c.Slug == Model.CategoryFilter)?.Name ?? Model.CategoryFilter)
+                </span>
+            }
+            @if (!string.IsNullOrEmpty(Model.StockFilter))
+            {
+                var stockLabel = Model.StockFilter switch
+                {
+                    "outofstock" => "Out of Stock",
+                    "low"        => "Low Stock",
+                    "instock"    => "In Stock",
+                    "norecord"   => "No Record",
+                    _            => Model.StockFilter
+                };
+                <span class="text-[11px] bg-neutral-100 text-neutral-600 px-3 py-1 rounded-full">Stock: @stockLabel</span>
+            }
+        </div>
     }
 </form>
 
@@ -89,8 +170,10 @@ else
               method="post" style="display:none">
             @Html.AntiForgeryToken()
             <input type="hidden" name="productId" value="@row.ProductId" />
-            <input type="hidden" name="q"    value="@Model.SearchQuery" />
-            <input type="hidden" name="page" value="@Model.CurrentPage" />
+            <input type="hidden" name="q"        value="@Model.SearchQuery" />
+            <input type="hidden" name="category" value="@Model.CategoryFilter" />
+            <input type="hidden" name="stock"    value="@Model.StockFilter" />
+            <input type="hidden" name="page"     value="@Model.CurrentPage" />
         </form>
     }
 
@@ -197,6 +280,7 @@ else
             {
                 <a asp-area="Admin" asp-controller="Inventory" asp-action="Index"
                    asp-route-page="@pg" asp-route-q="@Model.SearchQuery"
+                   asp-route-category="@Model.CategoryFilter" asp-route-stock="@Model.StockFilter"
                    class="px-3 py-1.5 text-xs rounded-sm border transition-colors @(pg == Model.CurrentPage ? "bg-neutral-900 text-white border-neutral-900" : "border-neutral-200 text-neutral-600 hover:border-neutral-400")">
                     @pg
                 </a>

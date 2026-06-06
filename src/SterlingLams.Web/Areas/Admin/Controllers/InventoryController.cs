@@ -25,7 +25,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
         }
 
         // ── Index: product-centric view (all stores as columns) ───────────────────
-        public async Task<IActionResult> Index(string q = "", int page = 1)
+        public async Task<IActionResult> Index(
+            string q = "", string category = "", string stock = "", int page = 1)
         {
             ViewData["Title"] = "Inventory";
 
@@ -34,7 +35,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 .OrderBy(s => s.Name)
                 .ToListAsync();
 
-            // Build query over products
+            // ── Name + category filter in SQL ─────────────────────────────────────
             var productQuery = _db.Products
                 .Include(p => p.Category)
                 .Include(p => p.Images)
@@ -44,51 +45,66 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             if (!string.IsNullOrWhiteSpace(q))
                 productQuery = productQuery.Where(p => EF.Functions.ILike(p.Name, $"%{q}%"));
 
-            var total    = await productQuery.CountAsync();
-            var products = await productQuery
-                .OrderBy(p => p.Name)
-                .Skip((page - 1) * PageSize)
-                .Take(PageSize)
-                .ToListAsync();
+            if (!string.IsNullOrWhiteSpace(category))
+                productQuery = productQuery.Where(p => p.Category != null && p.Category.Slug == category);
 
-            // Load all StoreInventory records for this page of products in one query
-            var productIds = products.Select(p => p.Id).ToList();
-            var allInventory = await _db.StoreInventories
-                .Where(si => productIds.Contains(si.ProductId))
-                .ToListAsync();
+            var allMatchingProducts = await productQuery.OrderBy(p => p.Name).ToListAsync();
+            var allProductIds       = allMatchingProducts.Select(p => p.Id).ToList();
 
-            var rows = products.Select(p =>
+            // Load inventory for all matching products
+            var allInventory = allProductIds.Any()
+                ? await _db.StoreInventories.Where(si => allProductIds.Contains(si.ProductId)).ToListAsync()
+                : new List<StoreInventory>();
+
+            // Build rows (needed before stock filter so we can check stock values)
+            var allRows = allMatchingProducts.Select(p =>
             {
                 var stockByStore = stores.ToDictionary(
                     s => s.Id,
                     s => allInventory.FirstOrDefault(si => si.ProductId == p.Id && si.StoreId == s.Id)
-                                    ?.QuantityOnHand ?? -1   // -1 = no record exists yet
-                );
-
+                                    ?.QuantityOnHand ?? -1);
                 return new ProductInventoryRow
                 {
-                    ProductId        = p.Id,
-                    ProductName      = p.Name,
-                    Sku              = p.Sku,
-                    CategoryName     = p.Category?.Name ?? "—",
-                    ImageUrl         = p.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.Url,
+                    ProductId         = p.Id,
+                    ProductName       = p.Name,
+                    Sku               = p.Sku,
+                    CategoryName      = p.Category?.Name ?? "—",
+                    ImageUrl          = p.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.Url,
                     LowStockThreshold = p.LowStockThreshold,
-                    StockByStore     = stockByStore,
+                    StockByStore      = stockByStore,
                 };
             }).ToList();
 
-            var lastSync = await _db.StoreInventories
-                .MaxAsync(si => (DateTime?)si.LastSyncedAt);
+            // ── Stock status filter (in-memory, after building rows) ──────────────
+            var filteredRows = stock switch
+            {
+                "outofstock" => allRows.Where(r => r.StockByStore.Values.Any(v => v == 0)).ToList(),
+                "low"        => allRows.Where(r => r.HasLowStock && !r.HasOutOfStock).ToList(),
+                "instock"    => allRows.Where(r => r.TotalStock > 0 && !r.HasLowStock).ToList(),
+                "norecord"   => allRows.Where(r => r.StockByStore.Values.Any(v => v == -1)).ToList(),
+                _            => allRows
+            };
+
+            // Paginate filtered rows
+            var total    = filteredRows.Count;
+            var pageRows = filteredRows.Skip((page - 1) * PageSize).Take(PageSize).ToList();
+
+            var lastSync = allInventory.Any()
+                ? allInventory.Max(si => (DateTime?)si.LastSyncedAt)
+                : await _db.StoreInventories.MaxAsync(si => (DateTime?)si.LastSyncedAt);
 
             return View(new AdminInventoryViewModel
             {
-                Stores       = stores,
-                Products     = rows,
-                LastSyncedAt = lastSync,
-                SearchQuery  = q,
-                CurrentPage  = page,
-                TotalPages   = (int)Math.Ceiling(total / (double)PageSize),
-                TotalCount   = total,
+                Stores              = stores,
+                Products            = pageRows,
+                LastSyncedAt        = lastSync,
+                SearchQuery         = q,
+                CategoryFilter      = category,
+                StockFilter         = stock,
+                AvailableCategories = await _db.Categories.OrderBy(c => c.Name).ToListAsync(),
+                CurrentPage         = page,
+                TotalPages          = (int)Math.Ceiling(total / (double)PageSize),
+                TotalCount          = total,
             });
         }
 
@@ -130,9 +146,11 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             await _db.SaveChangesAsync();
             TempData["Success"] = $"Stock updated for '{product.Name}'.";
 
-            var q    = form["q"].ToString();
-            var page = int.TryParse(form["page"], out var p) ? p : 1;
-            return RedirectToAction(nameof(Index), new { q, page });
+            var q        = form["q"].ToString();
+            var category = form["category"].ToString();
+            var stock    = form["stock"].ToString();
+            var page     = int.TryParse(form["page"], out var p) ? p : 1;
+            return RedirectToAction(nameof(Index), new { q, category, stock, page });
         }
 
         // ── Ensure all product × store combinations have an inventory record ──────
