@@ -92,6 +92,43 @@ public static class WooMigrationRunner
     }
 
     /// <summary>
+    /// Creates every website product (that has an ERPNext code) as an Item in the configured
+    /// ERPNext instance. Existing items are left untouched. Use after pointing the config at a
+    /// new/empty ERPNext. Usage: <c>dotnet run -- erpnext-push-items</c>.
+    /// </summary>
+    public static async Task PushAllItemsToErpNextAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db     = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var erp    = scope.ServiceProvider.GetRequiredService<IERPNextService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ApplicationDbContext>>();
+
+        var items = await db.Products
+            .Where(p => p.ErpNextItemCode != "")
+            .Select(p => new { p.ErpNextItemCode, p.Name, p.Price, p.Description })
+            .ToListAsync();
+
+        Console.WriteLine($"Pushing {items.Count} item(s) to ERPNext…");
+        int created = 0, existed = 0, failed = 0;
+        foreach (var p in items)
+        {
+            try
+            {
+                var (ok, error) = await erp.CreateItemAsync(new ERPNextNewItemRequest
+                {
+                    ItemCode = p.ErpNextItemCode, ItemName = p.Name, StandardRate = p.Price, Description = p.Description
+                });
+                if (ok) created++;
+                else if (error == null) existed++;
+                else { failed++; Console.WriteLine($"  failed {p.ErpNextItemCode}: {error}"); }
+            }
+            catch (Exception ex) { failed++; Console.WriteLine($"  error {p.ErpNextItemCode}: {ex.Message}"); }
+        }
+        Console.WriteLine($"Done: {created} created, {existed} already existed, {failed} failed.");
+        logger.LogInformation("[erpnext-push-items] {Created} created, {Existed} existed, {Failed} failed.", created, existed, failed);
+    }
+
+    /// <summary>
     /// Decodes leftover HTML entities (e.g. &amp;#xD;&amp;#xA; newlines, &amp;#x2B; plus) in product
     /// descriptions that were imported before the importer decoded them. Website DB only — does not
     /// touch ERPNext. Usage: <c>dotnet run -- clean-product-text</c>.

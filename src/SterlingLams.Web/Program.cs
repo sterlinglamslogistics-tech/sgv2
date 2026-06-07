@@ -175,4 +175,20 @@ if (args.Length >= 1 && args[0].Equals("clean-product-text", StringComparison.Or
     return;
 }
 
+// Usage: dotnet run -- erpnext-ping  (tests the configured ERPNext connection)
+if (args.Length >= 1 && args[0].Equals("erpnext-ping", StringComparison.OrdinalIgnoreCase))
+{
+    await SterlingLams.Web.Infrastructure.ErpNextPing.RunAsync(app.Services);
+    Log.CloseAndFlush();
+    return;
+}
+
+// Usage: dotnet run -- erpnext-push-items  (creates all website products as ERPNext Items)
+if (args.Length >= 1 && args[0].Equals("erpnext-push-items", StringComparison.OrdinalIgnoreCase))
+{
+    await SterlingLams.Web.Infrastructure.WooMigrationRunner.PushAllItemsToErpNextAsync(app.Services);
+    Log.CloseAndFlush();
+    return;
+}
+
 await app.RunAsync();
