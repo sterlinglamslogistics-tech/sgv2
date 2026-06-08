@@ -63,7 +63,9 @@ builder.Services.AddSession(options =>
 builder.Services.AddSterlingLamsServices(builder.Configuration);
 
 // ─── Background Services ─────────────────────────────────────────────────────
-builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.InventorySyncHostedService>();
+// ERPNext inventory sync is disabled — the website's own Stock Ledger is now the
+// source of truth for inventory (POS / Purchases / Transfers update it directly).
+// builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.InventorySyncHostedService>();
 
 // ─── MVC ────────────────────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews()

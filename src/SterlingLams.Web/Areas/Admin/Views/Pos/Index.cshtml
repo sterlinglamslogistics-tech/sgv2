@@ -1,0 +1,260 @@
+@model List<SterlingLams.Web.Models.Domain.Store>
+@{
+    ViewData["Title"] = "Point of Sale";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+        <h1 class="text-lg font-medium text-neutral-800">Point of Sale</h1>
+        <select id="pos-store" class="border border-neutral-200 rounded-sm px-3 py-1.5 text-sm focus:outline-none focus:border-neutral-400">
+            @foreach (var s in Model)
+            {
+                <option value="@s.Id">@s.Name</option>
+            }
+        </select>
+    </div>
+    <div class="flex items-center gap-4">
+        <a href="/till" target="_blank"
+           class="text-xs text-brand-600 hover:text-brand-700 transition-colors font-medium">Open Till app ↗</a>
+        <a asp-area="Admin" asp-controller="Registers" asp-action="Index"
+           class="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Manage tills</a>
+        <a asp-area="Admin" asp-controller="Pos" asp-action="Sales"
+           class="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">POS sales →</a>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-sm p-4">
+        No active branches found. Add a branch under <a asp-area="Admin" asp-controller="Stores" asp-action="Index" class="underline">Stores</a> first.
+    </div>
+}
+else
+{
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+    <!-- Products -->
+    <div class="lg:col-span-2">
+        <input id="pos-search" type="text" autocomplete="off" placeholder="Search products by name or SKU…"
+               class="w-full border border-neutral-200 rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-400 mb-4" />
+        <div id="pos-results" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <p class="col-span-full text-sm text-neutral-400">Start typing to find products…</p>
+        </div>
+    </div>
+
+    <!-- Cart -->
+    <div class="bg-white border border-neutral-100 rounded-sm p-4 flex flex-col" style="min-height: 70vh;">
+        <h2 class="text-sm font-medium text-neutral-800 mb-3">Current Sale</h2>
+        <div id="pos-cart" class="flex-1 overflow-y-auto divide-y divide-neutral-100">
+            <p class="text-sm text-neutral-400 py-6 text-center">No items yet.</p>
+        </div>
+
+        <div class="border-t border-neutral-200 pt-3 mt-3 space-y-3">
+            <div class="flex justify-between text-base font-medium text-neutral-900">
+                <span>Total</span><span id="pos-total">₦0</span>
+            </div>
+
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Payment method</label>
+                <div class="flex gap-2" id="pos-methods">
+                    <button type="button" data-method="Cash" class="pos-method flex-1 border border-brand-500 bg-brand-50 text-neutral-800 rounded-sm py-2 text-xs">Cash</button>
+                    <button type="button" data-method="Card" class="pos-method flex-1 border border-neutral-200 text-neutral-600 rounded-sm py-2 text-xs">Card</button>
+                    <button type="button" data-method="Transfer" class="pos-method flex-1 border border-neutral-200 text-neutral-600 rounded-sm py-2 text-xs">Transfer</button>
+                </div>
+            </div>
+
+            <div id="pos-cash-row">
+                <label class="block text-xs text-neutral-500 mb-1">Amount tendered (₦)</label>
+                <input id="pos-tendered" type="number" min="0" step="any"
+                       class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+                <p class="text-xs text-neutral-500 mt-1">Change: <span id="pos-change" class="font-medium text-neutral-800">₦0</span></p>
+            </div>
+
+            <button id="pos-complete" type="button" disabled
+                    class="w-full bg-brand-500 text-white text-sm tracking-wide uppercase py-3 rounded-sm hover:bg-brand-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Complete Sale
+            </button>
+            <button id="pos-clear" type="button"
+                    class="w-full text-xs text-neutral-400 hover:text-neutral-700 transition-colors">Clear sale</button>
+        </div>
+    </div>
+</div>
+
+<!-- Success modal -->
+<div id="pos-done" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-sm p-8 max-w-sm w-full text-center">
+        <div class="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <h3 class="text-lg font-medium text-neutral-900 mb-1">Sale complete</h3>
+        <p id="pos-done-info" class="text-sm text-neutral-500 mb-6"></p>
+        <div class="flex gap-2">
+            <a id="pos-receipt-link" href="#" target="_blank"
+               class="flex-1 border border-neutral-200 text-neutral-700 rounded-sm py-2.5 text-sm hover:border-neutral-400 transition-colors">Print receipt</a>
+            <button id="pos-new" type="button"
+                    class="flex-1 bg-neutral-900 text-white rounded-sm py-2.5 text-sm hover:bg-neutral-700 transition-colors">New sale</button>
+        </div>
+    </div>
+</div>
+}
+
+@section Scripts {
+<script>
+(function () {
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    const fmt = n => '₦' + Number(n || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+    const storeSel = document.getElementById('pos-store');
+    const searchBox = document.getElementById('pos-search');
+    const resultsEl = document.getElementById('pos-results');
+    const cartEl = document.getElementById('pos-cart');
+    const totalEl = document.getElementById('pos-total');
+    const tenderedEl = document.getElementById('pos-tendered');
+    const changeEl = document.getElementById('pos-change');
+    const completeBtn = document.getElementById('pos-complete');
+
+    let cart = [];          // {key, productId, variantId, name, variantName, unitPrice, qty, stock}
+    let method = 'Cash';
+    let debounce;
+
+    // ── Search ────────────────────────────────────────────────────────────────
+    searchBox.addEventListener('input', () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(runSearch, 200);
+    });
+    storeSel.addEventListener('change', () => { cart = []; renderCart(); runSearch(); });
+
+    async function runSearch() {
+        const q = searchBox.value.trim();
+        const res = await fetch(`/Admin/Pos/Search?storeId=${storeSel.value}&q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+        if (!items.length) { resultsEl.innerHTML = '<p class="col-span-full text-sm text-neutral-400">No products found.</p>'; return; }
+        resultsEl.innerHTML = items.map(p => {
+            const out = p.stock <= 0;
+            return `<button type="button" ${out ? 'disabled' : ''} class="pos-prod text-left border border-neutral-200 rounded-sm overflow-hidden hover:border-brand-500 transition-colors ${out ? 'opacity-40 cursor-not-allowed' : ''}"
+                data-p='${encodeURIComponent(JSON.stringify(p))}'>
+                <div class="aspect-square bg-neutral-50">${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : ''}</div>
+                <div class="p-2">
+                    <p class="text-xs text-neutral-800 leading-snug line-clamp-2">${p.name}</p>
+                    <p class="text-xs text-neutral-500 mt-1">${fmt(p.price)}</p>
+                    <p class="text-[10px] ${out ? 'text-red-500' : 'text-emerald-600'}">${out ? 'Out of stock' : p.stock + ' in stock'}</p>
+                </div></button>`;
+        }).join('');
+        resultsEl.querySelectorAll('.pos-prod').forEach(b =>
+            b.addEventListener('click', () => onPick(JSON.parse(decodeURIComponent(b.dataset.p)))));
+    }
+
+    function onPick(p) {
+        let variantId = null, variantName = null, unitPrice = p.price;
+        if (p.variants && p.variants.length) {
+            const names = p.variants.map((v, i) => `${i + 1}. ${v.name}`).join('\n');
+            const pick = prompt(`Choose option for ${p.name}:\n${names}\n\nEnter number:`);
+            const idx = parseInt(pick, 10) - 1;
+            if (isNaN(idx) || idx < 0 || idx >= p.variants.length) return;
+            const v = p.variants[idx];
+            variantId = v.id; variantName = v.name; unitPrice = p.price + (v.priceAdjustment || 0);
+        }
+        const key = p.id + '-' + (variantId ?? '');
+        const existing = cart.find(c => c.key === key);
+        const inCart = existing ? existing.qty : 0;
+        if (inCart + 1 > p.stock) { alert('Not enough stock.'); return; }
+        if (existing) existing.qty++;
+        else cart.push({ key, productId: p.id, variantId, name: p.name, variantName, unitPrice, qty: 1, stock: p.stock });
+        renderCart();
+    }
+
+    function renderCart() {
+        if (!cart.length) {
+            cartEl.innerHTML = '<p class="text-sm text-neutral-400 py-6 text-center">No items yet.</p>';
+        } else {
+            cartEl.innerHTML = cart.map((c, i) => `
+                <div class="py-2.5 flex items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs text-neutral-800 truncate">${c.name}${c.variantName ? ` <span class="text-neutral-400">(${c.variantName})</span>` : ''}</p>
+                        <p class="text-[11px] text-neutral-500">${fmt(c.unitPrice)} each</p>
+                    </div>
+                    <div class="flex items-center border border-neutral-200 rounded-sm">
+                        <button type="button" data-dec="${i}" class="w-6 h-6 text-neutral-500 hover:bg-neutral-50">−</button>
+                        <span class="w-7 text-center text-xs">${c.qty}</span>
+                        <button type="button" data-inc="${i}" class="w-6 h-6 text-neutral-500 hover:bg-neutral-50">+</button>
+                    </div>
+                    <span class="text-xs text-neutral-800 w-16 text-right">${fmt(c.unitPrice * c.qty)}</span>
+                    <button type="button" data-del="${i}" class="text-neutral-300 hover:text-red-500">×</button>
+                </div>`).join('');
+            cartEl.querySelectorAll('[data-inc]').forEach(b => b.addEventListener('click', () => changeQty(+b.dataset.inc, 1)));
+            cartEl.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => changeQty(+b.dataset.dec, -1)));
+            cartEl.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { cart.splice(+b.dataset.del, 1); renderCart(); }));
+        }
+        const total = cart.reduce((s, c) => s + c.unitPrice * c.qty, 0);
+        totalEl.textContent = fmt(total);
+        completeBtn.disabled = cart.length === 0;
+        updateChange();
+    }
+
+    function changeQty(i, d) {
+        const c = cart[i];
+        if (d > 0 && c.qty + 1 > c.stock) { alert('Not enough stock.'); return; }
+        c.qty += d;
+        if (c.qty <= 0) cart.splice(i, 1);
+        renderCart();
+    }
+
+    // ── Payment ───────────────────────────────────────────────────────────────
+    document.querySelectorAll('.pos-method').forEach(b => b.addEventListener('click', () => {
+        method = b.dataset.method;
+        document.querySelectorAll('.pos-method').forEach(x => {
+            const on = x === b;
+            x.classList.toggle('border-brand-500', on); x.classList.toggle('bg-brand-50', on);
+            x.classList.toggle('border-neutral-200', !on); x.classList.toggle('text-neutral-600', !on);
+        });
+        document.getElementById('pos-cash-row').style.display = method === 'Cash' ? '' : 'none';
+        updateChange();
+    }));
+    tenderedEl.addEventListener('input', updateChange);
+    function updateChange() {
+        const total = cart.reduce((s, c) => s + c.unitPrice * c.qty, 0);
+        changeEl.textContent = fmt(Math.max(0, (parseFloat(tenderedEl.value) || 0) - total));
+    }
+
+    // ── Complete ──────────────────────────────────────────────────────────────
+    completeBtn.addEventListener('click', async () => {
+        if (!cart.length) return;
+        completeBtn.disabled = true; completeBtn.textContent = 'Processing…';
+        try {
+            const res = await fetch('/Admin/Pos/Checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify({
+                    storeId: parseInt(storeSel.value, 10),
+                    paymentMethod: method,
+                    amountTendered: parseFloat(tenderedEl.value) || 0,
+                    items: cart.map(c => ({ productId: c.productId, variantId: c.variantId, quantity: c.qty }))
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('pos-done-info').textContent =
+                    `${data.orderNumber} — ${fmt(data.total)}` + (data.change > 0 ? ` · Change ${fmt(data.change)}` : '');
+                document.getElementById('pos-receipt-link').href = `/Admin/Pos/Receipt/${data.orderId}`;
+                document.getElementById('pos-done').classList.remove('hidden');
+            } else {
+                alert(data.message || 'Could not complete the sale.');
+            }
+        } finally {
+            completeBtn.textContent = 'Complete Sale'; completeBtn.disabled = cart.length === 0;
+        }
+    });
+
+    function resetSale() {
+        cart = []; tenderedEl.value = ''; searchBox.value = '';
+        document.getElementById('pos-done').classList.add('hidden');
+        renderCart(); runSearch(); searchBox.focus();
+    }
+    document.getElementById('pos-new').addEventListener('click', resetSale);
+    document.getElementById('pos-clear').addEventListener('click', () => { cart = []; renderCart(); });
+
+    runSearch();
+})();
+</script>
+}

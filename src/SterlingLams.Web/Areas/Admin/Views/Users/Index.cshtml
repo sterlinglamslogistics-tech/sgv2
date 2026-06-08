@@ -91,6 +91,12 @@
         <input type="hidden" name="id" value="@u.Id" />
         <input type="hidden" name="newPassword" id="reset-pwd-@u.Id" />
     </form>
+    <form id="setpin-@u.Id" asp-area="Admin" asp-controller="Users" asp-action="SetPin"
+          method="post" style="display:none">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@u.Id" />
+        <input type="hidden" name="pin" id="setpin-val-@u.Id" />
+    </form>
 }
 
 <div class="bg-white rounded-sm border border-neutral-100 overflow-x-auto">
@@ -166,6 +172,9 @@
                         {
                             <div class="flex items-center justify-end gap-3 whitespace-nowrap">
                                 <button type="button" data-no-loading="1"
+                                        onclick="setPin('@u.Id', '@u.Email')"
+                                        class="text-xs text-brand-500 hover:text-brand-700 transition-colors">Set PIN</button>
+                                <button type="button" data-no-loading="1"
                                         onclick="resetPwd('@u.Id', '@u.Email')"
                                         class="text-xs text-amber-500 hover:text-amber-700 transition-colors">Reset PW</button>
                                 <form asp-area="Admin" asp-controller="Users" asp-action="ToggleLock" asp-route-id="@u.Id"
@@ -211,6 +220,13 @@ function resetPwd(id, email) {
     if (pwd.length < 8) { alert('Password must be at least 8 characters.'); return; }
     document.getElementById('reset-pwd-' + id).value = pwd;
     document.getElementById('reset-' + id).submit();
+}
+function setPin(id, email) {
+    const pin = prompt('Set a 4–8 digit till PIN for ' + email + '\n(leave blank and press OK to remove their PIN):');
+    if (pin === null) return;            // cancelled
+    if (pin !== '' && !/^\d{4,8}$/.test(pin)) { alert('PIN must be 4–8 digits.'); return; }
+    document.getElementById('setpin-val-' + id).value = pin;
+    document.getElementById('setpin-' + id).submit();
 }
 </script>
 }

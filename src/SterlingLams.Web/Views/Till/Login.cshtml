@@ -1,0 +1,105 @@
+@model List<SterlingLams.Web.Controllers.TillCashier>
+@{
+    ViewData["Title"] = "Sign in";
+    var register = ViewData["Register"] as SterlingLams.Web.Models.Domain.Register;
+}
+
+<div class="min-h-full flex flex-col">
+    <header class="flex items-center justify-between px-6 py-4 bg-white border-b border-neutral-100">
+        <div>
+            <p class="text-sm font-medium text-neutral-800">@register?.Name</p>
+            <p class="text-xs text-neutral-400">@register?.Store?.Name</p>
+        </div>
+        <form asp-controller="Till" asp-action="ChangeRegister" method="post">
+            <button class="text-xs text-neutral-400 hover:text-neutral-700">Change till</button>
+        </form>
+    </header>
+
+    <div class="flex-1 flex items-center justify-center p-6">
+        <!-- Cashier picker -->
+        <div id="cashier-step" class="w-full max-w-xl">
+            <h1 class="font-cormorant text-3xl font-light text-center text-neutral-900 mb-8">Who's serving?</h1>
+            @if (!Model.Any())
+            {
+                <p class="text-center text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-4">
+                    No cashiers have a PIN yet. Set one in Admin → Users.
+                </p>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    @foreach (var c in Model)
+                    {
+                        <button type="button" class="cashier-btn bg-white border border-neutral-200 rounded-lg py-6 hover:border-brand-500 transition-colors"
+                                data-id="@c.Id" data-name="@c.Name">
+                            <span class="block w-12 h-12 mx-auto rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-lg font-medium mb-2">
+                                @(string.IsNullOrEmpty(c.Name) ? "?" : c.Name.Substring(0,1).ToUpper())
+                            </span>
+                            <span class="text-sm text-neutral-700">@c.Name</span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- PIN pad -->
+        <div id="pin-step" class="hidden w-full max-w-xs text-center">
+            <p class="text-sm text-neutral-500 mb-1">Enter PIN for</p>
+            <p id="pin-name" class="text-lg font-medium text-neutral-800 mb-4"></p>
+            <div id="pin-dots" class="flex justify-center gap-3 mb-2 h-4"></div>
+            <p id="pin-error" class="text-xs text-red-500 h-4 mb-3"></p>
+            <div class="grid grid-cols-3 gap-3">
+                @for (int n = 1; n <= 9; n++)
+                {
+                    <button type="button" class="pin-key bg-white border border-neutral-200 rounded-lg py-4 text-xl text-neutral-800 hover:border-brand-500 transition-colors" data-k="@n">@n</button>
+                }
+                <button type="button" id="pin-back" class="bg-white border border-neutral-200 rounded-lg py-4 text-sm text-neutral-500 hover:border-neutral-400">←</button>
+                <button type="button" class="pin-key bg-white border border-neutral-200 rounded-lg py-4 text-xl text-neutral-800 hover:border-brand-500 transition-colors" data-k="0">0</button>
+                <button type="button" id="pin-cancel" class="bg-white border border-neutral-200 rounded-lg py-4 text-sm text-neutral-500 hover:border-neutral-400">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+@Html.AntiForgeryToken()
+<script>
+(function () {
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    const cashierStep = document.getElementById('cashier-step');
+    const pinStep = document.getElementById('pin-step');
+    const dots = document.getElementById('pin-dots');
+    const errEl = document.getElementById('pin-error');
+    let userId = null, pin = '';
+
+    function showPin(name) {
+        document.getElementById('pin-name').textContent = name;
+        pin = ''; renderDots(); errEl.textContent = '';
+        cashierStep.classList.add('hidden'); pinStep.classList.remove('hidden');
+    }
+    function backToCashiers() { pinStep.classList.add('hidden'); cashierStep.classList.remove('hidden'); }
+    function renderDots() {
+        dots.innerHTML = Array.from({length: Math.max(4, pin.length)}).map((_, i) =>
+            `<span class="w-3 h-3 rounded-full ${i < pin.length ? 'bg-brand-500' : 'bg-neutral-200'}"></span>`).join('');
+    }
+
+    document.querySelectorAll('.cashier-btn').forEach(b =>
+        b.addEventListener('click', () => { userId = b.dataset.id; showPin(b.dataset.name); }));
+    document.querySelectorAll('.pin-key').forEach(b =>
+        b.addEventListener('click', () => { if (pin.length < 8) { pin += b.dataset.k; renderDots(); if (pin.length >= 4) submit(); } }));
+    document.getElementById('pin-back').addEventListener('click', () => { pin = pin.slice(0, -1); renderDots(); });
+    document.getElementById('pin-cancel').addEventListener('click', backToCashiers);
+
+    async function submit() {
+        const res = await fetch('/Till/Login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+            body: `userId=${encodeURIComponent(userId)}&pin=${encodeURIComponent(pin)}`
+        });
+        const data = await res.json();
+        if (data.success) { location.href = '/Till'; }
+        else { errEl.textContent = data.message || 'Wrong PIN.'; pin = ''; renderDots(); }
+    }
+})();
+</script>
+}

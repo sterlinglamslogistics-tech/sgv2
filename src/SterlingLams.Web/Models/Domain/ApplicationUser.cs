@@ -10,6 +10,9 @@ public class ApplicationUser : IdentityUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>Hashed PIN for quick till sign-in. Null = this user can't sign in at a till.</summary>
+    public string? PinHash { get; set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();

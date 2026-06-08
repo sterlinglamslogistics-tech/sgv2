@@ -18,6 +18,12 @@ public enum FulfillmentType
     Delivery
 }
 
+public enum OrderChannel
+{
+    Online, // placed by a customer on the website
+    Pos     // rung up in-store at a branch
+}
+
 public class Order
 {
     public int Id { get; set; }
@@ -29,6 +35,17 @@ public class Order
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public FulfillmentType FulfillmentType { get; set; }
+
+    /// <summary>Where the sale came from. POS orders are rung up in-store by a cashier.</summary>
+    public OrderChannel Channel { get; set; } = OrderChannel.Online;
+
+    /// <summary>Cash handling for POS sales.</summary>
+    public decimal? AmountTendered { get; set; }
+    public decimal? ChangeGiven { get; set; }
+
+    /// <summary>The till this sale was rung up on (POS sales).</summary>
+    public int? RegisterId { get; set; }
+    public Register? Register { get; set; }
 
     public int? PickupStoreId { get; set; }
     public Store? PickupStore { get; set; }

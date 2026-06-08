@@ -226,6 +226,35 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // ── Set / clear a till PIN for this user ───────────────────────────────
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetPin(string id, string pin)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            pin = (pin ?? "").Trim();
+            if (pin.Length == 0)
+            {
+                user.PinHash = null; // clear — user can no longer sign in at a till
+                await _userManager.UpdateAsync(user);
+                await LogAsync("Update", "User", user.Id, $"Cleared till PIN for {user.Email}");
+                TempData["Success"] = $"Till PIN removed for {user.Email}.";
+                return RedirectToAction(nameof(Index));
+            }
+            if (pin.Length < 4 || pin.Length > 8 || !pin.All(char.IsDigit))
+            {
+                TempData["Error"] = "PIN must be 4–8 digits.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            user.PinHash = _userManager.PasswordHasher.HashPassword(user, pin);
+            await _userManager.UpdateAsync(user);
+            await LogAsync("Update", "User", user.Id, $"Set till PIN for {user.Email}");
+            TempData["Success"] = $"Till PIN set for {user.Email}.";
+            return RedirectToAction(nameof(Index));
+        }
+
         // ── CSV export ─────────────────────────────────────────────────────────
         public async Task<IActionResult> ExportCsv()
         {

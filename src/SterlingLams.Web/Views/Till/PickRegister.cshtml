@@ -1,0 +1,35 @@
+@model List<SterlingLams.Web.Models.Domain.Register>
+@{ ViewData["Title"] = "Choose Till"; }
+
+<div class="min-h-full flex items-center justify-center p-6">
+    <div class="w-full max-w-lg">
+        <h1 class="font-cormorant text-3xl font-light text-center text-neutral-900 mb-1">Set up this till</h1>
+        <p class="text-sm text-neutral-500 text-center mb-8">Choose which register this device is. It'll be remembered.</p>
+
+        @if (!Model.Any())
+        {
+            <p class="text-center text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-4">
+                No registers found. Add a branch under Admin → Stores first.
+            </p>
+        }
+        else
+        {
+            <div class="space-y-3">
+                @foreach (var r in Model)
+                {
+                    <form asp-controller="Till" asp-action="SetRegister" method="post">
+                        <input type="hidden" name="registerId" value="@r.Id" />
+                        <button type="submit"
+                                class="w-full text-left bg-white border border-neutral-200 rounded-lg px-5 py-4 hover:border-brand-500 transition-colors flex items-center justify-between">
+                            <div>
+                                <p class="text-base font-medium text-neutral-800">@r.Name</p>
+                                <p class="text-xs text-neutral-400">@r.Store?.Name</p>
+                            </div>
+                            <svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+</div>

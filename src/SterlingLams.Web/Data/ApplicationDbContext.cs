@@ -17,6 +17,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Store> Stores => Set<Store>();
     public DbSet<StoreInventory> StoreInventories => Set<StoreInventory>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Register> Registers => Set<Register>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
@@ -74,6 +76,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<StoreInventory>(e =>
         {
             e.HasIndex(si => new { si.ProductId, si.StoreId }).IsUnique();
+        });
+
+        // ─── Register (till) ────────────────────────────────────────────────
+        builder.Entity<Register>(e =>
+        {
+            e.HasOne(r => r.Store).WithMany().HasForeignKey(r => r.StoreId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ─── StockMovement (stock ledger) ───────────────────────────────────
+        builder.Entity<StockMovement>(e =>
+        {
+            e.HasIndex(m => new { m.ProductId, m.StoreId, m.CreatedAt });
+            e.HasOne(m => m.Product).WithMany().HasForeignKey(m => m.ProductId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.ProductVariant).WithMany().HasForeignKey(m => m.ProductVariantId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(m => m.Store).WithMany().HasForeignKey(m => m.StoreId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── Order ──────────────────────────────────────────────────────────

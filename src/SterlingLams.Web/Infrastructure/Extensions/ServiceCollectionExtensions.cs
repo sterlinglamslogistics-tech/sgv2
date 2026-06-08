@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         // ─── Inventory ───────────────────────────────────────────────────────
         services.AddMemoryCache();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IStockService, StockService>();
 
         // ─── Product Import ───────────────────────────────────────────────────
         services.AddScoped<IProductImportService, ProductImportService>();
