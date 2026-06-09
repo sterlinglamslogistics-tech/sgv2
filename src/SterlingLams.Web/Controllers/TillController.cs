@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,14 +19,17 @@ public class TillController : Controller
     private readonly IStockService _stock;
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly IPasswordHasher<ApplicationUser> _hasher;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public TillController(ApplicationDbContext db, IStockService stock,
-        SignInManager<ApplicationUser> signIn, IPasswordHasher<ApplicationUser> hasher)
+        SignInManager<ApplicationUser> signIn, IPasswordHasher<ApplicationUser> hasher,
+        UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _stock = stock;
         _signIn = signIn;
         _hasher = hasher;
+        _userManager = userManager;
     }
 
     private async Task<Register?> BoundRegisterAsync()
@@ -337,6 +341,196 @@ public class TillController : Controller
         return Json(orders);
     }
 
+    // ── Customers (attach a buyer to a POS sale) ──────────────────────────────
+    [Authorize, HttpGet]
+    public async Task<IActionResult> CustomerSearch(string? q)
+    {
+        q = (q ?? "").Trim();
+        if (q.Length < 1) return Json(Array.Empty<object>());
+
+        var matches = await _db.Users
+            .Where(u => EF.Functions.ILike(u.FirstName + " " + u.LastName, $"%{q}%")
+                     || EF.Functions.ILike(u.PhoneNumber ?? "", $"%{q}%")
+                     || EF.Functions.ILike(u.Email ?? "", $"%{q}%"))
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Take(15)
+            .Select(u => new { id = u.Id, name = (u.FirstName + " " + u.LastName).Trim(), phone = u.PhoneNumber })
+            .ToListAsync();
+        return Json(matches);
+    }
+
+    public class QuickAddCustomer
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string? Email { get; set; }
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CustomerQuickAdd([FromBody] QuickAddCustomer req)
+    {
+        var first = (req.FirstName ?? "").Trim();
+        var last = (req.LastName ?? "").Trim();
+        var phone = (req.Phone ?? "").Trim();
+        var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+
+        if (first.Length == 0 && last.Length == 0)
+            return Json(new { success = false, message = "Enter a name." });
+        if (phone.Length == 0 && email == null)
+            return Json(new { success = false, message = "Enter a phone number." });
+
+        // POS customers are phone-first and don't log in: no password. UserName must be unique.
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        var userName = email ?? (digits.Length > 0 ? $"pos-{digits}" : $"pos-{Guid.NewGuid():N}");
+        if (await _userManager.FindByNameAsync(userName) != null)
+            userName = $"pos-{Guid.NewGuid():N}";
+
+        var user = new ApplicationUser
+        {
+            UserName = userName,
+            Email = email,
+            EmailConfirmed = email != null,
+            FirstName = first,
+            LastName = last,
+            PhoneNumber = phone.Length > 0 ? phone : null,
+            CreatedAt = DateTime.UtcNow
+        };
+        var result = await _userManager.CreateAsync(user);
+        if (!result.Succeeded)
+            return Json(new { success = false, message = string.Join(" ", result.Errors.Select(e => e.Description)) });
+
+        return Json(new { success = true, id = user.Id, name = user.FullName, phone = user.PhoneNumber });
+    }
+
+    private async Task<string?> ResolveCustomerIdAsync(string? customerUserId)
+    {
+        if (string.IsNullOrWhiteSpace(customerUserId)) return null;
+        return await _db.Users.AnyAsync(u => u.Id == customerUserId) ? customerUserId : null;
+    }
+
+    // ── Hold / recall parked sales ────────────────────────────────────────────
+    public class HoldRequest
+    {
+        public string? CustomerUserId { get; set; }
+        public string? Label { get; set; }
+        public List<HoldLine> Items { get; set; } = new();
+    }
+    public class HoldLine
+    {
+        public string? Key { get; set; }
+        public int ProductId { get; set; }
+        public int? VariantId { get; set; }
+        public string? Sku { get; set; }
+        public string Name { get; set; } = "";
+        public string? VariantName { get; set; }
+        public decimal UnitPrice { get; set; }
+        public int Qty { get; set; }
+        public int Stock { get; set; }
+        public string? Note { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public string? DiscountReason { get; set; }
+        public string? DiscountType { get; set; }
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Hold([FromBody] HoldRequest req)
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(new { success = false, message = "This till isn't set up. Pick a register." });
+        if (req.Items == null || req.Items.Count == 0) return Json(new { success = false, message = "Nothing to hold." });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var cashierName = (await _db.Users.Where(u => u.Id == userId)
+            .Select(u => (u.FirstName + " " + u.LastName).Trim()).FirstOrDefaultAsync()) ?? "";
+
+        var customerId = await ResolveCustomerIdAsync(req.CustomerUserId);
+        string? customerName = customerId == null ? null : await _db.Users
+            .Where(u => u.Id == customerId).Select(u => (u.FirstName + " " + u.LastName).Trim()).FirstOrDefaultAsync();
+
+        var parked = new ParkedSale
+        {
+            RegisterId = register.Id,
+            StoreId = register.StoreId,
+            CashierUserId = userId,
+            CashierName = cashierName,
+            CustomerUserId = customerId,
+            CustomerName = customerName,
+            Label = string.IsNullOrWhiteSpace(req.Label) ? null : req.Label.Trim(),
+            ItemCount = req.Items.Sum(i => Math.Max(1, i.Qty)),
+            Total = req.Items.Sum(i => i.UnitPrice * Math.Max(1, i.Qty) - Math.Max(0, i.DiscountAmount)),
+            // camelCase so the JSON round-trips back into the till's JS cart shape (qty, unitPrice, …).
+            CartJson = JsonSerializer.Serialize(req.Items,
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.ParkedSales.Add(parked);
+        await _db.SaveChangesAsync();
+        return Json(new { success = true, id = parked.Id });
+    }
+
+    [Authorize, HttpGet]
+    public async Task<IActionResult> ParkedSales()
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(Array.Empty<object>());
+
+        var held = await _db.ParkedSales
+            .Where(p => p.StoreId == register.StoreId)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => new
+            {
+                id = p.Id,
+                label = p.Label,
+                customerName = p.CustomerName,
+                cashierName = p.CashierName,
+                itemCount = p.ItemCount,
+                total = p.Total,
+                createdAt = p.CreatedAt
+            })
+            .ToListAsync();
+        return Json(held);
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecallParkedSale(int id)
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(new { success = false });
+
+        var parked = await _db.ParkedSales
+            .FirstOrDefaultAsync(p => p.Id == id && p.StoreId == register.StoreId);
+        if (parked == null) return Json(new { success = false, message = "That held sale is no longer available." });
+
+        var payload = new
+        {
+            success = true,
+            cart = parked.CartJson,
+            customerUserId = parked.CustomerUserId,
+            customerName = parked.CustomerName
+        };
+        // Recall moves the sale back into the active cart, so it leaves the held list.
+        _db.ParkedSales.Remove(parked);
+        await _db.SaveChangesAsync();
+        return Json(payload);
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteParkedSale(int id)
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(new { success = false });
+
+        var parked = await _db.ParkedSales
+            .FirstOrDefaultAsync(p => p.Id == id && p.StoreId == register.StoreId);
+        if (parked != null)
+        {
+            _db.ParkedSales.Remove(parked);
+            await _db.SaveChangesAsync();
+        }
+        return Json(new { success = true });
+    }
+
     // ── Categories ────────────────────────────────────────────────────────────
     [Authorize, HttpGet]
     public async Task<IActionResult> Categories()
@@ -400,6 +594,7 @@ public class TillController : Controller
     {
         public string PaymentMethod { get; set; } = "Cash";
         public decimal AmountTendered { get; set; }
+        public string? CustomerUserId { get; set; }
         public List<TillLine> Items { get; set; } = new();
     }
     public class TillCashier { public string Id { get; set; } = ""; public string Name { get; set; } = ""; }
@@ -443,6 +638,7 @@ public class TillController : Controller
             RegisterId = register.Id,
             TillSessionId = session.Id,
             UserId = userId,
+            CustomerUserId = await ResolveCustomerIdAsync(req.CustomerUserId),
             Status = OrderStatus.Delivered,
             IsPaid = true,
             PaidAt = now,
@@ -496,7 +692,7 @@ public class TillController : Controller
     [Authorize]
     public async Task<IActionResult> Receipt(int id)
     {
-        var order = await _db.Orders.Include(o => o.Items).Include(o => o.PickupStore)
+        var order = await _db.Orders.Include(o => o.Items).Include(o => o.PickupStore).Include(o => o.Customer)
             .FirstOrDefaultAsync(o => o.Id == id && o.Channel == OrderChannel.Pos);
         if (order == null) return NotFound();
         return View(order);

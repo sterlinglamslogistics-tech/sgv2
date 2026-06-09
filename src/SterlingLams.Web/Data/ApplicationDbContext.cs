@@ -20,6 +20,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<Register> Registers => Set<Register>();
     public DbSet<TillSession> TillSessions => Set<TillSession>();
+    public DbSet<ParkedSale> ParkedSales => Set<ParkedSale>();
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<RefundItem> RefundItems => Set<RefundItem>();
     public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
@@ -148,6 +149,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
              .WithMany(s => s.Orders)
              .HasForeignKey(o => o.PickupStoreId)
              .IsRequired(false);
+
+            // POS buyer (distinct from User, which is the cashier on POS sales).
+            e.HasOne(o => o.Customer)
+             .WithMany()
+             .HasForeignKey(o => o.CustomerUserId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
+        });
+
+        // ─── ParkedSale (held POS sales) ────────────────────────────────────
+        builder.Entity<ParkedSale>(e =>
+        {
+            e.Property(p => p.Total).HasPrecision(18, 2);
+            e.HasIndex(p => new { p.StoreId, p.CreatedAt });
         });
 
         // ─── OrderItem ──────────────────────────────────────────────────────

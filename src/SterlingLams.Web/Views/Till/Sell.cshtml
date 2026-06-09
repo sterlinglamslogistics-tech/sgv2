@@ -32,6 +32,8 @@
                 <span class="text-xs text-neutral-300">@cashierName</span>
             </div>
             <div class="flex items-center gap-2">
+                <button type="button" id="till-held-btn"
+                        class="relative text-[11px] text-neutral-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-neutral-800">Held<span id="till-held-count" class="hidden ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-brand-500 text-white text-[9px] font-semibold align-middle">0</span></button>
                 <button type="button" id="till-refund-btn"
                         class="text-[11px] text-neutral-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-neutral-800">Refund</button>
                 <button type="button" id="till-cashup-btn"
@@ -108,6 +110,17 @@
 
             <!-- PRODUCTS tab (cart) -->
             <div id="tab-products" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Attached customer banner -->
+                <div id="customer-banner" class="hidden flex items-center gap-2 px-3 py-2 bg-brand-50 border-b border-brand-100 flex-shrink-0">
+                    <svg class="w-4 h-4 text-brand-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <div class="flex-1 min-w-0">
+                        <p id="customer-banner-name" class="text-xs font-medium text-brand-700 truncate"></p>
+                        <p id="customer-banner-phone" class="text-[10px] text-brand-400 truncate"></p>
+                    </div>
+                    <button type="button" id="customer-remove" class="text-brand-300 hover:text-red-400 transition-colors flex-shrink-0" title="Remove customer">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    </button>
+                </div>
                 <!-- Cart line items -->
                 <div id="till-cart" class="flex-1 overflow-y-auto">
                     <div id="cart-empty" class="flex flex-col items-center justify-center h-full text-center px-6 py-8">
@@ -187,12 +200,32 @@
             </div>
 
             <!-- CUSTOMERS tab -->
-            <div id="tab-customers" class="hidden flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
-                <svg class="w-12 h-12 text-neutral-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <p class="text-sm font-medium text-neutral-400">No customer</p>
-                <p class="text-xs text-neutral-300 mt-1">Customer accounts coming soon</p>
+            <div id="tab-customers" class="hidden flex-1 flex flex-col overflow-hidden">
+                <div class="p-3 border-b border-neutral-100 flex-shrink-0">
+                    <input id="cust-search" type="text" autocomplete="off" placeholder="Search name or phone…"
+                           class="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                </div>
+                <div id="cust-results" class="flex-1 overflow-y-auto divide-y divide-neutral-100 text-sm">
+                    <p class="text-center text-neutral-400 py-6 text-xs">Search for a customer, or add a new one below.</p>
+                </div>
+                <!-- Add new customer -->
+                <div class="border-t border-neutral-200 flex-shrink-0 bg-neutral-50">
+                    <button type="button" id="cust-add-toggle"
+                            class="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-brand-600 hover:bg-brand-50 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+                        Add new customer
+                    </button>
+                    <div id="cust-add-form" class="hidden px-3 pb-3 space-y-2">
+                        <div class="flex gap-2">
+                            <input id="cust-first" type="text" placeholder="First name" class="flex-1 min-w-0 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                            <input id="cust-last" type="text" placeholder="Last name" class="flex-1 min-w-0 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                        </div>
+                        <input id="cust-phone" type="tel" placeholder="Phone" class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                        <input id="cust-email" type="email" placeholder="Email (optional)" class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                        <button type="button" id="cust-save"
+                                class="w-full bg-brand-500 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-brand-600 transition-colors">Save &amp; attach</button>
+                    </div>
+                </div>
             </div>
 
             <!-- ORDERS tab -->
@@ -360,6 +393,21 @@
                     class="flex-1 border border-neutral-200 rounded-lg py-2.5 text-sm text-neutral-600 hover:border-neutral-400 transition-colors">Cancel</button>
             <button type="button" id="cashup-confirm"
                     class="flex-1 bg-neutral-900 text-white rounded-lg py-2.5 text-sm hover:bg-neutral-700 transition-colors">Close till</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Held sales modal ──────────────────────────────────────────────────── -->
+<div id="till-held" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0">
+            <h3 class="text-base font-medium text-neutral-900">Held sales</h3>
+            <button type="button" id="held-close" class="text-neutral-400 hover:text-neutral-700 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+        </div>
+        <div id="held-list" class="flex-1 overflow-y-auto divide-y divide-neutral-100 text-sm">
+            <p class="text-center text-neutral-400 py-8 text-xs">Loading…</p>
         </div>
     </div>
 </div>
@@ -604,11 +652,11 @@
     const changeEl = document.getElementById('till-change');
     const payBtn = document.getElementById('till-pay');
     const voidBtn = document.getElementById('till-void-btn');
-    let cart = [], method = 'Cash';
+    let cart = [], method = 'Cash', customer = null;
 
     // ── Cart persistence ────────────────────────────────────────────────────────
     function saveCart() {
-        try { localStorage.setItem(TILL_CART_KEY, JSON.stringify({ cart, method, tendered: tenderedEl.value })); } catch (e) {}
+        try { localStorage.setItem(TILL_CART_KEY, JSON.stringify({ cart, method, tendered: tenderedEl.value, customer })); } catch (e) {}
     }
     function clearSavedCart() { try { localStorage.removeItem(TILL_CART_KEY); } catch (e) {} }
     function selectMethod(m) {
@@ -627,8 +675,81 @@
             if (Array.isArray(saved.cart)) cart = saved.cart;
             if (saved.method) selectMethod(saved.method);
             if (saved.tendered) tenderedEl.value = saved.tendered;
+            if (saved.customer) { customer = saved.customer; renderCustomerBanner(); }
         } catch (e) {}
     }
+
+    // ── Customer attach ─────────────────────────────────────────────────────────
+    const customerBanner = document.getElementById('customer-banner');
+    function renderCustomerBanner() {
+        if (customer) {
+            customerBanner.classList.remove('hidden');
+            customerBanner.classList.add('flex');
+            document.getElementById('customer-banner-name').textContent = customer.name || 'Customer';
+            document.getElementById('customer-banner-phone').textContent = customer.phone || '';
+        } else {
+            customerBanner.classList.add('hidden');
+            customerBanner.classList.remove('flex');
+        }
+    }
+    function setCustomer(c) { customer = c; renderCustomerBanner(); saveCart(); }
+    document.getElementById('customer-remove').addEventListener('click', () => setCustomer(null));
+
+    function gotoTab(name) { document.querySelector(`.till-tab[data-tab="${name}"]`)?.click(); }
+
+    const custSearch = document.getElementById('cust-search');
+    const custResults = document.getElementById('cust-results');
+    let custDebounce;
+    function attachAndGo(c) {
+        setCustomer(c);
+        custSearch.value = '';
+        custResults.innerHTML = '<p class="text-center text-neutral-400 py-6 text-xs">Search for a customer, or add a new one below.</p>';
+        gotoTab('products');
+    }
+    async function searchCustomers(q) {
+        if (!q.trim()) { custResults.innerHTML = '<p class="text-center text-neutral-400 py-6 text-xs">Search for a customer, or add a new one below.</p>'; return; }
+        custResults.innerHTML = '<p class="text-center text-neutral-400 py-6 text-xs">Searching…</p>';
+        try {
+            const res = await fetch('/Till/CustomerSearch?q=' + encodeURIComponent(q.trim()));
+            const list = await res.json();
+            if (!list.length) { custResults.innerHTML = '<p class="text-center text-neutral-400 py-6 text-xs">No match. Add a new customer below.</p>'; return; }
+            custResults.innerHTML = list.map(c =>
+                `<button type="button" data-cust='${JSON.stringify(c).replace(/'/g, "&#39;")}' class="cust-row w-full text-left px-3 py-2.5 hover:bg-neutral-50 transition-colors flex items-center justify-between gap-2">
+                    <span class="min-w-0"><span class="block text-neutral-800 truncate">${c.name || '(no name)'}</span>${c.phone ? `<span class="block text-[11px] text-neutral-400">${c.phone}</span>` : ''}</span>
+                    <span class="text-[11px] text-brand-500 font-medium flex-shrink-0">Attach</span>
+                </button>`).join('');
+            custResults.querySelectorAll('.cust-row').forEach(b =>
+                b.addEventListener('click', () => attachAndGo(JSON.parse(b.dataset.cust.replace(/&#39;/g, "'")))));
+        } catch { custResults.innerHTML = '<p class="text-center text-neutral-400 py-6 text-xs">Could not search.</p>'; }
+    }
+    custSearch.addEventListener('input', () => { clearTimeout(custDebounce); custDebounce = setTimeout(() => searchCustomers(custSearch.value), 250); });
+
+    document.getElementById('cust-add-toggle').addEventListener('click', () => {
+        document.getElementById('cust-add-form').classList.toggle('hidden');
+    });
+    document.getElementById('cust-save').addEventListener('click', async () => {
+        const body = {
+            firstName: document.getElementById('cust-first').value.trim(),
+            lastName: document.getElementById('cust-last').value.trim(),
+            phone: document.getElementById('cust-phone').value.trim(),
+            email: document.getElementById('cust-email').value.trim() || null
+        };
+        if (!body.firstName && !body.lastName) { showError('Enter a name.'); return; }
+        if (!body.phone && !body.email) { showError('Enter a phone number.'); return; }
+        try {
+            const res = await fetch('/Till/CustomerQuickAdd', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data.success) {
+                ['cust-first', 'cust-last', 'cust-phone', 'cust-email'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('cust-add-form').classList.add('hidden');
+                attachAndGo({ id: data.id, name: data.name, phone: data.phone });
+            } else showError(data.message || 'Could not add customer.');
+        } catch { showError('Could not add customer.'); }
+    });
 
     async function add(p) {
         let variantId = null, variantName = null, unitPrice = p.price;
@@ -714,8 +835,109 @@
         c.qty += d; if (c.qty <= 0) cart.splice(i, 1); renderCart();
     }
 
-    voidBtn.addEventListener('click', () => { cart = []; tenderedEl.value = ''; renderCart(); });
-    document.getElementById('till-hold-btn').addEventListener('click', () => showError('Hold feature coming soon.'));
+    voidBtn.addEventListener('click', () => { cart = []; tenderedEl.value = ''; setCustomer(null); renderCart(); });
+
+    // ── Hold / recall ─────────────────────────────────────────────────────────
+    const holdBtn = document.getElementById('till-hold-btn');
+    holdBtn.addEventListener('click', async () => {
+        if (!cart.length) { showError('Nothing to hold.'); return; }
+        holdBtn.disabled = true;
+        try {
+            const res = await fetch('/Till/Hold', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify({ customerUserId: customer?.id || null, items: cart })
+            });
+            const data = await res.json();
+            if (data.success) {
+                cart = []; tenderedEl.value = ''; setCustomer(null); clearSavedCart(); renderCart();
+                refreshHeldBadge();
+                showToast('Sale held');
+            } else showError(data.message || 'Could not hold the sale.');
+        } catch { showError('Could not hold the sale.'); }
+        finally { holdBtn.disabled = false; }
+    });
+
+    const heldModal = document.getElementById('till-held');
+    const heldList = document.getElementById('held-list');
+    const heldCountEl = document.getElementById('till-held-count');
+
+    async function refreshHeldBadge() {
+        try {
+            const res = await fetch('/Till/ParkedSales');
+            const list = await res.json();
+            heldCountEl.textContent = list.length;
+            heldCountEl.classList.toggle('hidden', list.length === 0);
+            return list;
+        } catch { return []; }
+    }
+
+    function renderHeldList(list) {
+        if (!list.length) { heldList.innerHTML = '<p class="text-center text-neutral-400 py-8 text-xs">No held sales.</p>'; return; }
+        heldList.innerHTML = list.map(h => {
+            const dt = new Date(h.createdAt);
+            const when = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' +
+                         dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const who = h.customerName || h.label || 'Walk-in';
+            return `<div class="px-4 py-3 flex items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <p class="font-medium text-neutral-800 truncate">${who}</p>
+                    <p class="text-[11px] text-neutral-400">${when} · ${h.itemCount} item${h.itemCount === 1 ? '' : 's'} · ${h.cashierName || ''}</p>
+                </div>
+                <span class="font-semibold text-neutral-800 flex-shrink-0">${fmt(h.total)}</span>
+                <button type="button" data-recall="${h.id}" class="flex-shrink-0 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg px-2.5 py-1.5 hover:bg-brand-50 transition-colors">Recall</button>
+                <button type="button" data-discard="${h.id}" class="flex-shrink-0 text-neutral-300 hover:text-red-400 transition-colors" title="Discard">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+            </div>`;
+        }).join('');
+        heldList.querySelectorAll('[data-recall]').forEach(b => b.addEventListener('click', () => recallHeld(+b.dataset.recall)));
+        heldList.querySelectorAll('[data-discard]').forEach(b => b.addEventListener('click', () => discardHeld(+b.dataset.discard)));
+    }
+
+    async function openHeld() {
+        heldModal.classList.remove('hidden');
+        heldList.innerHTML = '<p class="text-center text-neutral-400 py-8 text-xs">Loading…</p>';
+        renderHeldList(await refreshHeldBadge());
+    }
+
+    async function recallHeld(id) {
+        if (cart.length && !confirm('Recall this held sale? Your current cart will be replaced.')) return;
+        try {
+            const res = await fetch('/Till/RecallParkedSale/' + id, {
+                method: 'POST', headers: { 'RequestVerificationToken': token }
+            });
+            const data = await res.json();
+            if (!data.success) { showError(data.message || 'Could not recall the sale.'); refreshHeldBadge(); return; }
+            cart = JSON.parse(data.cart || '[]');
+            setCustomer(data.customerUserId ? { id: data.customerUserId, name: data.customerName } : null);
+            tenderedEl.value = '';
+            heldModal.classList.add('hidden');
+            renderCart();
+            refreshHeldBadge();
+            gotoTab('products');
+        } catch { showError('Could not recall the sale.'); }
+    }
+
+    async function discardHeld(id) {
+        if (!confirm('Discard this held sale?')) return;
+        try {
+            await fetch('/Till/DeleteParkedSale/' + id, { method: 'POST', headers: { 'RequestVerificationToken': token } });
+        } catch {}
+        renderHeldList(await refreshHeldBadge());
+    }
+
+    document.getElementById('till-held-btn').addEventListener('click', openHeld);
+    document.getElementById('held-close').addEventListener('click', () => heldModal.classList.add('hidden'));
+    heldModal.addEventListener('click', e => { if (e.target === heldModal) heldModal.classList.add('hidden'); });
+
+    function showToast(msg) {
+        const el = document.createElement('div');
+        el.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-neutral-900 text-white text-sm px-5 py-3 rounded-lg shadow-lg z-[100] transition-opacity';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2000);
+    }
 
     // ── Payment method ────────────────────────────────────────────────────────
     document.querySelectorAll('.till-method').forEach(b => b.addEventListener('click', () => {
@@ -773,6 +995,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
                 body: JSON.stringify({ paymentMethod: method, amountTendered: parseFloat(tenderedEl.value) || 0,
+                    customerUserId: customer?.id || null,
                     items: cart.map(c => ({ productId: c.productId, variantId: c.variantId, quantity: c.qty, note: c.note || null, discountAmount: c.discountAmount || 0, discountReason: c.discountReason || null, discountType: c.discountType || null })) })
             });
             const data = await res.json();
@@ -781,14 +1004,14 @@
                     `<span class="font-medium">${fmt(data.total)}</span> · ${data.orderNumber}` +
                     (data.change > 0 ? `<br>Change due: <span class="font-medium text-emerald-600">${fmt(data.change)}</span>` : '');
                 document.getElementById('till-receipt').href = '/Till/Receipt/' + data.orderId;
-                cart = []; tenderedEl.value = ''; clearSavedCart(); renderCart();
+                cart = []; tenderedEl.value = ''; setCustomer(null); clearSavedCart(); renderCart();
                 document.getElementById('till-done').classList.remove('hidden');
             } else showError(data.message || 'Could not complete the sale.');
         } finally { payBtn.querySelector('span').textContent = 'Pay'; payBtn.disabled = !cart.length; }
     });
 
     document.getElementById('till-new').addEventListener('click', () => {
-        cart = []; tenderedEl.value = '';
+        cart = []; tenderedEl.value = ''; setCustomer(null);
         document.getElementById('till-done').classList.add('hidden');
         renderCart();
     });
@@ -988,6 +1211,7 @@
     loadDiscountReasons();
     loadCart();
     renderCart();
+    refreshHeldBadge();
 }());
 
 // ── Cash up ───────────────────────────────────────────────────────────────────

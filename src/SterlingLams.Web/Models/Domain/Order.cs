@@ -33,6 +33,11 @@ public class Order
     public string UserId { get; set; } = string.Empty;
     public ApplicationUser User { get; set; } = null!;
 
+    /// <summary>The buyer attached to a POS sale (optional). On POS, <see cref="UserId"/> is the cashier,
+    /// so the customer is tracked separately here. Null for walk-ins and online orders.</summary>
+    public string? CustomerUserId { get; set; }
+    public ApplicationUser? Customer { get; set; }
+
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public FulfillmentType FulfillmentType { get; set; }
 

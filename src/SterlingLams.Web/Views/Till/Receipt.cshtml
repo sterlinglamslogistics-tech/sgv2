@@ -33,6 +33,10 @@
         <div class="row"><span>Receipt</span><span>@Model.OrderNumber</span></div>
         <div class="row"><span>Date</span><span>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span></div>
         <div class="row"><span>Payment</span><span>@Model.PaymentProvider</span></div>
+        @if (Model.Customer != null)
+        {
+            <div class="row"><span>Customer</span><span>@Model.Customer.FullName@(string.IsNullOrEmpty(Model.Customer.PhoneNumber) ? "" : $" · {Model.Customer.PhoneNumber}")</span></div>
+        }
         <hr />
         <table>
             @foreach (var item in Model.Items)
