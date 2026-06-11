@@ -41,7 +41,9 @@ public class TransfersController : InventoryAreaController
         q = (q ?? "").Trim();
         var query = _db.Products.Where(p => p.IsActive);
         if (q.Length > 0)
-            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{q}%") || EF.Functions.ILike(p.Sku ?? "", $"%{q}%"));
+            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{q}%")
+                                  || EF.Functions.ILike(p.Sku ?? "", $"%{q}%")
+                                  || EF.Functions.ILike(p.Barcode ?? "", $"%{q}%"));
 
         var products = await query.OrderBy(p => p.Name).Take(40)
             .Select(p => new
@@ -49,6 +51,7 @@ public class TransfersController : InventoryAreaController
                 id = p.Id,
                 name = p.Name,
                 sku = p.Sku,
+                barcode = p.Barcode,
                 stock = p.StoreInventories.Where(si => si.StoreId == fromStoreId).Select(si => si.QuantityOnHand).FirstOrDefault()
             })
             .Where(x => x.stock > 0)

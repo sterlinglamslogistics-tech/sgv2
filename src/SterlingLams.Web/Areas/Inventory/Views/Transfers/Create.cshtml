@@ -32,7 +32,13 @@
             </div>
         </div>
 
-        <input id="t-search" type="text" autocomplete="off" placeholder="Search products at the source branch…"
+        <div class="relative mb-3">
+            <svg class="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h1m3 0h1m3 0h2m3 0h1M4 18h1m3 0h1m3 0h2m3 0h1M4 6v12M9 6v12M13 6v12M19 6v12"/></svg>
+            <input id="t-scan" type="text" autocomplete="off" placeholder="Scan a barcode to add it straight to the transfer…"
+                   class="w-full border-2 border-emerald-200 rounded-sm pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-emerald-400 disabled:bg-neutral-50 disabled:border-neutral-200" disabled />
+        </div>
+        <p id="t-scan-msg" class="text-[11px] mb-3 min-h-[14px]"></p>
+        <input id="t-search" type="text" autocomplete="off" placeholder="…or search products at the source branch"
                class="w-full border border-neutral-200 rounded-sm px-4 py-2.5 text-sm mb-4 focus:outline-none focus:border-neutral-400" disabled />
         <div id="t-results" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <p class="col-span-full text-sm text-neutral-400">Choose a source branch to load its stock.</p>
@@ -55,11 +61,35 @@
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const fromSel = document.getElementById('t-from'), toSel = document.getElementById('t-to');
     const searchBox = document.getElementById('t-search'), resultsEl = document.getElementById('t-results');
+    const scanBox = document.getElementById('t-scan'), scanMsg = document.getElementById('t-scan-msg');
     const cartEl = document.getElementById('t-cart'), submitBtn = document.getElementById('t-submit');
     let cart = [], debounce, lastResults = [];
     const esc = s => String(s).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 
-    fromSel.addEventListener('change', () => { cart = []; renderCart(); searchBox.disabled = !fromSel.value; searchBox.value = ''; if (fromSel.value) runSearch(); else resultsEl.innerHTML = ''; });
+    fromSel.addEventListener('change', () => {
+        cart = []; renderCart();
+        searchBox.disabled = scanBox.disabled = !fromSel.value;
+        searchBox.value = ''; scanBox.value = ''; scanMsg.textContent = '';
+        if (fromSel.value) { runSearch(); scanBox.focus(); } else resultsEl.innerHTML = '';
+    });
+
+    // Barcode scan → look up at the source branch and add straight to the transfer.
+    scanBox.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const code = scanBox.value.trim();
+        if (!code || !fromSel.value) return;
+        const res = await fetch(`/Inventory/Transfers/SearchStock?fromStoreId=${fromSel.value}&q=${encodeURIComponent(code)}`);
+        const items = await res.json();
+        const match = items.find(p => p.barcode === code || p.sku === code) || items[0];
+        if (match) {
+            add(match);
+            scanMsg.textContent = `Added ${match.name}`; scanMsg.className = 'text-[11px] mb-3 min-h-[14px] text-emerald-600';
+        } else {
+            scanMsg.textContent = `No stock for “${code}” at the source branch.`; scanMsg.className = 'text-[11px] mb-3 min-h-[14px] text-red-500';
+        }
+        scanBox.value = ''; scanBox.focus();
+    });
     searchBox.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(runSearch, 180); });
     toSel.addEventListener('change', updateSubmit);
 
