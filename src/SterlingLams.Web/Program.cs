@@ -86,6 +86,7 @@ builder.Services.AddSterlingLamsServices(builder.Configuration);
 // ─── Email (SMTP) ─────────────────────────────────────────────────────────────
 builder.Services.Configure<SterlingLams.Web.Services.EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<SterlingLams.Web.Services.IEmailService, SterlingLams.Web.Services.SmtpEmailService>();
+builder.Services.AddScoped<SterlingLams.Web.Services.BarcodeImportService>();
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 // Per-IP throttle on auth & email-sending endpoints (brute-force / abuse protection).
@@ -228,6 +229,20 @@ if (args.Length >= 1 && args[0].Equals("import-catalog", StringComparison.Ordina
     var svc = scope.ServiceProvider.GetRequiredService<SterlingLams.Web.Services.ICatalogImportService>();
     Console.WriteLine(upsert ? "Mode: UPSERT (production-safe, preserves order history)" : "Mode: WIPE + import");
     var res = await svc.ImportAsync(path, wipeFirst: !upsert, skipUncategorized: true, new Progress<string>(Console.WriteLine));
+    Console.WriteLine("RESULT: " + res.Summary);
+    foreach (var e in res.Errors.Take(25)) Console.WriteLine("  ERR: " + e);
+    Log.CloseAndFlush();
+    return;
+}
+
+// Usage: dotnet run -- import-barcodes "tools/barcode-import/eposnow_barcodes.csv"
+// Matches EposNow barcodes (sku,color,barcode) to our products and assigns them.
+if (args.Length >= 1 && args[0].Equals("import-barcodes", StringComparison.OrdinalIgnoreCase))
+{
+    var path = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--")) ?? "";
+    using var scope = app.Services.CreateScope();
+    var svc = scope.ServiceProvider.GetRequiredService<SterlingLams.Web.Services.BarcodeImportService>();
+    var res = await svc.ImportAsync(path, new Progress<string>(Console.WriteLine));
     Console.WriteLine("RESULT: " + res.Summary);
     foreach (var e in res.Errors.Take(25)) Console.WriteLine("  ERR: " + e);
     Log.CloseAndFlush();
