@@ -260,18 +260,48 @@ else
         </table>
     </div>
 
-    <!-- Pagination -->
+    <!-- Pagination — windowed, preserves filters -->
     @if (Model.TotalPages > 1)
     {
-        <div class="flex items-center justify-end gap-2 mt-4">
-            @for (int pg = 1; pg <= Model.TotalPages; pg++)
+        var cur = Model.CurrentPage;
+        var last = Model.TotalPages;
+        var start = Math.Max(1, cur - 2);
+        var end = Math.Min(last, cur + 2);
+        Func<int, Dictionary<string, string>> rd = pg => new Dictionary<string, string>
+        {
+            ["page"] = pg.ToString(),
+            ["q"] = Model.SearchQuery ?? "",
+            ["category"] = Model.CategoryFilter ?? "",
+            ["stock"] = Model.StockFilter ?? "",
+        };
+        var baseCls = "px-3 py-1.5 text-xs rounded-sm border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors";
+
+        <div class="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
+            <span class="text-[11px] text-neutral-400 mr-1">Page @cur of @last</span>
+            @if (cur > 1)
             {
-                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index"
-                   asp-route-page="@pg" asp-route-q="@Model.SearchQuery"
-                   asp-route-category="@Model.CategoryFilter" asp-route-stock="@Model.StockFilter"
-                   class="px-3 py-1.5 text-xs rounded-sm border transition-colors @(pg == Model.CurrentPage ? "bg-neutral-900 text-white border-neutral-900" : "border-neutral-200 text-neutral-600 hover:border-neutral-400")">
-                    @pg
-                </a>
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(1)" class="@baseCls">« First</a>
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(cur - 1)" class="@baseCls">‹ Prev</a>
+            }
+            @if (start > 1)
+            {
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(1)" class="@baseCls">1</a>
+                @if (start > 2) { <span class="px-1 text-neutral-300">…</span> }
+            }
+            @for (int pg = start; pg <= end; pg++)
+            {
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(pg)"
+                   class="px-3 py-1.5 text-xs rounded-sm border transition-colors @(pg == cur ? "bg-neutral-900 text-white border-neutral-900" : "border-neutral-200 text-neutral-600 hover:border-neutral-400")">@pg</a>
+            }
+            @if (end < last)
+            {
+                @if (end < last - 1) { <span class="px-1 text-neutral-300">…</span> }
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(last)" class="@baseCls">@last</a>
+            }
+            @if (cur < last)
+            {
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(cur + 1)" class="@baseCls">Next ›</a>
+                <a asp-area="Admin" asp-controller="Inventory" asp-action="Index" asp-all-route-data="rd(last)" class="@baseCls">Last »</a>
             }
         </div>
     }

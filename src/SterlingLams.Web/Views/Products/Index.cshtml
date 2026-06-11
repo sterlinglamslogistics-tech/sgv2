@@ -222,19 +222,51 @@
                     }
                 </div>
 
-                <!-- Pagination -->
+                <!-- Pagination — windowed, preserves filters -->
                 @if (Model.TotalPages > 1)
                 {
-                    <div class="flex justify-center gap-2 mt-16">
-                        @for (int i = 1; i <= Model.TotalPages; i++)
+                    var cur = Model.Page;
+                    var last = Model.TotalPages;
+                    var start = Math.Max(1, cur - 2);
+                    var end = Math.Min(last, cur + 2);
+                    Func<int, Dictionary<string, string>> rd = pg => new Dictionary<string, string>
+                    {
+                        ["page"] = pg.ToString(),
+                        ["category"] = Model.Filters.Category ?? "",
+                        ["sortBy"] = Model.Filters.SortBy ?? "",
+                        ["search"] = Model.Filters.Search ?? "",
+                        ["metal"] = Model.Filters.Metal ?? "",
+                        ["minPrice"] = Model.Filters.MinPrice?.ToString() ?? "",
+                        ["maxPrice"] = Model.Filters.MaxPrice?.ToString() ?? "",
+                        ["inStockOnly"] = Model.Filters.InStockOnly == true ? "true" : "",
+                    };
+                    var cls = "min-w-10 h-10 px-2 flex items-center justify-center text-xs border border-neutral-200 text-neutral-600 hover:border-brand-500 hover:text-brand-500 transition-colors";
+
+                    <div class="flex justify-center items-center gap-1.5 mt-16 flex-wrap">
+                        @if (cur > 1)
                         {
-                            <a asp-action="Index"
-                               asp-route-page="@i"
-                               asp-route-category="@Model.Filters.Category"
-                               asp-route-sortBy="@Model.Filters.SortBy"
-                               class="w-10 h-10 flex items-center justify-center text-xs border @(i == Model.Page ? "border-brand-500 bg-brand-500 text-white" : "border-neutral-200 text-neutral-600 hover:border-brand-500 hover:text-brand-500") transition-colors">
-                                @i
-                            </a>
+                            <a asp-action="Index" asp-all-route-data="rd(1)" class="@cls">« First</a>
+                            <a asp-action="Index" asp-all-route-data="rd(cur - 1)" class="@cls">‹ Prev</a>
+                        }
+                        @if (start > 1)
+                        {
+                            <a asp-action="Index" asp-all-route-data="rd(1)" class="@cls">1</a>
+                            @if (start > 2) { <span class="px-1 text-neutral-300">…</span> }
+                        }
+                        @for (int i = start; i <= end; i++)
+                        {
+                            <a asp-action="Index" asp-all-route-data="rd(i)"
+                               class="w-10 h-10 flex items-center justify-center text-xs border @(i == cur ? "border-brand-500 bg-brand-500 text-white" : "border-neutral-200 text-neutral-600 hover:border-brand-500 hover:text-brand-500") transition-colors">@i</a>
+                        }
+                        @if (end < last)
+                        {
+                            @if (end < last - 1) { <span class="px-1 text-neutral-300">…</span> }
+                            <a asp-action="Index" asp-all-route-data="rd(last)" class="@cls">@last</a>
+                        }
+                        @if (cur < last)
+                        {
+                            <a asp-action="Index" asp-all-route-data="rd(cur + 1)" class="@cls">Next ›</a>
+                            <a asp-action="Index" asp-all-route-data="rd(last)" class="@cls">Last »</a>
                         }
                     </div>
                 }
