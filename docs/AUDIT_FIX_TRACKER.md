@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-14 (perf → FX-29 listing projection, FX-30 hero LCP; OP-41/42/43)
+**Last updated:** 2026-06-14 (committed FX-1..30 in 2 batches; security audit → FX-31 XSS fix; OP-44)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -55,6 +55,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | FX-28 | SEO: **image sitemap** — sitemap now emits `<image:image>` for every product (993 images exposed to image search) | Controllers/SeoController.cs |
 | FX-29 | Perf: product listing query → **SQL projection** (dropped 4 `Include`s that caused a cartesian JOIN blow-up + over-fetch on the busiest page); TTFB ~20–40ms with ~1k products | Controllers/ProductsController.cs |
 | FX-30 | Perf (LCP): hero image now `loading="eager" fetchpriority="high" decoding="async"` so the largest paint isn't deprioritized | Views/Home/Index.cshtml |
+| FX-31 | **Stored XSS** in admin delete-confirm handlers — product/store name was interpolated into inline JS with only `'`-escaping; crafted/imported names could break out and run in an Admin session. Moved name to a Razor-encoded `data-itemname` read as a string arg. Verified a payload name no longer executes. | Areas/Admin/Views/Products/Index.cshtml, Stores/Index.cshtml, Stores/Edit.cshtml |
 | FX-20 | Typed stock movements — adjustment reasons map to `Purchase`/`Damage`/`Loss` (was all `Adjustment`) | Models/Domain/StockMovement.cs, Areas/Inventory/Controllers/StockController.cs |
 | FX-21 | Concurrency safety on manual adjustments + stock-take (lock + re-read + graceful catch) | Areas/Inventory/Controllers/StockController.cs, StocktakeController.cs |
 
@@ -72,6 +73,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 ### 🟠 High
 | ID | Item | Ref | Notes / approach |
 |----|------|-----|------------------|
+| OP-44 | Anonymous order lookup: `Checkout/Confirmation?orderNumber=` returns full order PII (name/address/phone) to **any** unauthenticated visitor who knows/guesses the order number (no email/token check) | security audit | Require an email match or a signed token; ties to OP-31 (guest tracking). |
 | OP-4 | Variant-level stock not tracked — `StoreInventory` is product-level only → variant availability is fiction, oversell risk | R1 | Add variant dimension to inventory + ledger; larger change. |
 | OP-5 | POS sells against `OnHand` ignoring `QuantityReserved` → can drop `OnHand` below `Reserved`, leaving an online order short at fulfilment | #11 / I1 | POS sell against *available*, or accept + warn on low-available. |
 | OP-6 | Payment webhook matches order by `reference.Contains(OrderNumber)` (substring) | R3 | Match exact `PaymentReference` / metadata `order_id`. |

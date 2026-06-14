@@ -106,7 +106,8 @@ else
                     }
                     <form asp-area="Admin" asp-controller="Stores" asp-action="Delete"
                           asp-route-id="@store.Id" method="post" class="inline ml-auto"
-                          onsubmit="return confirm('Delete @Html.Raw(store.Name.Replace("'", "\\'"))? This cannot be undone.')">
+                          data-itemname="@store.Name"
+                          onsubmit="return confirm('Delete ' + this.dataset.itemname + '? This cannot be undone.')">
                         @Html.AntiForgeryToken()
                         <button type="submit" data-no-loading="1"
                                 class="px-3 py-1.5 text-xs text-rose-400 hover:text-rose-700 transition-colors">

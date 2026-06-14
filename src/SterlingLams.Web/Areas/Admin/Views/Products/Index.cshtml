@@ -272,7 +272,8 @@
                             </form>
                             <form asp-area="Admin" asp-controller="Products" asp-action="Delete"
                                   asp-route-id="@p.Id" method="post" class="inline"
-                                  onsubmit="return confirm('Delete @Html.Raw(p.Name.Replace("'","\\'")), are you sure?')">
+                                  data-itemname="@p.Name"
+                                  onsubmit="return confirm('Delete ' + this.dataset.itemname + ', are you sure?')">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" data-no-loading="1"
                                         class="text-xs text-rose-400 hover:text-rose-700 transition-colors">Delete</button>

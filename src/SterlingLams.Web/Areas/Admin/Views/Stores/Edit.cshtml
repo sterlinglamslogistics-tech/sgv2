@@ -15,7 +15,8 @@
     {
         <form asp-area="Admin" asp-controller="Stores" asp-action="Delete"
               asp-route-id="@Model.Id" method="post"
-              onsubmit="return confirm('Delete @Html.Raw(Model.Name.Replace("'","\\'")), are you sure? This cannot be undone.')">
+              data-itemname="@Model.Name"
+              onsubmit="return confirm('Delete ' + this.dataset.itemname + ', are you sure? This cannot be undone.')">
             @Html.AntiForgeryToken()
             <button type="submit" data-no-loading="1"
                     class="text-xs text-rose-400 hover:text-rose-700 transition-colors">
