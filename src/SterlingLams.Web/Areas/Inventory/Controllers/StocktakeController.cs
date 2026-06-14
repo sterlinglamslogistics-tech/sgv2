@@ -126,9 +126,10 @@ public class StocktakeController : InventoryAreaController
         // Lock the counted rows (fixed ProductId order, matching POS checkout & transfers) so a
         // concurrent sale at this branch can't slip in between the system-qty read and the
         // reconciling adjustment — which would otherwise make the stock-take overwrite that sale.
-        foreach (var pid in valid.Select(c => c.ProductId).Distinct().OrderBy(id => id))
-            await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {store.Id} FOR UPDATE");
+        if (_db.Database.IsNpgsql()) // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
+            foreach (var pid in valid.Select(c => c.ProductId).Distinct().OrderBy(id => id))
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {store.Id} FOR UPDATE");
 
         foreach (var c in valid)
         {

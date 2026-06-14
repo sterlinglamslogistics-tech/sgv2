@@ -102,6 +102,7 @@ public class OrderFulfilmentService : IOrderFulfilmentService
     /// </summary>
     private async Task LockInventoryRowsAsync(IEnumerable<(int ProductId, int StoreId)> pairs)
     {
+        if (!_db.Database.IsNpgsql()) return; // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
         foreach (var (pid, sid) in pairs.Distinct().OrderBy(p => p.ProductId).ThenBy(p => p.StoreId))
             await _db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {sid} FOR UPDATE");

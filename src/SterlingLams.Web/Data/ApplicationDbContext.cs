@@ -101,9 +101,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             // Optimistic concurrency: map Postgres' built-in xmin system column as a shadow
             // row-version property so concurrent updates to the same row (e.g. POS sale vs
             // transfer dispatch) throw DbUpdateConcurrencyException instead of silently overwriting.
-            e.Property<uint>("xmin")
-                .HasColumnName("xmin")
-                .IsRowVersion();
+            // Npgsql-only: xmin is a Postgres system column; mapping it on SQLite (the test harness)
+            // would create a NOT NULL column with no default and break inserts.
+            if (Database.IsNpgsql())
+            {
+                e.Property<uint>("xmin")
+                    .HasColumnName("xmin")
+                    .IsRowVersion();
+            }
             // Database-level floor on stock counts. The service layer already clamps these, but a
             // CHECK is the last line of defence against a bug or raw SQL driving balances negative.
             // (We intentionally do NOT enforce Reserved <= OnHand: a POS sale draws against OnHand

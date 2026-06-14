@@ -179,10 +179,11 @@ public class StockController : InventoryAreaController
         // checkout & transfers) so a concurrent sale/transfer/edit on the same cell can't race
         // with the read-compute-write below — without this, the delta is computed from a stale
         // read and the save could either lose an update or throw an unhandled concurrency error.
-        foreach (var (pid, sid) in valid.Select(e => (e.ProductId, e.StoreId)).Distinct()
-                     .OrderBy(p => p.ProductId).ThenBy(p => p.StoreId))
-            await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {sid} FOR UPDATE");
+        if (_db.Database.IsNpgsql()) // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
+            foreach (var (pid, sid) in valid.Select(e => (e.ProductId, e.StoreId)).Distinct()
+                         .OrderBy(p => p.ProductId).ThenBy(p => p.StoreId))
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {sid} FOR UPDATE");
 
         foreach (var e in valid)
         {

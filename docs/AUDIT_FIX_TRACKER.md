@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-14 (variant-level stock Phase 2 → FX-37 / OP-4 fully done; OP-46/47/48 logged)
+**Last updated:** 2026-06-14 (follow-ups → FX-38 pickup validation, FX-39 variant stock-take, FX-40 test harness green)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -120,7 +120,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | OP-26 | Storefront: no reviews/ratings, no abandoned-cart recovery, product images lack width/height (CLS) | H16–H18 | Conversion/SEO backlog. |
 | OP-29 | Data-export actions not all audited (Orders `ExportCsv` is a GET, unlogged; Customers/AuditLog exports *are* logged) | admin audit | Add `LogAsync` to remaining export endpoints. |
 | OP-41 | `wwwroot/js/app.js` (8 KB) ships unminified | perf audit | Minify in the build/asset pipeline. |
-| OP-46 | Test suite (`SterlingLams.Web.Tests`) red on its SQLite harness — Phase-B `xmin` rowversion (NOT NULL) and `SELECT … FOR UPDATE` are Postgres-only, so 9 DB-backed tests fail at runtime (pre-existing, not variant-related) | variant Phase 2 | Use a Postgres test DB (Testcontainers) or make the xmin/lock provider-conditional. |
+| ~~OP-46~~ | ✅ **DONE** (FX-40) — made the Postgres-isms provider-conditional: the `xmin` rowversion mapping and all 6 `FOR UPDATE` lock sites are guarded by `Database.IsNpgsql()` (active in prod, no-op on the SQLite test harness). All **13 tests pass**; Postgres lock/concurrency behaviour unchanged. | variant Phase 2 | — |
 | ~~OP-47~~ | ✅ **DONE** (FX-38) — `CheckoutViewModel : IValidatableObject` requires the address only for Delivery, store only for Pickup; removed unconditional `[Required]`. Verified: a pickup order placed with no address → created + fulfilled. | variant Phase 2 | — |
 | ~~OP-48~~ | ✅ **DONE** (FX-39) — stock-take sheet now has per-variant rows; variance keyed by product+variant; Apply materializes the variant row. Verified: counting a variant → variant row created. | variant Phase 2 | — |
 | OP-30 | Store `OpeningHours` renders mojibake (`Monâ€"Sat: 8amâ€"8pm`) on order detail + Stores page — UTF-8 en-dash double-encoded in the stored value | storefront audit | Re-save store hours with clean dashes (data fix) or sanitize on display. |

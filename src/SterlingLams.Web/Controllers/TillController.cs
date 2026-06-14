@@ -227,8 +227,9 @@ public class TillController : Controller
         // Lock this order's row so two concurrent refund requests for the same sale
         // serialize: the second sees the first's refund rows before computing "already
         // refunded" quantities below, instead of both reading zero and double-refunding.
-        await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT 1 FROM \"Orders\" WHERE \"Id\" = {order.Id} FOR UPDATE");
+        if (_db.Database.IsNpgsql()) // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"Orders\" WHERE \"Id\" = {order.Id} FOR UPDATE");
 
         var refundIds = _db.Refunds.Where(r => r.OriginalOrderId == order.Id).Select(r => r.Id);
         var refunded = await _db.RefundItems.Where(ri => refundIds.Contains(ri.RefundId))
@@ -701,9 +702,10 @@ public class TillController : Controller
         // deadlocking against a concurrent checkout/transfer touching an overlapping set of
         // products), then re-check availability against the now-locked, up-to-date balances
         // before mutating anything — closes the check-then-act window from the pre-check above.
-        foreach (var pid in productIds.OrderBy(id => id))
-            await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {storeId} FOR UPDATE");
+        if (_db.Database.IsNpgsql()) // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
+            foreach (var pid in productIds.OrderBy(id => id))
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT 1 FROM \"StoreInventories\" WHERE \"ProductId\" = {pid} AND \"StoreId\" = {storeId} FOR UPDATE");
 
         foreach (var grp in req.Items.GroupBy(i => new { i.ProductId, i.VariantId }))
         {
