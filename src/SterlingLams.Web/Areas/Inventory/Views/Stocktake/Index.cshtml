@@ -79,15 +79,32 @@ else
                         <td class="px-4 py-2.5">
                             <p class="text-xs text-neutral-800">@r.Name</p>
                             @if (!string.IsNullOrEmpty(r.Sku)) { <p class="text-[10px] text-neutral-400 font-mono">@r.Sku</p> }
+                            @if (r.HasVariants) { <p class="text-[10px] text-amber-600">@r.Variants.Count variant(s) — row is unallocated pool</p> }
                         </td>
                         <td class="px-4 py-2.5 text-right text-neutral-600">@r.System</td>
                         <td class="px-4 py-2.5 text-center">
                             <input type="number" min="0" placeholder="—"
-                                   data-pid="@r.ProductId" data-system="@r.System"
+                                   data-pid="@r.ProductId" data-vid="" data-system="@r.System"
                                    class="count-cell w-20 text-center text-xs border border-neutral-200 rounded-sm px-2 py-1 focus:outline-none focus:border-emerald-400" />
                         </td>
-                        <td class="px-4 py-2.5 text-right text-xs variance-cell" data-pid="@r.ProductId">—</td>
+                        <td class="px-4 py-2.5 text-right text-xs variance-cell" data-pid="@r.ProductId" data-vid="">—</td>
                     </tr>
+                    @foreach (var v in r.Variants)
+                    {
+                        <tr class="bg-neutral-50/60" data-row-pid="@r.ProductId" data-row-vid="@v.VariantId">
+                            <td class="px-4 py-1.5 pl-10">
+                                <p class="text-[11px] text-neutral-600">↳ @v.Name</p>
+                                @if (!string.IsNullOrEmpty(v.Sku)) { <p class="text-[10px] text-neutral-400 font-mono">@v.Sku</p> }
+                            </td>
+                            <td class="px-4 py-1.5 text-right text-neutral-500">@v.System</td>
+                            <td class="px-4 py-1.5 text-center">
+                                <input type="number" min="0" placeholder="—"
+                                       data-pid="@r.ProductId" data-vid="@v.VariantId" data-system="@v.System"
+                                       class="count-cell w-20 text-center text-xs border border-neutral-200 rounded-sm px-2 py-1 focus:outline-none focus:border-emerald-400" />
+                            </td>
+                            <td class="px-4 py-1.5 text-right text-xs variance-cell" data-pid="@r.ProductId" data-vid="@v.VariantId">—</td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
@@ -113,7 +130,8 @@ else
         function refresh() {
             enteredEl.textContent = counted().length;
             document.querySelectorAll('input.count-cell').forEach(i => {
-                const vc = document.querySelector(`.variance-cell[data-pid="${i.dataset.pid}"]`);
+                const vc = document.querySelector(`.variance-cell[data-pid="${i.dataset.pid}"][data-vid="${i.dataset.vid || ''}"]`);
+                if (!vc) return;
                 if (i.value === '') { vc.textContent = '—'; vc.className = 'px-4 py-2.5 text-right text-xs variance-cell text-neutral-300'; return; }
                 const v = (+i.value) - (+i.dataset.system);
                 vc.textContent = (v > 0 ? '+' : '') + v;
@@ -123,7 +141,7 @@ else
         document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('count-cell')) refresh(); });
         refresh();
         btn.addEventListener('click', async () => {
-            const counts = counted().map(i => ({ productId: +i.dataset.pid, counted: +i.value }));
+            const counts = counted().map(i => ({ productId: +i.dataset.pid, variantId: i.dataset.vid ? +i.dataset.vid : null, counted: +i.value }));
             if (!counts.length) { alert('Enter at least one count.'); return; }
             if (!confirm('Reconcile ' + counts.length + ' product(s) to the counted quantities? This adjusts stock via the ledger.')) return;
             btn.disabled = true; btn.textContent = 'Applying…';
@@ -156,10 +174,10 @@ else
                 </td>
                 <td class="px-4 py-2.5 text-right text-neutral-600">${data.system}</td>
                 <td class="px-4 py-2.5 text-center">
-                    <input type="number" min="0" placeholder="—" data-pid="${data.productId}" data-system="${data.system}"
+                    <input type="number" min="0" placeholder="—" data-pid="${data.productId}" data-vid="" data-system="${data.system}"
                            class="count-cell w-20 text-center text-xs border border-neutral-200 rounded-sm px-2 py-1 focus:outline-none focus:border-emerald-400" />
                 </td>
-                <td class="px-4 py-2.5 text-right text-xs variance-cell" data-pid="${data.productId}">—</td>`;
+                <td class="px-4 py-2.5 text-right text-xs variance-cell" data-pid="${data.productId}" data-vid="">—</td>`;
             return tr;
         }
 

@@ -50,9 +50,18 @@ public class StocktakeController : InventoryAreaController
                 ProductId = p.Id,
                 Name = p.Name,
                 Sku = p.Sku,
-                // Product-level pool row (per-variant stock-take counting is Phase 2).
+                // Product-level pool row; variant products also list per-variant rows below.
                 System = p.StoreInventories.Where(si => si.StoreId == storeId && si.ProductVariantId == null)
-                    .Select(si => (int?)si.QuantityOnHand).FirstOrDefault() ?? 0
+                    .Select(si => (int?)si.QuantityOnHand).FirstOrDefault() ?? 0,
+                Variants = p.Variants.Where(v => v.IsActive).OrderBy(v => v.Name)
+                    .Select(v => new StocktakeVariantRow
+                    {
+                        VariantId = v.Id,
+                        Name = v.Name,
+                        Sku = v.Sku,
+                        System = p.StoreInventories.Where(si => si.StoreId == storeId && si.ProductVariantId == v.Id)
+                            .Select(si => (int?)si.QuantityOnHand).FirstOrDefault() ?? 0
+                    }).ToList()
             })
             .ToListAsync();
 
@@ -154,6 +163,16 @@ public class StocktakeController : InventoryAreaController
 public class StocktakeRow
 {
     public int ProductId { get; set; }
+    public string Name { get; set; } = "";
+    public string? Sku { get; set; }
+    public int System { get; set; }
+    public List<StocktakeVariantRow> Variants { get; set; } = new();
+    public bool HasVariants => Variants.Count > 0;
+}
+
+public class StocktakeVariantRow
+{
+    public int VariantId { get; set; }
     public string Name { get; set; } = "";
     public string? Sku { get; set; }
     public int System { get; set; }
