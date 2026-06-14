@@ -126,6 +126,9 @@ builder.Services.AddRateLimiter(options =>
 // ─── Background Services ─────────────────────────────────────────────────────
 // Frees stock reserved by abandoned (unpaid) online orders so it returns to sale.
 builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.ReservationSweeper>();
+// Retries paid-but-unfulfilled online orders (self-heals transient failures) and alerts the
+// admin for ones that stay stuck (e.g. genuine stock shortage). See OP-2.
+builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.FulfilmentRetryService>();
 
 // ─── MVC ────────────────────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews()

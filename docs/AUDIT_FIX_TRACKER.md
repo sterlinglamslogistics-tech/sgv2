@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-14 (follow-ups → FX-38 pickup validation, FX-39 variant stock-take, FX-40 test harness green)
+**Last updated:** 2026-06-14 (FX-41 fulfilment retry/alert + Channel guard — OP-2 done)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -73,7 +73,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | ID | Item | Ref | Notes / approach |
 |----|------|-----|------------------|
 | OP-1 | Paystack **test** keys exposed in **git history** (commits before `4be47d9` "stop tracking dev secrets file"). Source is already clean: base `appsettings.json` = `YOUR_…` placeholders; dev file gitignored/untracked. **Remaining = USER ACTION:** rotate the test keys in the Paystack dashboard (history scrub then unnecessary since test-only). No code change. | C1 | ⚠️ user-only |
-| OP-2 | `FulfilPaidOrderAsync` swallows **all** exceptions → customer charged but order silently unfulfilled, no retry/alert | R2 / #12 | Outbox or job queue + retry + alert; mark order needs-attention. |
+| ~~OP-2~~ | ✅ **DONE** (FX-41) — `FulfilmentRetryService` (BackgroundService, every 5 min + on startup) retries paid-but-unfulfilled **online** orders (idempotent FulfilPaidOrderAsync → self-heals transient failures) and emails the admin once for any stuck past 15 min (`Order.FulfilmentAlertedAt` dedupe); failures now stamp AdminNotes. Added a `Channel == Online` guard in both the query and FulfilPaidOrderAsync so POS sales are never re-fulfilled. Verified: a stuck online order auto-fulfilled on the next sweep; POS orders untouched; no double-deduction. | R2 / #12 | — |
 | ~~OP-3~~ | ✅ **DONE** (FX-22) — `StoreInventoryConcurrencyToken` `Up()`/`Down()` neutralized to no-ops; both pending migrations applied to dev & verified (xmin still a system column, 12 CHECKs + indexes live) | D1 | — |
 
 ### 🟠 High

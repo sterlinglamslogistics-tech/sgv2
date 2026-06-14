@@ -216,6 +216,10 @@ public class OrderFulfilmentService : IOrderFulfilmentService
                 .FirstOrDefaultAsync(o => o.Id == orderId);
             if (order == null) return;
 
+            // Only online orders are fulfilled through this multi-branch pipeline. POS sales are
+            // already settled (stock deducted) at the till — never re-fulfil one.
+            if (order.Channel != OrderChannel.Online) return;
+
             // Idempotency: a fulfilled order already has its branch + ledger movements.
             if (order.FulfillingStoreId != null) return;
 
@@ -336,6 +340,19 @@ public class OrderFulfilmentService : IOrderFulfilmentService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fulfilment failed for order {OrderId}: {Message}", orderId, ex.Message);
+            // Best-effort: record the failure on the order so it's visible in admin and picked up by
+            // the retry service. The transaction above rolled back, so clear the tracker first.
+            try
+            {
+                _db.ChangeTracker.Clear();
+                var o = await _db.Orders.FindAsync(orderId);
+                if (o != null && o.FulfillingStoreId == null)
+                {
+                    o.AdminNotes = $"Fulfilment error {DateTime.UtcNow:yyyy-MM-dd HH:mm}: {ex.Message}";
+                    await _db.SaveChangesAsync();
+                }
+            }
+            catch { /* never throw from fulfilment — the customer has already paid */ }
         }
     }
 }

@@ -85,6 +85,10 @@ public class Order
     public string? Notes { get; set; }
     public string? AdminNotes { get; set; }
 
+    /// <summary>Set when an admin alert has been sent for a paid-but-unfulfilled order, so the
+    /// fulfilment retry service doesn't alert repeatedly. Cleared (stays null) once fulfilled.</summary>
+    public DateTime? FulfilmentAlertedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
