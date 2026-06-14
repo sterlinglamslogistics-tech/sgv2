@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-14 (security fixes → FX-31 XSS, FX-32 order-PII token; OP-1 = user key-rotation only)
+**Last updated:** 2026-06-14 (security hardening → FX-33 CSP, FX-34 staff session; OP-45 added)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -57,6 +57,8 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | FX-30 | Perf (LCP): hero image now `loading="eager" fetchpriority="high" decoding="async"` so the largest paint isn't deprioritized | Views/Home/Index.cshtml |
 | FX-31 | **Stored XSS** in admin delete-confirm handlers — product/store name was interpolated into inline JS with only `'`-escaping; crafted/imported names could break out and run in an Admin session. Moved name to a Razor-encoded `data-itemname` read as a string arg. Verified a payload name no longer executes. | Areas/Admin/Views/Products/Index.cshtml, Stores/Index.cshtml, Stores/Edit.cshtml |
 | FX-32 | **Anonymous order PII leak (OP-44)** — `Checkout/Confirmation?orderNumber=` returned any order's name/address/phone to unauthenticated visitors. Now requires the signed-in owner **or** a Data-Protection-signed token (issued on the post-payment redirect). Verified: anon no/bogus token → 404; owner → 200. | Controllers/CheckoutController.cs |
+| FX-33 | **CSP header (OP-10)** — added a Content-Security-Policy (default-src 'self', external scripts/framing/base/form blocked; Google Fonts + https images allowed). Verified: no CSP violations on home/detail; inline handlers still run. ('unsafe-inline' remains until inline scripts move to nonces — see OP-45.) | Program.cs |
+| FX-34 | **Staff session lifetime (H9)** — staff/admin now get an 8-hour, non-persistent auth cookie (overrides "remember me"); shoppers keep the 30-day sliding cookie. Verified: staff+RememberMe → session cookie. | Program.cs |
 | FX-20 | Typed stock movements — adjustment reasons map to `Purchase`/`Damage`/`Loss` (was all `Adjustment`) | Models/Domain/StockMovement.cs, Areas/Inventory/Controllers/StockController.cs |
 | FX-21 | Concurrency safety on manual adjustments + stock-take (lock + re-read + graceful catch) | Areas/Inventory/Controllers/StockController.cs, StocktakeController.cs |
 
@@ -88,7 +90,8 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 ### 🟡 Medium
 | ID | Item | Ref | Notes |
 |----|------|-----|-------|
-| OP-10 | No Content-Security-Policy header | R7 | Add CSP (+ SRI). |
+| ~~OP-10~~ | ✅ **DONE** (FX-33) — CSP header added (pragmatic, `'unsafe-inline'` for now) | R7 | — |
+| OP-45 | CSP still needs `'unsafe-inline'` for scripts — refactor inline `<script>`/`onsubmit`/`onchange` to nonces/external handlers to drop it (full XSS hardening) | follow-up to FX-33 | Nonce middleware + move inline handlers. |
 | OP-11 | Guest checkout creates unverified `ApplicationUser` keyed by email (account sprawl / cross-person history) | R4 | True guest order or email verification + merge. |
 | OP-12 | Auto-`MigrateAsync()` on production startup (bad migration → site down) | R5 | Run migrations as a gated deploy step. |
 | OP-13 | Only Paystack has a webhook; Stripe/Flutterwave rely on browser callback only | R6 | Add webhooks if those providers go live. |
@@ -96,7 +99,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | OP-15 | Stock ledger sparse — opening balances imported w/o `StockMovement` rows (can't reconstruct stock) | D3 / #15 | Write opening-stock `Adjustment` movements on import. |
 | OP-16 | No dedicated Purchase/PO module (stock receipt is a typed adjustment) + no shrinkage report | I3 | Build POs; report grouping new `Damage`/`Loss` types. |
 | OP-17 | Reports do in-memory aggregation over all products×stores; audit export unbounded; bulk/stocktake loop a query per line; customers N+1 | H10–H14 | Push aggregation to SQL; paginate/limit. (Audit filter + list partly helped by new indexes.) |
-| OP-18 | Weak password policy + no email confirmation; 30-day sliding cookie for staff/admin | H8, H9 | Stronger policy; shorter staff session. |
+| OP-18 | Weak password policy + no email confirmation (H8). ~~30-day staff cookie (H9)~~ ✅ done (FX-34). | H8, H9 | Stronger password policy / email confirmation still open. |
 | OP-19 | Thin automated test coverage (no POS/transfer/discount/payment/authz tests) | R9 | Add integration tests. |
 | OP-27 | No admin view for **Reservations** (stock holds on unpaid orders) — active holds are invisible, so "out of stock" caused by holds can't be diagnosed | admin audit | Read-only holds list (order, product, branch, qty, age). |
 

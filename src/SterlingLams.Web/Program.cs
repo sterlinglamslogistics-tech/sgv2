@@ -66,6 +66,21 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromDays(30);
     options.SlidingExpiration = true;
+
+    // Staff/admin get a much shorter, non-persistent session than shoppers — a stolen or
+    // shared back-office cookie shouldn't stay valid for a month. Customers keep the 30-day
+    // sliding convenience above.
+    options.Events ??= new Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationEvents();
+    options.Events.OnSigningIn = ctx =>
+    {
+        string[] staffRoles = { "Admin", "Operations", "Sales", "Inventory", "Social Media" };
+        if (ctx.Principal is not null && Array.Exists(staffRoles, r => ctx.Principal!.IsInRole(r)))
+        {
+            ctx.Properties.IsPersistent = false;
+            ctx.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8);
+        }
+        return Task.CompletedTask;
+    };
 });
 
 // ─── Caching ────────────────────────────────────────────────────────────────
@@ -136,6 +151,23 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+    // Content-Security-Policy. Pragmatic policy: the app uses inline <script> blocks and inline
+    // event handlers (onsubmit/onchange) + inline style attributes, so 'unsafe-inline' is required
+    // until those are refactored to nonces (tracked separately). Even so this blocks injected
+    // EXTERNAL scripts/resources, framing, and form/base-uri abuse. Allowances: Google Fonts (CSS +
+    // font files) and external product images (https:).
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: https:; " +
+        "connect-src 'self'; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none'";
     await next();
 });
 
