@@ -15,19 +15,22 @@ public class AccountController : Controller
     private readonly ApplicationDbContext _db;
     private readonly ILogger<AccountController> _logger;
     private readonly SterlingLams.Web.Services.IEmailService _email;
+    private readonly IWebHostEnvironment _env;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         ApplicationDbContext db,
         ILogger<AccountController> logger,
-        SterlingLams.Web.Services.IEmailService email)
+        SterlingLams.Web.Services.IEmailService email,
+        IWebHostEnvironment env)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _db = db;
         _logger = logger;
         _email = email;
+        _env = env;
     }
 
     // ─── Login ───────────────────────────────────────────────────────────────
@@ -115,8 +118,11 @@ public class AccountController : Controller
         if (result.Succeeded)
         {
             _logger.LogInformation("New account created: {Email}", model.Email);
+            await SendConfirmationEmailAsync(user);
+            // Email confirmation is not enforced yet, so we still sign the user in — the link just
+            // verifies their address for when enforcement is turned on.
             await _signInManager.SignInAsync(user, isPersistent: false);
-            TempData["Success"] = $"Welcome, {user.FirstName}! Your account has been created.";
+            TempData["Success"] = $"Welcome, {user.FirstName}! We've sent a link to {user.Email} to confirm your email.";
             return RedirectToAction("Profile");
         }
 
@@ -124,6 +130,79 @@ public class AccountController : Controller
             ModelState.AddModelError("", error.Description);
 
         return View(model);
+    }
+
+    // ─── Email confirmation ────────────────────────────────────────────────────
+
+    private async Task SendConfirmationEmailAsync(ApplicationUser user)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email)) return;
+        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        var confirmLink = Url.Action(nameof(ConfirmEmail), "Account",
+            new { userId = user.Id, token }, protocol: Request.Scheme)!;
+
+        // Dev aid: when SMTP isn't configured the email is only logged, so surface the link.
+        if (_env.IsDevelopment())
+            _logger.LogInformation("[DEV] Email confirmation link for {Email}: {Link}", user.Email, confirmLink);
+
+        var body = $@"
+            <h2 style=""font-size:18px;margin:0 0 16px;"">Confirm your email</h2>
+            <p>Thanks for creating an account with Sterlin Glams. Please confirm this is your email address by clicking below.</p>
+            <p style=""margin:28px 0;"">
+                <a href=""{confirmLink}"" style=""background:#0a0a0a;color:#ffffff;text-decoration:none;padding:12px 28px;display:inline-block;font-size:13px;letter-spacing:1px;text-transform:uppercase;"">Confirm Email</a>
+            </p>
+            <p style=""font-size:13px;color:#78716c;"">If you didn't create this account, you can safely ignore this email.</p>";
+        await _email.SendAsync(user.Email, "Confirm your email", body, $"{user.FirstName} {user.LastName}".Trim());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ConfirmEmail(string? userId, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+            return RedirectToAction(nameof(Login));
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            TempData["Error"] = "That confirmation link is no longer valid.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        if (user.EmailConfirmed)
+        {
+            TempData["Success"] = "Your email is already confirmed.";
+            return RedirectToAction(User.Identity?.IsAuthenticated == true ? nameof(Profile) : nameof(Login));
+        }
+
+        var result = await _userManager.ConfirmEmailAsync(user, token);
+        if (result.Succeeded)
+        {
+            _logger.LogInformation("Email confirmed for {Email}", user.Email);
+            TempData["Success"] = "Thank you — your email is now confirmed.";
+        }
+        else
+        {
+            TempData["Error"] = "We couldn't confirm your email — the link may have expired. Please request a new one.";
+        }
+        return RedirectToAction(User.Identity?.IsAuthenticated == true ? nameof(Profile) : nameof(Login));
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResendConfirmation()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        if (user.EmailConfirmed)
+            TempData["Success"] = "Your email is already confirmed.";
+        else
+        {
+            await SendConfirmationEmailAsync(user);
+            TempData["Success"] = $"Confirmation link sent to {user.Email}.";
+        }
+        return RedirectToAction(nameof(Profile));
     }
 
     // ─── Logout ──────────────────────────────────────────────────────────────
@@ -172,6 +251,7 @@ public class AccountController : Controller
             Phone       = user.PhoneNumber,
             CreatedAt   = user.CreatedAt,
             ActiveTab   = tab,
+            EmailConfirmed = user.EmailConfirmed,
             RecentOrders = orders,
             Addresses   = addresses
         };

@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-15 (FX-45 POS sells against available — OP-5 done)
+**Last updated:** 2026-06-15 (FX-46 password policy + email-confirmation flow — OP-18 done)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -102,7 +102,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | OP-15 | Stock ledger sparse — opening balances imported w/o `StockMovement` rows (can't reconstruct stock) | D3 / #15 | Write opening-stock `Adjustment` movements on import. |
 | OP-16 | No dedicated Purchase/PO module (stock receipt is a typed adjustment) + no shrinkage report | I3 | Build POs; report grouping new `Damage`/`Loss` types. |
 | OP-17 | Reports do in-memory aggregation over all products×stores; audit export unbounded; bulk/stocktake loop a query per line; customers N+1 | H10–H14 | Push aggregation to SQL; paginate/limit. (Audit filter + list partly helped by new indexes.) |
-| OP-18 | Weak password policy + no email confirmation (H8). ~~30-day staff cookie (H9)~~ ✅ done (FX-34). | H8, H9 | Stronger password policy / email confirmation still open. |
+| ~~OP-18~~ | ✅ **DONE** (FX-46) — **(a)** Explicit stronger password policy: length 8 + upper + lower + digit + 4 unique chars (was: no uppercase requirement). **(b)** Email-confirmation flow built: Register generates a token + sends a confirm link (link also logged in Development since SMTP is off), `ConfirmEmail` verifies it, `ResendConfirmation` + an unconfirmed-email banner on Profile. Enforcement (`RequireConfirmedEmail`) is deliberately left **off** — flipping it on would lock out the 3 existing unconfirmed users and depends on live SMTP; enabling it is a one-line flip once existing users are grandfathered (`EmailConfirmed=true`) and SMTP is configured (documented in Program.cs). Verified (Playwright + DB): weak pw rejected ("must have an uppercase"); strong pw registers + shows banner + EmailConfirmed=false; confirm link → EmailConfirmed=true + banner clears; invalid/missing token redirect cleanly. | H8, H9 | enforce-confirmation is the remaining opt-in step (user decision). |
 | OP-19 | Thin automated test coverage (no POS/transfer/discount/payment/authz tests) | R9 | Add integration tests. |
 | OP-27 | No admin view for **Reservations** (stock holds on unpaid orders) — active holds are invisible, so "out of stock" caused by holds can't be diagnosed | admin audit | Read-only holds list (order, product, branch, qty, age). |
 

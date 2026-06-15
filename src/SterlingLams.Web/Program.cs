@@ -40,9 +40,20 @@ builder.Services.AddDataProtection()
 // ─── Identity ───────────────────────────────────────────────────────────────
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    options.Password.RequireDigit = true;
+    // Explicit, balanced password policy (applies to staff + customers). Requires a mix of
+    // upper/lower/digit at 8+ chars with 4 distinct characters — strong without forcing a special
+    // character (which is user-hostile and adds little once length + character classes are required).
     options.Password.RequiredLength = 8;
-    options.Password.RequireUppercase = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredUniqueChars = 4;
+
+    // Email confirmation is NOT enforced yet: existing users are unconfirmed and SMTP may be
+    // unconfigured, so flipping this on would lock everyone out. The confirmation flow exists
+    // (Register sends a link, AccountController.ConfirmEmail verifies it); enable enforcement only
+    // once existing users are grandfathered (EmailConfirmed=true) and SMTP is live in production.
     options.SignIn.RequireConfirmedEmail = false;
 
     // Brute-force protection: lock the account after repeated failed logins.

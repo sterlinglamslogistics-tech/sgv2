@@ -34,6 +34,17 @@
         }
     </div>
 
+    @if (!Model.EmailConfirmed)
+    {
+        <div class="mb-8 flex flex-wrap items-center justify-between gap-3 border border-amber-200 bg-amber-50 px-5 py-3 rounded-sm">
+            <p class="text-xs text-amber-800">Your email <span class="font-medium">@Model.Email</span> isn't confirmed yet.</p>
+            <form asp-action="ResendConfirmation" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="text-xs font-medium text-amber-900 underline hover:no-underline">Resend confirmation link</button>
+            </form>
+        </div>
+    }
+
     <!-- ─── Profile Tab ──────────────────────────────────────────────────── -->
     @if (tab == "profile")
     {
