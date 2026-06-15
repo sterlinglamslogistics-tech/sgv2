@@ -102,6 +102,33 @@ public class PaystackPaymentService : IPaymentService
         }
     }
 
+    public async Task<RefundResult> RefundPaymentAsync(RefundPaymentRequest request)
+    {
+        try
+        {
+            // Paystack: POST /refund { transaction, amount(kobo, optional → full refund), merchant_note }
+            var payload = new
+            {
+                transaction = request.Reference,
+                amount = (int)(request.Amount * 100),
+                merchant_note = request.Reason
+            };
+            var response = await _http.PostAsJsonAsync("/refund", payload);
+            var content = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<PaystackRefundResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (result?.Status == true)
+                return new RefundResult { Success = true, ProviderReference = result.Data?.Id?.ToString() };
+
+            return new RefundResult { Success = false, ErrorMessage = result?.Message ?? "Paystack refund was not accepted." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Paystack refund failed for reference {Reference}", request.Reference);
+            return new RefundResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
     public Task<bool> ValidateWebhookAsync(string payload, string signature)
     {
         var hash = HMACSHA512.HashData(Encoding.UTF8.GetBytes(_settings.SecretKey), Encoding.UTF8.GetBytes(payload));
@@ -143,5 +170,17 @@ public class PaystackPaymentService : IPaymentService
     private class PaystackMetadata
     {
         [JsonPropertyName("order_number")] public string? OrderNumber { get; set; }
+    }
+
+    private class PaystackRefundResponse
+    {
+        [JsonPropertyName("status")] public bool Status { get; set; }
+        [JsonPropertyName("message")] public string? Message { get; set; }
+        [JsonPropertyName("data")] public PaystackRefundData? Data { get; set; }
+    }
+
+    private class PaystackRefundData
+    {
+        [JsonPropertyName("id")] public long? Id { get; set; }
     }
 }

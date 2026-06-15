@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-15 (FX-43 webhook hardening — OP-6 done: exact order match + amount guard)
+**Last updated:** 2026-06-15 (FX-44 online-order refund workflow — OP-28 done)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -87,7 +87,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | ~~OP-8~~ | ✅ **DONE** (FX-35) — store-level (writes-only) authorization: per-user branch assignment + enforcement on stock/stock-take/transfers/till; admin assignment UI | H7 | — |
 | ~~OP-9~~ | ✅ **DONE** (FX-42) — `_ValidationScriptsPartial` referenced non-existent `wwwroot/lib/jquery-validation*` (404 + MIME errors) and the CDN fallback can't load under our `script-src 'self'` CSP; jQuery isn't loaded site-wide either, so client validation never actually ran. Made the partial a no-op with a comment — these auth forms are fully validated server-side (ModelState). Verified: Login page emits **no** jquery script refs. Follow-up: vendor jquery+validation+unobtrusive locally to satisfy CSP if client-side validation is wanted. | R11 | — |
 | OP-33 | **Back-in-stock notify is a no-op** — `ProductsController.NotifyRestock` only `LogInformation`s and discards the email; customers told "we'll notify you" but nothing is stored/sent (revenue leak + broken promise) | merch audit | Persist requests (table) + send on restock (hook in `StockService.ApplyAsync` when qty crosses 0→+). |
-| OP-28 | No online-order refund workflow — refunds are POS-only; `OrdersController.UpdateStatus` lets an order be set "Refunded" with **no Refund record, no stock return, no gateway refund** (cosmetic) | admin audit | Build online refund (record + `Return` ledger + provider refund). |
+| ~~OP-28~~ | ✅ **DONE** (FX-44) — built an online-order refund workflow in Admin → Order detail (full or partial, item-level), mirroring the POS return: creates a `Refund`+`RefundItems`, optionally returns stock to the fulfilling store via the `Return` ledger (FOR UPDATE + xmin), and attempts a gateway refund (new `IPaymentService.RefundPaymentAsync`; Paystack real `/refund`, Stripe/Flutterwave report "not automated"). Best-effort gateway: the refund record + restock are authoritative, gateway failures are flagged in AdminNotes for a manual refund. Full refund → status `Refunded`; partial leaves status. Closed the cosmetic hole: `UpdateStatus` now **rejects** setting `Refunded` (removed from the dropdown + server-side guard). Verified end-to-end (Playwright + DB): partial refund restocked 10→11 with a Return ledger row, status stayed Delivered; full refund → Refunded + form hidden; gateway "Transaction not found" handled gracefully; direct `UpdateStatus=Refunded` POST left status unchanged. | admin audit | — |
 | OP-31 | Guests can't view order history/tracking after leaving the confirmation page (guest account has a random password → can't log in) | storefront audit | Magic-link order lookup, or post-purchase set-password. Ties to OP-11/R4. |
 
 ### 🟡 Medium

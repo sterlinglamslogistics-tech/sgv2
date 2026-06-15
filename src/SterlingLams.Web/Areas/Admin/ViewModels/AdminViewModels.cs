@@ -81,10 +81,21 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public Order Order { get; set; } = null!;
         public string CustomerName { get; set; } = "";
         public string CustomerEmail { get; set; } = "";
+        // "Refunded" is intentionally excluded — refunds go through the dedicated Refund action
+        // (records the refund, returns stock, triggers the gateway), not a status dropdown.
         public List<string> AvailableStatuses { get; set; } = new()
         {
-            "Pending", "Confirmed", "Processing", "ReadyForPickup", "Shipped", "Delivered", "Cancelled", "Refunded"
+            "Pending", "Confirmed", "Processing", "ReadyForPickup", "Shipped", "Delivered", "Cancelled"
         };
+
+        // ── Refunds ──────────────────────────────────────────────────────────
+        public List<Refund> Refunds { get; set; } = new();
+        /// <summary>Quantity already refunded per (productId, variantId), to compute what's left.</summary>
+        public Dictionary<(int ProductId, int? VariantId), int> RefundedQty { get; set; } = new();
+        /// <summary>The store stock is returned to on refund (fulfilling store, else pickup store).</summary>
+        public int RefundStoreId { get; set; }
+        public bool CanRefund { get; set; }
+        public decimal RefundedTotal { get; set; }
     }
 
     // ─── Products ─────────────────────────────────────────────────────────

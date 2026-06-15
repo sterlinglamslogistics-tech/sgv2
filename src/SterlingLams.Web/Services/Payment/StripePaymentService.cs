@@ -168,6 +168,14 @@ public class StripePaymentService : IPaymentService
         }
     }
 
+    public Task<RefundResult> RefundPaymentAsync(RefundPaymentRequest request)
+        => Task.FromResult(new RefundResult
+        {
+            Success = false,
+            Supported = false,
+            ErrorMessage = "Automated Stripe refunds are not configured — refund via the Stripe dashboard."
+        });
+
     public Task<bool> ValidateWebhookAsync(string payload, string signature)
     {
         try

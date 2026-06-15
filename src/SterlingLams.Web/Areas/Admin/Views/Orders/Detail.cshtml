@@ -61,6 +61,100 @@
                 <p class="text-xs text-neutral-600"><span class="text-neutral-400">Deliver to:</span> @a.Line1, @a.City, @a.State</p>
             }
         </div>
+
+        <!-- Refunds -->
+        @if (Model.Refunds.Any())
+        {
+            <div class="bg-white rounded-sm border border-neutral-100 px-6 py-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-medium">Refunds</h2>
+                    <span class="text-xs text-neutral-500">Total refunded: <span class="font-medium text-rose-600">₦@Model.RefundedTotal.ToString("N0")</span></span>
+                </div>
+                <div class="space-y-2">
+                    @foreach (var r in Model.Refunds)
+                    {
+                        <div class="border border-neutral-100 rounded-sm px-3 py-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-mono text-neutral-700">@r.RefundNumber</span>
+                                <span class="font-medium text-rose-600">₦@r.Amount.ToString("N0")</span>
+                            </div>
+                            <div class="text-[11px] text-neutral-400 mt-0.5">
+                                @r.CreatedAt.ToString("dd MMM yy HH:mm") · @r.RefundMethod · @r.Items.Sum(i => i.Quantity) item(s)
+                                @if (!string.IsNullOrWhiteSpace(r.Reason)) { <text>· @r.Reason</text> }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Refund form -->
+        @if (Model.CanRefund)
+        {
+            <div class="bg-white rounded-sm border border-neutral-100">
+                <div class="px-6 py-4 border-b border-neutral-100">
+                    <h2 class="text-sm font-medium">Issue a refund</h2>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">Records the refund, optionally returns stock, and attempts the gateway refund.</p>
+                </div>
+                <form asp-area="Admin" asp-controller="Orders" asp-action="RefundOrder"
+                      asp-route-id="@Model.Order.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-neutral-50 border-b border-neutral-100">
+                                <th class="text-left px-6 py-2 text-xs text-neutral-400 font-medium">Item</th>
+                                <th class="text-right px-6 py-2 text-xs text-neutral-400 font-medium">Ordered</th>
+                                <th class="text-right px-6 py-2 text-xs text-neutral-400 font-medium">Refunded</th>
+                                <th class="text-right px-6 py-2 text-xs text-neutral-400 font-medium">Refund qty</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-50">
+                            @foreach (var item in Model.Order.Items)
+                            {
+                                var done = Model.RefundedQty.TryGetValue((item.ProductId, item.ProductVariantId), out var dq) ? dq : 0;
+                                var remaining = item.Quantity - done;
+                                <tr>
+                                    <td class="px-6 py-2 text-xs">
+                                        <span class="font-medium text-neutral-800">@item.ProductName</span>
+                                        @if (!string.IsNullOrEmpty(item.VariantName)) { <span class="text-neutral-400">— @item.VariantName</span> }
+                                    </td>
+                                    <td class="px-6 py-2 text-xs text-right">@item.Quantity</td>
+                                    <td class="px-6 py-2 text-xs text-right text-neutral-400">@done</td>
+                                    <td class="px-6 py-2 text-right">
+                                        <input type="hidden" name="itemProductId" value="@item.ProductId" />
+                                        <input type="hidden" name="itemVariantId" value="@(item.ProductVariantId ?? 0)" />
+                                        <input type="number" name="refundQty" value="0" min="0" max="@remaining"
+                                               readonly="@(remaining == 0)"
+                                               class="w-16 border border-neutral-200 rounded-sm px-2 py-1 text-xs text-right focus:outline-none focus:border-neutral-400 @(remaining == 0 ? "bg-neutral-50 text-neutral-300" : "")" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <div class="px-6 py-4 border-t border-neutral-100 space-y-3">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="restock" value="true" checked id="restock" class="rounded-sm border-neutral-300" />
+                            <input type="hidden" name="restock" value="false" />
+                            <label for="restock" class="text-xs text-neutral-600">Return refunded items to stock@(Model.RefundStoreId > 0 ? "" : " (no store on order — won't restock)")</label>
+                        </div>
+                        <div class="flex gap-2">
+                            <select name="method" class="border border-neutral-200 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-neutral-400">
+                                <option value="Paystack">Gateway (Paystack)</option>
+                                <option value="Transfer">Bank transfer</option>
+                                <option value="Manual">Manual / other</option>
+                            </select>
+                            <input name="reason" type="text" placeholder="Reason (optional)"
+                                   class="flex-1 border border-neutral-200 rounded-sm px-3 py-2 text-xs focus:outline-none focus:border-neutral-400" />
+                        </div>
+                        <button type="submit"
+                                onclick="return confirm('Process this refund? Stock will be returned if checked and a gateway refund attempted.');"
+                                class="w-full py-2 bg-rose-600 text-white text-xs rounded-sm hover:bg-rose-500 transition-colors">
+                            Process Refund
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
     </div>
 
     <!-- Sidebar -->
@@ -100,7 +194,10 @@
 
         <!-- Update Status -->
         <div class="bg-white rounded-sm border border-neutral-100 px-6 py-4">
-            <h2 class="text-sm font-medium mb-3">Update Status</h2>
+            <h2 class="text-sm font-medium mb-1">Update Status</h2>
+            <p class="text-xs text-neutral-500 mb-3">Current:
+                <span class="font-medium @(Model.Order.Status == SterlingLams.Web.Models.Domain.OrderStatus.Refunded ? "text-rose-600" : "text-neutral-800")">@Model.Order.Status</span>
+            </p>
             <form asp-area="Admin" asp-controller="Orders" asp-action="UpdateStatus"
                   asp-route-id="@Model.Order.Id" method="post" class="space-y-3">
                 @Html.AntiForgeryToken()

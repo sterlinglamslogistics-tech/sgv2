@@ -122,6 +122,14 @@ public class FlutterwavePaymentService : IPaymentService
         }
     }
 
+    public Task<RefundResult> RefundPaymentAsync(RefundPaymentRequest request)
+        => Task.FromResult(new RefundResult
+        {
+            Success = false,
+            Supported = false,
+            ErrorMessage = "Automated Flutterwave refunds are not configured — refund via the Flutterwave dashboard."
+        });
+
     public Task<bool> ValidateWebhookAsync(string payload, string signature)
     {
         // Flutterwave uses SHA256 HMAC with the secret hash header
