@@ -4,7 +4,18 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-15 (FX-55 wired up the dead Store settings — maintenance/accepting-orders/pickup/OOS-message)
+**Last updated:** 2026-06-15 (FX-56 dead-settings audit — wired homepage + contact settings; 2 flagged)
+
+### Dead-settings audit (FX-56)
+Audited every `SiteSettings` key for a consumer. Wired the rest of the dead ones:
+- `homepage.show_featured` (now toggles the Featured section), `homepage.featured_heading` (was hardcoded "Featured Pieces"), `homepage.store_banner_text` (was hardcoded) — Views/Home/Index.cshtml.
+- `general.contact_email` + `general.contact_phone` (Contact page hardcoded `hello@…`/`+2348000000000`) — Views/Home/Contact.cshtml.
+- Verified each renders custom values; the show-featured toggle hides the section. (`home.feature.b1/b2.*` looked dead in a literal grep but are read via dynamic keys `$"home.feature.{b}.image"` — already wired.)
+
+**Still dead — bigger than wiring (flagged):**
+- `notifications.low_stock` — there is **no low-stock email feature** at all (low stock only surfaces in the Reorder report). The toggle gates nothing; needs a feature build.
+- `store.currency_symbol` — prices hardcode `₦` everywhere (`FormattedPrice => $"₦{…}"`); honoring it means threading the symbol through all price formatting (large/risky). Default is "N" anyway.
+- Also noticed: Contact page hardcodes the 3 stores + hours instead of pulling from DB (the footer pulls live) — cosmetic drift, not a setting.
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked

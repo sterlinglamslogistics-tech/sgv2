@@ -14,6 +14,11 @@
     var heroSubtext   = await SettingsService.GetAsync("homepage.hero_subtext",   "Luxury jewellery crafted for the discerning woman. Discover our newest arrivals.");
     var heroCta       = await SettingsService.GetAsync("homepage.hero_cta",       "Shop Collection");
     var hasHeroImage  = !string.IsNullOrWhiteSpace(heroImageUrl);
+
+    var showFeatured    = await SettingsService.GetBoolAsync("homepage.show_featured", true);
+    var featuredHeading = await SettingsService.GetAsync("homepage.featured_heading", "Featured Pieces");
+    var storeBannerText = await SettingsService.GetAsync("homepage.store_banner_text",
+        "Experience our jewellery in person at any of our three Lagos boutiques. Our consultants are ready to help you find the perfect piece.");
 }
 
 <!-- ─── Hero ──────────────────────────────────────────────────────────────── -->
@@ -210,11 +215,13 @@
 }
 
 <!-- ─── Featured Products ─────────────────────────────────────────────────── -->
+@if (showFeatured)
+{
 <section class="py-20 bg-stone-50">
     <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-14">
             <p class="text-xs tracking-[0.3em] uppercase text-brand-500 mb-3">Curated for you</p>
-            <h2 class="font-cormorant text-4xl font-light text-neutral-900">Featured Pieces</h2>
+            <h2 class="font-cormorant text-4xl font-light text-neutral-900">@featuredHeading</h2>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -259,6 +266,7 @@
         </div>
     </div>
 </section>
+}
 
 <!-- ─── Merchandising rows (best sellers / trending / recently viewed) ────────── -->
 @await Html.PartialAsync("_ProductCardRow", bestSellers, new ViewDataDictionary(ViewData)
@@ -281,8 +289,7 @@
             <p class="text-xs tracking-[0.3em] uppercase text-neutral-400 mb-4">3 Locations in Lagos</p>
             <h2 class="font-cormorant text-4xl font-light mb-6">Visit Us In-Store</h2>
             <p class="text-neutral-400 font-light text-sm leading-relaxed mb-8">
-                Experience our jewellery in person at any of our three Lagos boutiques.
-                Our consultants are ready to help you find the perfect piece.
+                @storeBannerText
             </p>
             <a asp-controller="Stores" asp-action="Index"
                class="inline-block border border-brand-500 text-brand-500 text-xs tracking-[0.2em] uppercase px-10 py-4 hover:bg-brand-500 hover:text-white transition-colors duration-300">

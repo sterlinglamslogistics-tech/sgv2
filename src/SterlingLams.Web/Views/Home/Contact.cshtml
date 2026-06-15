@@ -1,7 +1,12 @@
+@using SterlingLams.Web.Services
+@inject ISettingsService SettingsService
 @{
     ViewData["Title"] = "Contact Us";
     ViewData["Description"] = "Get in touch with Sterlin Glams. Visit any of our three Lagos boutiques or reach us by phone and email.";
     Layout = "_Layout";
+
+    var contactEmail = await SettingsService.GetAsync("general.contact_email", "info@sterlinglams.com");
+    var contactPhone = await SettingsService.GetAsync("general.contact_phone", "+234 1 234 5678");
 }
 
 <!-- Hero -->
@@ -31,7 +36,7 @@
                     </div>
                     <div>
                         <p class="text-xs tracking-widest uppercase text-neutral-400 mb-1">Email</p>
-                        <a href="mailto:hello@sterlinglams.com" class="text-sm text-neutral-700 hover:text-neutral-900 transition-colors">hello@sterlinglams.com</a>
+                        <a href="mailto:@contactEmail" class="text-sm text-neutral-700 hover:text-neutral-900 transition-colors">@contactEmail</a>
                     </div>
                 </div>
 
@@ -44,7 +49,7 @@
                     </div>
                     <div>
                         <p class="text-xs tracking-widest uppercase text-neutral-400 mb-1">Phone</p>
-                        <a href="tel:+2348000000000" class="text-sm text-neutral-700 hover:text-neutral-900 transition-colors">+234 800 000 0000</a>
+                        <a href="tel:@contactPhone.Replace(" ", "")" class="text-sm text-neutral-700 hover:text-neutral-900 transition-colors">@contactPhone</a>
                     </div>
                 </div>
 
