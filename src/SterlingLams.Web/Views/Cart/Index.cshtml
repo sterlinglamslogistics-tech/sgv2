@@ -8,7 +8,7 @@
         <h1 class="font-cormorant text-4xl font-light">Shopping Bag</h1>
     </div>
 
-    @if (Model.IsEmpty)
+    @if (Model.IsEmpty && !Model.SavedItems.Any())
     {
         <div class="text-center py-24">
             <p class="text-neutral-400 mb-8 font-light">Your bag is empty.</p>
@@ -18,6 +18,8 @@
     else
     {
         @Html.AntiForgeryToken()
+        @if (!Model.IsEmpty)
+        {
         <div class="space-y-6 mb-12">
             @foreach (var item in Model.Items)
             {
@@ -44,6 +46,11 @@
                                         data-variant-id="@item.VariantId"
                                         data-delta="1">+</button>
                             </div>
+                            <form asp-controller="Cart" asp-action="SaveForLater" method="post" class="inline">
+                                <input type="hidden" name="productId" value="@item.ProductId" />
+                                <input type="hidden" name="variantId" value="@item.VariantId" />
+                                <button type="submit" class="text-xs text-neutral-400 hover:text-neutral-900 transition-colors">Save for later</button>
+                            </form>
                             <button class="remove-item text-xs text-neutral-400 hover:text-neutral-900 transition-colors"
                                     data-product-id="@item.ProductId"
                                     data-variant-id="@item.VariantId">
@@ -139,6 +146,42 @@
                 </a>
             </div>
         </div>
+        }
+
+        @if (Model.SavedItems.Any())
+        {
+            <div class="@(Model.IsEmpty ? "" : "mt-16 pt-8 border-t border-neutral-200")">
+                <h2 class="font-cormorant text-2xl font-light mb-6">Saved for later (@Model.SavedItems.Count)</h2>
+                <div class="space-y-4">
+                    @foreach (var item in Model.SavedItems)
+                    {
+                        <div class="flex gap-6 py-4 border-b border-neutral-100 items-center">
+                            <img src="@item.ImageUrl" alt="@item.ProductName" loading="lazy" class="w-20 h-20 object-cover flex-shrink-0" />
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-light text-neutral-800">@item.ProductName</h3>
+                                @if (!string.IsNullOrEmpty(item.VariantName))
+                                {
+                                    <p class="text-xs text-neutral-400">@item.VariantName</p>
+                                }
+                                <p class="text-sm text-neutral-600 mt-1">@item.FormattedUnitPrice</p>
+                            </div>
+                            <div class="flex items-center gap-4 flex-shrink-0">
+                                <form asp-controller="Cart" asp-action="MoveToBag" method="post">
+                                    <input type="hidden" name="productId" value="@item.ProductId" />
+                                    <input type="hidden" name="variantId" value="@item.VariantId" />
+                                    <button type="submit" class="text-xs tracking-widest uppercase text-neutral-700 hover:text-neutral-900 transition-colors">Move to bag</button>
+                                </form>
+                                <form asp-controller="Cart" asp-action="RemoveSaved" method="post">
+                                    <input type="hidden" name="productId" value="@item.ProductId" />
+                                    <input type="hidden" name="variantId" value="@item.VariantId" />
+                                    <button type="submit" class="text-xs text-neutral-400 hover:text-neutral-900 transition-colors">Remove</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 </div>
 

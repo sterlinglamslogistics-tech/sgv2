@@ -19,6 +19,9 @@ public class CartItemViewModel
 public class CartViewModel
 {
     public List<CartItemViewModel> Items { get; set; } = new();
+    /// <summary>Items the shopper moved out of the bag to "save for later" — kept in the session
+    /// cart but not counted toward totals or checkout.</summary>
+    public List<CartItemViewModel> SavedItems { get; set; } = new();
     public decimal Subtotal => Items.Sum(i => i.LineTotal);
     public string FormattedSubtotal => $"₦{Subtotal:N0}";
     public int TotalItems => Items.Sum(i => i.Quantity);

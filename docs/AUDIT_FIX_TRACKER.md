@@ -4,7 +4,7 @@ Living checklist of every fix and recommendation from the ongoing audit. We add 
 audit, then work the **Open** list top-to-bottom. Companion to `docs/AUDIT_REPORT.md` (the
 original findings narrative) — IDs like `C1`/`H6` refer to that report.
 
-**Last updated:** 2026-06-15 (FX-51 Frequently Bought Together — OP-34 done)
+**Last updated:** 2026-06-15 (FX-52 Save for Later — OP-35 done)
 
 **Legend:** severity 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low ·
 status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
@@ -129,7 +129,7 @@ status ✅ done · 🔲 open · ⏳ in progress · ⛔ blocked
 | OP-39 | BreadcrumbList JSON-LD only on product detail, not on category/listing pages | SEO audit | Add breadcrumb schema to Products/Index. |
 | OP-40 | No `aggregateRating`/`review` schema (blocked on reviews feature) — do **not** fake it | SEO audit / OP-32 | Add once reviews ship. |
 | ~~OP-34~~ | ✅ **DONE** (FX-51) — `MerchandisingService.FrequentlyBoughtTogetherAsync(productId, take)`: co-purchase analysis (orders containing the product → other products in those orders ranked by how many of those orders they share), `IMemoryCache` 5-min TTL. Shown as a "Frequently Bought Together" row on the product detail page (above Related), hidden when there are no co-purchases. Verified (seeded a 2-product order + DB/HTTP): band-ring ↔ pendant cross-show correctly; a product with no co-purchase shows no section. Test order cleaned up. | merch audit | — |
-| OP-35 | **Save for Later** (move cart item → saved) not implemented (wishlist is adjacent) | merch audit | Add saved-items list to cart state; "Save for later"/"Move to bag" actions. |
+| ~~OP-35~~ | ✅ **DONE** (FX-52) — added `CartViewModel.SavedItems` (in the session cart) + `SaveForLater` / `MoveToBag` / `RemoveSaved` actions. Cart page shows a "Save for later" link per line and a "Saved for later" section (Move to bag / Remove); saved items don't count toward totals or checkout, and the bag-empty message only shows when both lists are empty. `MoveToBag` re-checks live availability. Verified (Playwright): Add → Save (item leaves bag, enters Saved) → Move to bag (returns) → Save + Remove (both empty). | merch audit | — |
 | OP-36 | **Abandoned-cart recovery** not implemented (no cart capture/email) | merch audit / H17 | Persist cart w/ email on checkout-start; background job emails after N hrs; recovery link. |
 | OP-37 | **Loyalty foundation** not implemented | merch audit | `LoyaltyAccount`/`PointsLedger` tables; accrue on paid order; redeem at checkout. |
 

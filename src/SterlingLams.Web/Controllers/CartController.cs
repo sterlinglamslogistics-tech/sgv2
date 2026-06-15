@@ -128,6 +128,69 @@ public class CartController : Controller
         return Json(new { success = true, cartCount = cart.TotalItems });
     }
 
+    // ── Save for later ────────────────────────────────────────────────────────
+    // Moves a line out of the bag into the saved list (kept in the session cart, not checked out).
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public IActionResult SaveForLater(int productId, int? variantId = null)
+    {
+        var cart = GetCart();
+        var item = cart.Items.FirstOrDefault(i => i.ProductId == productId && i.VariantId == variantId);
+        if (item != null)
+        {
+            cart.Items.Remove(item);
+            if (!cart.SavedItems.Any(i => i.ProductId == productId && i.VariantId == variantId))
+                cart.SavedItems.Add(item);
+        }
+        SaveCart(cart);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveToBag(int productId, int? variantId = null)
+    {
+        var cart = GetCart();
+        var saved = cart.SavedItems.FirstOrDefault(i => i.ProductId == productId && i.VariantId == variantId);
+        if (saved != null)
+        {
+            cart.SavedItems.Remove(saved);
+
+            // Re-check live availability before putting it back in the bag.
+            var available = await CombinedAvailableAsync(productId, variantId);
+            if (available <= 0)
+            {
+                TempData["Error"] = $"\"{saved.ProductName}\" is out of stock.";
+                SaveCart(cart);
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existing = cart.Items.FirstOrDefault(i => i.ProductId == productId && i.VariantId == variantId);
+            if (existing != null)
+            {
+                existing.MaxQuantity = available;
+                existing.Quantity = Math.Min(existing.Quantity + saved.Quantity, available);
+            }
+            else
+            {
+                saved.MaxQuantity = available;
+                saved.Quantity = Math.Min(Math.Max(1, saved.Quantity), available);
+                cart.Items.Add(saved);
+            }
+        }
+        SaveCart(cart);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public IActionResult RemoveSaved(int productId, int? variantId = null)
+    {
+        var cart = GetCart();
+        var saved = cart.SavedItems.FirstOrDefault(i => i.ProductId == productId && i.VariantId == variantId);
+        if (saved != null) cart.SavedItems.Remove(saved);
+        SaveCart(cart);
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ApplyDiscount(string code)
     {
