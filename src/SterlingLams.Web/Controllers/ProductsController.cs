@@ -10,11 +10,14 @@ public class ProductsController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly ILogger<ProductsController> _logger;
+    private readonly SterlingLams.Web.Services.IMerchandisingService _merch;
 
-    public ProductsController(ApplicationDbContext db, ILogger<ProductsController> logger)
+    public ProductsController(ApplicationDbContext db, ILogger<ProductsController> logger,
+        SterlingLams.Web.Services.IMerchandisingService merch)
     {
         _db = db;
         _logger = logger;
+        _merch = merch;
     }
 
     // GET /products
@@ -205,7 +208,8 @@ public class ProductsController : Controller
                 Price = p.Price,
                 PrimaryImageUrl = p.Images.FirstOrDefault()?.Url ?? "/images/placeholder.jpg",
                 IsAvailable = p.StoreInventories.Any(si => si.QuantityOnHand > 0)
-            }).ToList()
+            }).ToList(),
+            FrequentlyBoughtTogether = await _merch.FrequentlyBoughtTogetherAsync(product.Id, 4)
         };
 
         return View(vm);

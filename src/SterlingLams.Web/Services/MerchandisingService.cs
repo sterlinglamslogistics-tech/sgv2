@@ -20,6 +20,10 @@ public interface IMerchandisingService
     /// <summary>Most recently added active products.</summary>
     Task<List<ProductCardViewModel>> NewArrivalsAsync(int take);
 
+    /// <summary>Products most often bought in the same order as <paramref name="productId"/>
+    /// (co-purchase analysis over the order ledger). Empty if the product has no co-purchases yet.</summary>
+    Task<List<ProductCardViewModel>> FrequentlyBoughtTogetherAsync(int productId, int take);
+
     /// <summary>Active products for the given ids, preserving the supplied order
     /// (used for recently-viewed). Inactive/missing ids are dropped.</summary>
     Task<List<ProductCardViewModel>> ByIdsAsync(IReadOnlyList<int> ids);
@@ -83,6 +87,32 @@ public class MerchandisingService : IMerchandisingService
                 .Select(p => p.Id)
                 .ToListAsync();
             return OrderBy(ids, await LoadCardsAsync(ids));
+        })!;
+
+    public Task<List<ProductCardViewModel>> FrequentlyBoughtTogetherAsync(int productId, int take) =>
+        _cache.GetOrCreateAsync($"merch:fbt:{productId}:{take}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = CacheTtl;
+
+            // Orders that contain this product, then the OTHER products in those orders ranked by how
+            // many of those orders they appear in (co-purchase frequency). Over-fetch to survive the
+            // active/inactive filter in LoadCardsAsync.
+            var orderIds = _db.OrderItems.Where(oi => oi.ProductId == productId).Select(oi => oi.OrderId);
+            var ranked = await _db.OrderItems
+                .Where(oi => orderIds.Contains(oi.OrderId) && oi.ProductId != productId)
+                .GroupBy(oi => oi.ProductId)
+                .Select(g => new { ProductId = g.Key, Orders = g.Select(x => x.OrderId).Distinct().Count() })
+                .OrderByDescending(x => x.Orders)
+                .Take(take * 3)
+                .ToListAsync();
+
+            var cards = await LoadCardsAsync(ranked.Select(r => r.ProductId).ToList());
+            return ranked
+                .Select(r => cards.GetValueOrDefault(r.ProductId))
+                .Where(c => c != null)
+                .Take(take)
+                .Select(c => c!)
+                .ToList();
         })!;
 
     public async Task<List<ProductCardViewModel>> ByIdsAsync(IReadOnlyList<int> ids)

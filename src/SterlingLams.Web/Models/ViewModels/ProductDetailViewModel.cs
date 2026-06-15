@@ -41,6 +41,7 @@ public class ProductDetailViewModel
 
     public bool IsInWishlist { get; set; }
     public List<ProductCardViewModel> RelatedProducts { get; set; } = new();
+    public List<ProductCardViewModel> FrequentlyBoughtTogether { get; set; } = new();
 }
 
 public class AttributeLabelViewModel
