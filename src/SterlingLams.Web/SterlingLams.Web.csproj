@@ -55,8 +55,9 @@
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
   </ItemGroup>
 
-  <!-- Run Tailwind CSS build before publish -->
-  <Target Name="BuildTailwind" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+  <!-- Run Tailwind CSS build before publish.
+       Skip with /p:BuildTailwind=false (e.g. Docker/Render builds CSS in a separate Node stage). -->
+  <Target Name="BuildTailwind" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release' and '$(BuildTailwind)' != 'false'">
     <Exec Command="npm run build:css" WorkingDirectory="$(ProjectDir)" />
   </Target>
 
