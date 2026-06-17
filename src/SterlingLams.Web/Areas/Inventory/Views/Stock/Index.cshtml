@@ -60,30 +60,47 @@ else
                 @foreach (var row in Model.Products)
                 {
                     var total = row.TotalStock;
-                    <tr class="hover:bg-neutral-50" data-row-pid="@row.ProductId">
+                    <tr class="hover:bg-neutral-50 @(row.HasVariants ? "product-row cursor-pointer" : "")" data-row-pid="@row.ProductId">
                         <td class="px-4 py-3">
-                            <p class="text-xs font-medium text-neutral-800 leading-snug">@row.ProductName</p>
-                            @if (!string.IsNullOrEmpty(row.Sku)) { <p class="text-[10px] text-neutral-400 font-mono mt-0.5">@row.Sku</p> }
-                            @if (row.HasVariants) { <p class="text-[10px] text-amber-600 mt-0.5">@row.Variants.Count variant(s) — row below is unallocated pool</p> }
+                            <div class="flex items-start gap-1.5">
+                                @if (row.HasVariants)
+                                {
+                                    <svg class="variant-chevron w-3 h-3 text-neutral-400 mt-0.5 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                }
+                                <div>
+                                    <p class="text-xs font-medium text-neutral-800 leading-snug">@row.ProductName</p>
+                                    @if (!string.IsNullOrEmpty(row.Sku)) { <p class="text-[10px] text-neutral-400 font-mono mt-0.5">@row.Sku</p> }
+                                    @if (row.HasVariants) { <p class="text-[10px] text-emerald-600 mt-0.5">@row.Variants.Count variant(s) — click to set stock per variant</p> }
+                                </div>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span class="text-sm font-medium @(total == 0 ? "text-red-600" : "text-neutral-800")">@total</span>
                         </td>
                         @foreach (var s in Model.Stores)
                         {
-                            var qty = row.StockByStore.TryGetValue(s.Id, out var q2) ? q2 : -1;
-                            <td class="px-3 py-2 text-center">
-                                <input type="number" min="0"
-                                       placeholder="@(qty == -1 ? "—" : "")"
-                                       value="@(qty == -1 ? "" : qty.ToString())"
-                                       data-pid="@row.ProductId" data-vid="" data-sid="@s.Id" data-orig="@(qty == -1 ? "" : qty.ToString())"
-                                       class="stock-cell w-16 text-center text-xs border border-neutral-200 rounded-sm px-2 py-1 focus:outline-none focus:border-emerald-400 bg-white @(qty == 0 ? "text-red-600 border-red-200" : "")" />
-                            </td>
+                            @if (row.HasVariants)
+                            {
+                                @* Variant products: product figure is read-only — it just rolls up the variants. *@
+                                var vsum = row.Variants.Sum(v => v.StockByStore.TryGetValue(s.Id, out var vv) && vv > 0 ? vv : 0);
+                                <td class="px-3 py-3 text-center text-xs @(vsum == 0 ? "text-red-500" : "text-neutral-500")" title="Sum of variants — set per variant below">@vsum</td>
+                            }
+                            else
+                            {
+                                var qty = row.StockByStore.TryGetValue(s.Id, out var q2) ? q2 : -1;
+                                <td class="px-3 py-2 text-center">
+                                    <input type="number" min="0"
+                                           placeholder="@(qty == -1 ? "—" : "")"
+                                           value="@(qty == -1 ? "" : qty.ToString())"
+                                           data-pid="@row.ProductId" data-vid="" data-sid="@s.Id" data-orig="@(qty == -1 ? "" : qty.ToString())"
+                                           class="stock-cell w-16 text-center text-xs border border-neutral-200 rounded-sm px-2 py-1 focus:outline-none focus:border-emerald-400 bg-white @(qty == 0 ? "text-red-600 border-red-200" : "")" />
+                                </td>
+                            }
                         }
                     </tr>
                     @foreach (var v in row.Variants)
                     {
-                        <tr class="bg-neutral-50/60" data-row-pid="@row.ProductId" data-row-vid="@v.VariantId">
+                        <tr class="bg-neutral-50/60 hidden" data-row-pid="@row.ProductId" data-row-vid="@v.VariantId">
                             <td class="px-4 py-1.5 pl-10">
                                 <p class="text-[11px] text-neutral-600 leading-snug">↳ @v.Name</p>
                                 @if (!string.IsNullOrEmpty(v.Sku)) { <p class="text-[10px] text-neutral-400 font-mono">@v.Sku</p> }
@@ -141,6 +158,17 @@ else
         const refresh = () => { const n = changed().length; countEl.textContent = n ? ' (' + n + ')' : ''; };
         document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('stock-cell')) refresh(); });
         refresh();
+
+        // Expand/collapse a variant product's per-variant rows when its product row is clicked.
+        document.querySelectorAll('tr.product-row').forEach(prow => {
+            prow.addEventListener('click', (e) => {
+                if (e.target.closest('input, a, button')) return;
+                const pid = prow.getAttribute('data-row-pid');
+                prow.querySelector('.variant-chevron')?.classList.toggle('rotate-90');
+                document.querySelectorAll(`tr[data-row-pid="${pid}"][data-row-vid]`).forEach(vr => vr.classList.toggle('hidden'));
+            });
+        });
+
         btn.addEventListener('click', async () => {
             const edits = changed().map(i => ({
                 productId: +i.dataset.pid,
@@ -201,18 +229,27 @@ else
             const res = await fetch('/Inventory/Stock/ScanLookup?code=' + encodeURIComponent(code));
             const data = await res.json();
             if (!data.found) { scanBox.closest('form').submit(); return; }
-            scanBox.value = '';
             let row = tbody.querySelector(`tr[data-row-pid="${data.productId}"]`);
+            // Variant product not on this page → reload so its read-only roll-up + variant rows render.
+            if (!row && data.hasVariants) { scanBox.closest('form').submit(); return; }
+            scanBox.value = '';
             if (!row) {
                 const placeholder = tbody.querySelector('td[colspan]');
                 if (placeholder) placeholder.closest('tr').remove();
                 row = buildRow(data);
                 tbody.prepend(row);
             }
+            if (data.hasVariants) {
+                row.querySelector('.variant-chevron')?.classList.add('rotate-90');
+                document.querySelectorAll(`tr[data-row-pid="${data.productId}"][data-row-vid]`).forEach(vr => vr.classList.remove('hidden'));
+            }
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
             row.classList.add('bg-emerald-50');
             setTimeout(() => row.classList.remove('bg-emerald-50'), 1500);
-            row.querySelector('.stock-cell')?.focus();
+            const focusTarget = data.hasVariants
+                ? document.querySelector(`tr[data-row-pid="${data.productId}"][data-row-vid] .stock-cell`)
+                : row.querySelector('.stock-cell');
+            focusTarget?.focus();
         });
     })();
     </script>

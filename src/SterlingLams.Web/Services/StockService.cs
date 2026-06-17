@@ -61,19 +61,14 @@ public class StockService : IStockService
     public StockService(ApplicationDbContext db) => _db = db;
 
     // Picks which StoreInventory row a (product, variant, store) read/write resolves to.
-    // Returns the variant id of the target row (null = product pool).
-    private async Task<int?> ResolveTargetVariantIdAsync(int productId, int? variantId, int storeId,
+    // variantId null  → the product pool (simple products).
+    // variantId set   → ALWAYS the variant's own row — variants never fall back to the product
+    //                   pool, so an out-of-stock variant reads 0 and cannot borrow shared stock.
+    // (The exactVariant/noTracking params are kept for the call sites but no longer affect the
+    //  resolution now that the pool-fallback transition is complete — stock lives on the variants.)
+    private Task<int?> ResolveTargetVariantIdAsync(int productId, int? variantId, int storeId,
         bool exactVariant, bool noTracking)
-    {
-        if (variantId is null) return null;          // product pool
-        if (exactVariant) return variantId;          // the variant's own row (materialize / non-fallback read)
-
-        // Fallback: variant row if one exists, otherwise the product pool.
-        var q = noTracking ? _db.StoreInventories.AsNoTracking() : _db.StoreInventories;
-        var hasVariantRow = await q.AnyAsync(si =>
-            si.ProductId == productId && si.StoreId == storeId && si.ProductVariantId == variantId);
-        return hasVariantRow ? variantId : (int?)null;
-    }
+        => Task.FromResult(variantId);
 
     public async Task<int> GetStockAsync(int productId, int? variantId, int storeId, bool fallback = true)
     {

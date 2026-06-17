@@ -98,7 +98,7 @@ public class StockController : InventoryAreaController
         var p = await _db.Products
             .Where(x => x.Barcode == code || x.Sku == code
                      || x.Variants.Any(v => v.Barcode == code || v.Sku == code))
-            .Select(x => new { x.Id, x.Name, x.Sku, x.IsActive })
+            .Select(x => new { x.Id, x.Name, x.Sku, x.IsActive, HasVariants = x.Variants.Any(v => v.IsActive) })
             .FirstOrDefaultAsync();
         if (p == null || !p.IsActive) return Json(new { found = false });
 
@@ -114,6 +114,7 @@ public class StockController : InventoryAreaController
             productId = p.Id,
             productName = p.Name,
             sku = p.Sku,
+            hasVariants = p.HasVariants,
             stock = storeIds.ToDictionary(id => id, id => inv.TryGetValue(id, out var q) ? q : 0)
         });
     }
