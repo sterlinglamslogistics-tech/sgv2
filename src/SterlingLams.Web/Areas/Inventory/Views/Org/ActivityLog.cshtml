@@ -1,0 +1,77 @@
+@model List<SterlingLams.Web.Models.Domain.AuditLog>
+@{
+    ViewData["Title"] = "Activity log";
+    var actions = ViewBag.Actions as List<string> ?? new();
+    string? action = ViewBag.Action; string q = ViewBag.Query ?? "";
+    int curPage = ViewBag.Page ?? 1; int totalPages = ViewBag.TotalPages ?? 1; int total = ViewBag.Total ?? 0;
+    var inCls = "border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-400";
+    string Badge(string a) => a switch
+    {
+        "Create" => "bg-emerald-50 text-emerald-700", "Update" => "bg-blue-50 text-blue-700",
+        "Delete" => "bg-red-50 text-red-700", "Login" => "bg-neutral-100 text-neutral-600",
+        "Export" => "bg-amber-50 text-amber-700", _ => "bg-neutral-100 text-neutral-600"
+    };
+}
+
+<h1 class="font-cormorant text-2xl font-light text-neutral-900 mb-4">Activity log</h1>
+
+<form method="get" class="flex flex-wrap items-end gap-2 mb-4">
+    <div><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Action</label>
+        <select name="act" class="@inCls">
+            <option value="">All actions</option>
+            @foreach (var a in actions)
+            {
+                <option value="@a" selected="@(action == a)">@a</option>
+            }
+        </select></div>
+    <div class="flex-1 min-w-[160px]"><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Search</label>
+        <input type="text" name="q" value="@q" placeholder="Description, user or entity…" class="@inCls w-full" /></div>
+    <button type="submit" class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700">Filter</button>
+</form>
+
+<p class="text-xs text-neutral-400 mb-2">@total entr@(total == 1 ? "y" : "ies")</p>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[720px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">When</th>
+                <th class="text-left px-4 py-3 font-medium">Action</th>
+                <th class="text-left px-4 py-3 font-medium">Entity</th>
+                <th class="text-left px-4 py-3 font-medium">Description</th>
+                <th class="text-left px-4 py-3 font-medium">By</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var a in Model)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3 text-neutral-500 text-xs whitespace-nowrap">@a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-sm text-[11px] @Badge(a.Action)">@a.Action</span></td>
+                        <td class="px-4 py-3 text-neutral-600 text-xs">@a.EntityType</td>
+                        <td class="px-4 py-3 text-neutral-700 text-xs">@a.Description</td>
+                        <td class="px-4 py-3 text-neutral-400 text-xs">@a.PerformedBy</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="5" class="px-4 py-10 text-center text-sm text-neutral-400">No activity recorded yet.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (totalPages > 1)
+{
+    <div class="flex items-center justify-center gap-2 mt-4 text-xs">
+        @{ int start = Math.Max(1, curPage - 3); int end = Math.Min(totalPages, start + 6); }
+        @for (int i = start; i <= end; i++)
+        {
+            <a asp-action="ActivityLog" asp-route-page="@i" asp-route-act="@action" asp-route-q="@q"
+               class="px-3 py-1.5 rounded-sm @(i == curPage ? "bg-neutral-900 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50")">@i</a>
+        }
+    </div>
+}

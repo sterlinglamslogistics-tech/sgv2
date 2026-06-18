@@ -1,0 +1,47 @@
+@model List<SterlingLams.Web.Models.Domain.Register>
+@{
+    ViewData["Title"] = "Registers";
+    var open = ViewBag.OpenSessions as HashSet<int> ?? new();
+}
+
+<h1 class="font-cormorant text-2xl font-light text-neutral-900 mb-4">Registers</h1>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[480px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Register</th>
+                <th class="text-left px-4 py-3 font-medium">Branch</th>
+                <th class="text-left px-4 py-3 font-medium">Status</th>
+                <th class="text-left px-4 py-3 font-medium">Till session</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var r in Model)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3 text-neutral-800">@r.Name</td>
+                        <td class="px-4 py-3 text-neutral-600">@r.Store?.Name.Replace("Sterlin Glams ", "")</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-sm text-[11px] @(r.IsActive ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500")">@(r.IsActive ? "Active" : "Inactive")</span></td>
+                        <td class="px-4 py-3">
+                            @if (open.Contains(r.Id))
+                            {
+                                <span class="text-xs text-emerald-600">● Open</span>
+                            }
+                            else
+                            {
+                                <span class="text-xs text-neutral-400">Closed</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="4" class="px-4 py-10 text-center text-sm text-neutral-400">No registers configured.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

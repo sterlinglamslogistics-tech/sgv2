@@ -62,7 +62,10 @@
             S("Discounts", icoReport), S("Taxes ", icoReport),
             S("Expiring inventory", icoReport), S("Inventory valuation", icoReport) }),
         ("Administration", true, new[] {
-            S("Staff & Roles", icoUsers), S("Branches", icoStock), S("Registers", icoPos), S("Activity Log", icoReport) }),
+            R("Staff & Roles", "Org", "Staff", icoUsers, true),
+            R("Branches", "Org", "Branches", icoStock, true),
+            R("Registers", "Org", "Registers", icoPos, true),
+            R("Activity Log", "Org", "ActivityLog", icoReport, true) }),
     };
 
     var curFeature = Context.Request.Query["feature"].ToString();

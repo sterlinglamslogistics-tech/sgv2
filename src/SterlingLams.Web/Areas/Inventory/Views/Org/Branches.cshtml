@@ -1,0 +1,30 @@
+@model List<SterlingLams.Web.Models.Domain.Store>
+@{
+    ViewData["Title"] = "Branches";
+    var units = ViewBag.Units as Dictionary<int, int> ?? new();
+    var registers = ViewBag.Registers as Dictionary<int, int> ?? new();
+}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 class="font-cormorant text-2xl font-light text-neutral-900">Branches</h1>
+    <a asp-area="Admin" asp-controller="Stores" asp-action="Index" target="_blank"
+       class="text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-sm px-3 py-1.5">Manage in Website Admin ↗</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    @foreach (var s in Model)
+    {
+        <div class="bg-white border border-neutral-100 rounded-sm p-5">
+            <div class="flex items-start justify-between">
+                <h2 class="text-sm font-medium text-neutral-800">@s.Name.Replace("Sterlin Glams ", "")</h2>
+                <span class="px-2 py-0.5 rounded-sm text-[11px] @(s.IsActive ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500")">@(s.IsActive ? "Active" : "Inactive")</span>
+            </div>
+            <p class="text-xs text-neutral-500 mt-1">@s.Address@(string.IsNullOrEmpty(s.City) ? "" : ", " + s.City)@(string.IsNullOrEmpty(s.State) ? "" : ", " + s.State)</p>
+            @if (!string.IsNullOrEmpty(s.Phone)) { <p class="text-xs text-neutral-400 mt-0.5">@s.Phone</p> }
+            <div class="flex gap-6 mt-4 pt-3 border-t border-neutral-100">
+                <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest">Units on hand</div><div class="text-lg font-light text-neutral-800">@units.GetValueOrDefault(s.Id).ToString("N0")</div></div>
+                <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest">Registers</div><div class="text-lg font-light text-neutral-800">@registers.GetValueOrDefault(s.Id)</div></div>
+            </div>
+        </div>
+    }
+</div>

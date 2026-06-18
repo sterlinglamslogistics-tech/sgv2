@@ -1,0 +1,67 @@
+@model List<SterlingLams.Web.Areas.Inventory.Controllers.StaffRow>
+@{
+    ViewData["Title"] = "Staff & roles";
+    var roleCounts = ViewBag.RoleCounts as Dictionary<string, int> ?? new();
+    string RoleBadge(string r) => r switch
+    {
+        "Admin" => "bg-red-50 text-red-700", "Manager" => "bg-indigo-50 text-indigo-700",
+        "Inventory" => "bg-emerald-50 text-emerald-700", "Cashier" => "bg-blue-50 text-blue-700",
+        _ => "bg-neutral-100 text-neutral-600"
+    };
+}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 class="font-cormorant text-2xl font-light text-neutral-900">Staff &amp; roles</h1>
+    <a asp-area="Admin" asp-controller="Users" asp-action="Index" target="_blank"
+       class="text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-sm px-3 py-1.5">Manage in Website Admin ↗</a>
+</div>
+
+@if (roleCounts.Any())
+{
+    <div class="flex flex-wrap gap-3 mb-4">
+        @foreach (var rc in roleCounts)
+        {
+            <div class="bg-white border border-neutral-100 rounded-sm px-4 py-3">
+                <span class="px-2 py-0.5 rounded-sm text-[11px] @RoleBadge(rc.Key)">@rc.Key</span>
+                <span class="text-lg font-light text-neutral-800 ml-2">@rc.Value</span>
+            </div>
+        }
+    </div>
+}
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[560px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Staff</th>
+                <th class="text-left px-4 py-3 font-medium">Roles</th>
+                <th class="text-left px-4 py-3 font-medium">Last login</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var s in Model)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3">
+                            <div class="text-neutral-800">@(string.IsNullOrWhiteSpace(s.Name) ? "—" : s.Name)</div>
+                            <div class="text-[11px] text-neutral-400">@s.Email</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            @foreach (var r in s.Roles)
+                            {
+                                <span class="px-2 py-0.5 rounded-sm text-[11px] mr-1 @RoleBadge(r)">@r</span>
+                            }
+                        </td>
+                        <td class="px-4 py-3 text-neutral-400 text-xs">@(s.LastLogin?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Never")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="3" class="px-4 py-10 text-center text-sm text-neutral-400">No staff accounts found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
