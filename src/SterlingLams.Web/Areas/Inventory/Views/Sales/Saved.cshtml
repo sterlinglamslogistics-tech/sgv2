@@ -1,0 +1,58 @@
+@model List<SterlingLams.Web.Models.Domain.ParkedSale>
+@{
+    ViewData["Title"] = "Saved carts";
+    var stores = ViewBag.Stores as Dictionary<int, string> ?? new();
+    int curPage = ViewBag.Page ?? 1; int totalPages = ViewBag.TotalPages ?? 1; int total = ViewBag.Total ?? 0;
+}
+
+@await Html.PartialAsync("_SalesTabs", "Saved")
+
+<p class="text-xs text-neutral-400 mb-2">@total parked sale(s) — held on a till before payment. Recall them from the POS.</p>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[640px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Label</th>
+                <th class="text-left px-4 py-3 font-medium">Branch</th>
+                <th class="text-left px-4 py-3 font-medium">Cashier</th>
+                <th class="text-left px-4 py-3 font-medium">Customer</th>
+                <th class="text-right px-4 py-3 font-medium">Items</th>
+                <th class="text-right px-4 py-3 font-medium">Total</th>
+                <th class="text-left px-4 py-3 font-medium">Held</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var s in Model)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3 text-neutral-800">@(string.IsNullOrWhiteSpace(s.Label) ? "—" : s.Label)</td>
+                        <td class="px-4 py-3 text-neutral-600">@(stores.GetValueOrDefault(s.StoreId, "—"))</td>
+                        <td class="px-4 py-3 text-neutral-600 text-xs">@s.CashierName</td>
+                        <td class="px-4 py-3 text-neutral-600 text-xs">@(string.IsNullOrWhiteSpace(s.CustomerName) ? "Walk-in" : s.CustomerName)</td>
+                        <td class="px-4 py-3 text-right text-neutral-500">@s.ItemCount</td>
+                        <td class="px-4 py-3 text-right font-medium text-neutral-800">₦@s.Total.ToString("N0")</td>
+                        <td class="px-4 py-3 text-neutral-400 text-xs">@s.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="7" class="px-4 py-10 text-center text-sm text-neutral-400">No saved carts right now.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (totalPages > 1)
+{
+    <div class="flex items-center justify-center gap-2 mt-4 text-xs">
+        @for (int i = 1; i <= totalPages; i++)
+        {
+            <a asp-action="Saved" asp-route-page="@i"
+               class="px-3 py-1.5 rounded-sm @(i == curPage ? "bg-neutral-900 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50")">@i</a>
+        }
+    </div>
+}

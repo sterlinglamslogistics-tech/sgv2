@@ -26,7 +26,10 @@
     {
         ("", false, new[] { R("Overview", "Overview", "Index", icoOverview) }),
         ("Point of sale", false, new[] { R("POS", "Till", "Index", icoPos) }),
-        ("Sales", true, new[] { S("Completed Sales", icoBag), S("Outstanding Sales", icoBag), S("Saved Carts", icoBag) }),
+        ("Sales", true, new[] {
+            R("Completed Sales", "Sales", "Completed", icoBag, true),
+            R("Outstanding Sales", "Sales", "Outstanding", icoBag, true),
+            R("Saved Carts", "Sales", "Saved", icoBag, true) }),
         ("CRM", true, new[] { S("Customers", icoUsers), S("Discounts", icoTag) }),
         ("Inventory", true, new[] {
             R("All items", "Products", "Index", icoProducts),

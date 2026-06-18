@@ -1,0 +1,11 @@
+@model string
+@{
+    string Cls(string t) => t == Model
+        ? "border-emerald-600 text-emerald-700"
+        : "border-transparent text-neutral-400 hover:text-neutral-700";
+}
+<div class="flex gap-1 border-b border-neutral-200 mb-6">
+    <a asp-area="Inventory" asp-controller="Sales" asp-action="Completed"   class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Completed")">Completed sales</a>
+    <a asp-area="Inventory" asp-controller="Sales" asp-action="Outstanding" class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Outstanding")">Outstanding sales</a>
+    <a asp-area="Inventory" asp-controller="Sales" asp-action="Saved"       class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Saved")">Saved carts</a>
+</div>

@@ -1,0 +1,100 @@
+@model List<SterlingLams.Web.Areas.Inventory.Controllers.SaleRow>
+@using SterlingLams.Web.Models.Domain
+@{
+    string view = ViewBag.View;
+    ViewData["Title"] = view == "Completed" ? "Completed sales" : "Outstanding sales";
+    var stores = ViewBag.Stores as List<Store> ?? new();
+    DateTime? from = ViewBag.From; DateTime? to = ViewBag.To; int? storeId = ViewBag.StoreId;
+    string q = ViewBag.Query ?? "";
+    int curPage = ViewBag.Page ?? 1; int totalPages = ViewBag.TotalPages ?? 1; int total = ViewBag.Total ?? 0;
+    decimal sumValue = ViewBag.SumValue ?? 0m;
+    var inCls = "border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-400";
+    string StatusBadge(string s) => s switch
+    {
+        "Delivered" or "Shipped" or "ReadyForPickup" => "bg-emerald-50 text-emerald-700",
+        "Refunded" => "bg-red-50 text-red-700",
+        "Cancelled" => "bg-neutral-100 text-neutral-500",
+        "Pending" => "bg-amber-50 text-amber-700",
+        _ => "bg-blue-50 text-blue-700"
+    };
+}
+
+@await Html.PartialAsync("_SalesTabs", view)
+
+<form method="get" class="flex flex-wrap items-end gap-2 mb-4">
+    <div><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">From</label>
+        <input type="date" name="from" value="@(from?.ToString("yyyy-MM-dd"))" class="@inCls" /></div>
+    <div><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">To</label>
+        <input type="date" name="to" value="@(to?.ToString("yyyy-MM-dd"))" class="@inCls" /></div>
+    <div><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Branch</label>
+        <select name="storeId" class="@inCls">
+            <option value="">All branches</option>
+            @foreach (var s in stores)
+            {
+                <option value="@s.Id" selected="@(storeId == s.Id)">@s.Name.Replace("Sterlin Glams ", "")</option>
+            }
+        </select></div>
+    <div class="flex-1 min-w-[140px]"><label class="block text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Order #</label>
+        <input type="text" name="q" value="@q" placeholder="Order number…" class="@inCls w-full" /></div>
+    <button type="submit" class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700">Filter</button>
+</form>
+
+<div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">@(view == "Completed" ? "Sales" : "Orders")</div>
+        <div class="text-2xl font-light text-neutral-800">@total.ToString("N0")</div>
+    </div>
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">@(view == "Completed" ? "Total collected" : "Amount outstanding")</div>
+        <div class="text-2xl font-light @(view == "Completed" ? "text-emerald-600" : "text-amber-600")">₦@sumValue.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[720px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Order #</th>
+                <th class="text-left px-4 py-3 font-medium">Date</th>
+                <th class="text-left px-4 py-3 font-medium">Channel</th>
+                <th class="text-left px-4 py-3 font-medium">Customer</th>
+                <th class="text-left px-4 py-3 font-medium">Status</th>
+                <th class="text-left px-4 py-3 font-medium">Payment</th>
+                <th class="text-right px-4 py-3 font-medium">Total</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var r in Model)
+                {
+                    <tr class="hover:bg-neutral-50 cursor-pointer" onclick="location.href='@Url.Action("Detail", new { id = r.Id })'">
+                        <td class="px-4 py-3 font-mono text-xs text-neutral-800">@r.OrderNumber</td>
+                        <td class="px-4 py-3 text-neutral-500 text-xs">@r.When.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                        <td class="px-4 py-3 text-neutral-600">@(r.Channel == "Pos" ? "POS" : "Online")</td>
+                        <td class="px-4 py-3 text-neutral-600 text-xs">@(r.Customer ?? "Walk-in")</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-sm text-[11px] @StatusBadge(r.Status)">@r.Status</span></td>
+                        <td class="px-4 py-3 text-xs @(r.Paid ? "text-emerald-600" : "text-amber-600")">@(r.Paid ? (r.PaymentProvider ?? "Paid") : "Unpaid")</td>
+                        <td class="px-4 py-3 text-right font-medium text-neutral-800">₦@r.Total.ToString("N0")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="7" class="px-4 py-10 text-center text-sm text-neutral-400">No @(view.ToLower()) sales match these filters.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (totalPages > 1)
+{
+    <div class="flex items-center justify-center gap-2 mt-4 text-xs">
+        @for (int i = 1; i <= totalPages; i++)
+        {
+            <a asp-action="@view" asp-route-page="@i" asp-route-from="@(from?.ToString("yyyy-MM-dd"))"
+               asp-route-to="@(to?.ToString("yyyy-MM-dd"))" asp-route-storeId="@storeId" asp-route-q="@q"
+               class="px-3 py-1.5 rounded-sm @(i == curPage ? "bg-neutral-900 text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50")">@i</a>
+        }
+    </div>
+}

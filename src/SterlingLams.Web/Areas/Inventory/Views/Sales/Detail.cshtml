@@ -1,0 +1,96 @@
+@model SterlingLams.Web.Models.Domain.Order
+@using SterlingLams.Web.Models.Domain
+@{
+    ViewData["Title"] = Model.OrderNumber;
+    string? store = ViewBag.Store; string? customer = ViewBag.Customer; string? cashier = ViewBag.Cashier;
+    string back = Model.PaidAt.HasValue && Model.Status != OrderStatus.Cancelled ? "Completed" : "Outstanding";
+    string StatusBadge(OrderStatus s) => s switch
+    {
+        OrderStatus.Delivered or OrderStatus.Shipped or OrderStatus.ReadyForPickup => "bg-emerald-50 text-emerald-700",
+        OrderStatus.Refunded => "bg-red-50 text-red-700",
+        OrderStatus.Cancelled => "bg-neutral-100 text-neutral-500",
+        OrderStatus.Pending => "bg-amber-50 text-amber-700",
+        _ => "bg-blue-50 text-blue-700"
+    };
+}
+
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <a asp-action="@back" class="text-xs text-neutral-400 hover:text-neutral-700">← @back sales</a>
+        <h1 class="font-cormorant text-2xl font-light text-neutral-900 mt-1 font-mono">@Model.OrderNumber</h1>
+    </div>
+    <span class="px-2 py-0.5 rounded-sm text-[11px] @StatusBadge(Model.Status)">@Model.Status</span>
+</div>
+
+<div class="bg-white border border-neutral-100 rounded-sm p-5 mb-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Channel</div>
+        <div class="text-sm text-neutral-800">@(Model.Channel == OrderChannel.Pos ? "POS" : "Online")</div></div>
+    <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Date</div>
+        <div class="text-sm text-neutral-800">@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</div></div>
+    <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Customer</div>
+        <div class="text-sm text-neutral-600">@(customer ?? "Walk-in")</div></div>
+    <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Payment</div>
+        <div class="text-sm @(Model.PaidAt.HasValue ? "text-emerald-600" : "text-amber-600")">@(Model.PaidAt.HasValue ? (Model.PaymentProvider ?? "Paid") : "Unpaid")</div></div>
+    @if (!string.IsNullOrEmpty(store))
+    {
+        <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Branch</div>
+            <div class="text-sm text-neutral-600">@store</div></div>
+    }
+    @if (!string.IsNullOrEmpty(cashier))
+    {
+        <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Cashier</div>
+            <div class="text-sm text-neutral-600">@cashier</div></div>
+    }
+    @if (!string.IsNullOrEmpty(Model.PaymentReference))
+    {
+        <div><div class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Payment ref</div>
+            <div class="text-sm text-neutral-600 font-mono text-xs">@Model.PaymentReference</div></div>
+    }
+</div>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[520px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Item</th>
+                <th class="text-right px-4 py-3 font-medium">Qty</th>
+                <th class="text-right px-4 py-3 font-medium">Unit price</th>
+                <th class="text-right px-4 py-3 font-medium">Line total</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @foreach (var it in Model.Items)
+            {
+                <tr>
+                    <td class="px-4 py-3 text-neutral-700">
+                        @it.ProductName
+                        @if (!string.IsNullOrEmpty(it.VariantName)) { <span class="text-neutral-400 text-xs">· @it.VariantName</span> }
+                    </td>
+                    <td class="px-4 py-3 text-right text-neutral-500">@it.Quantity</td>
+                    <td class="px-4 py-3 text-right text-neutral-500">₦@it.UnitPrice.ToString("N0")</td>
+                    <td class="px-4 py-3 text-right font-medium text-neutral-800">₦@it.LineTotal.ToString("N0")</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot class="border-t border-neutral-100 text-sm">
+            <tr><td colspan="3" class="px-4 py-1.5 text-right text-neutral-500">Subtotal</td><td class="px-4 py-1.5 text-right text-neutral-700">₦@Model.Subtotal.ToString("N0")</td></tr>
+            @if (Model.DiscountAmount > 0)
+            {
+                <tr><td colspan="3" class="px-4 py-1.5 text-right text-neutral-500">Discount@(string.IsNullOrEmpty(Model.DiscountCode) ? "" : $" ({Model.DiscountCode})")</td><td class="px-4 py-1.5 text-right text-red-600">−₦@Model.DiscountAmount.ToString("N0")</td></tr>
+            }
+            @if (Model.LoyaltyDiscount > 0)
+            {
+                <tr><td colspan="3" class="px-4 py-1.5 text-right text-neutral-500">Loyalty</td><td class="px-4 py-1.5 text-right text-red-600">−₦@Model.LoyaltyDiscount.ToString("N0")</td></tr>
+            }
+            @if (Model.DeliveryFee > 0)
+            {
+                <tr><td colspan="3" class="px-4 py-1.5 text-right text-neutral-500">Delivery</td><td class="px-4 py-1.5 text-right text-neutral-700">₦@Model.DeliveryFee.ToString("N0")</td></tr>
+            }
+            @if (Model.Tax > 0)
+            {
+                <tr><td colspan="3" class="px-4 py-1.5 text-right text-neutral-500">Tax</td><td class="px-4 py-1.5 text-right text-neutral-700">₦@Model.Tax.ToString("N0")</td></tr>
+            }
+            <tr class="font-medium"><td colspan="3" class="px-4 py-2.5 text-right text-neutral-800">Total</td><td class="px-4 py-2.5 text-right text-neutral-900">₦@Model.Total.ToString("N0")</td></tr>
+        </tfoot>
+    </table>
+</div>
