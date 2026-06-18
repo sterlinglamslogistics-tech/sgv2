@@ -292,6 +292,101 @@ public class ReportsController : InventoryAreaController
         });
     }
 
+    // ── Sales summary: revenue / orders / units / avg + daily breakdown. ────────────────────────
+    public async Task<IActionResult> Summary(DateTime? from = null, DateTime? to = null)
+    {
+        ViewData["Title"] = "Sales summary";
+        var (f, t) = NormalizeRange(from, to);
+        var orders = SoldOrders(f, t);
+
+        var count = await orders.CountAsync();
+        var revenue = await orders.SumAsync(o => (decimal?)o.Total) ?? 0;
+        var units = await _db.OrderItems.Where(oi => orders.Any(o => o.Id == oi.OrderId))
+            .SumAsync(oi => (int?)oi.Quantity) ?? 0;
+        var daily = (await orders.GroupBy(o => o.CreatedAt.Date)
+                .Select(g => new { Day = g.Key, Orders = g.Count(), Revenue = g.Sum(x => x.Total) })
+                .OrderByDescending(x => x.Day).Take(60).ToListAsync())
+            .Select(x => new DailySalesRow { Day = x.Day, Orders = x.Orders, Revenue = x.Revenue }).ToList();
+
+        ViewBag.From = f; ViewBag.To = t;
+        return View(new SalesSummaryVm
+        {
+            Orders = count, Revenue = revenue, Units = units,
+            Average = count > 0 ? revenue / count : 0, Daily = daily
+        });
+    }
+
+    // ── Sales by item ───────────────────────────────────────────────────────────────────────────
+    public async Task<IActionResult> SalesByItem(DateTime? from = null, DateTime? to = null)
+    {
+        ViewData["Title"] = "Sales by item";
+        var (f, t) = NormalizeRange(from, to);
+        var orders = SoldOrders(f, t);
+        var rows = await _db.OrderItems.Where(oi => orders.Any(o => o.Id == oi.OrderId))
+            .GroupBy(oi => oi.ProductName)
+            .Select(g => new NameValueRow
+            {
+                Name = g.Key,
+                Units = g.Sum(x => x.Quantity),
+                Revenue = g.Sum(x => (x.Quantity * x.UnitPrice) - x.DiscountAmount)
+            })
+            .OrderByDescending(x => x.Revenue).Take(200).ToListAsync();
+        ViewBag.From = f; ViewBag.To = t; ViewBag.Heading = "Product"; ViewBag.Title = "Sales by item"; ViewBag.Active = "SalesByItem";
+        return View("SalesBreakdown", rows);
+    }
+
+    // ── Sales by category ───────────────────────────────────────────────────────────────────────
+    public async Task<IActionResult> SalesByCategory(DateTime? from = null, DateTime? to = null)
+    {
+        ViewData["Title"] = "Sales by category";
+        var (f, t) = NormalizeRange(from, to);
+        var orders = SoldOrders(f, t);
+        var rows = await _db.OrderItems.Where(oi => orders.Any(o => o.Id == oi.OrderId))
+            .GroupBy(oi => oi.Product.Category != null ? oi.Product.Category.Name : "Uncategorised")
+            .Select(g => new NameValueRow
+            {
+                Name = g.Key,
+                Units = g.Sum(x => x.Quantity),
+                Revenue = g.Sum(x => (x.Quantity * x.UnitPrice) - x.DiscountAmount)
+            })
+            .OrderByDescending(x => x.Revenue).ToListAsync();
+        ViewBag.From = f; ViewBag.To = t; ViewBag.Heading = "Category"; ViewBag.Title = "Sales by category"; ViewBag.Active = "SalesByCategory";
+        return View("SalesBreakdown", rows);
+    }
+
+    // ── Sales by customer ───────────────────────────────────────────────────────────────────────
+    public async Task<IActionResult> SalesByCustomer(DateTime? from = null, DateTime? to = null)
+    {
+        ViewData["Title"] = "Sales by customer";
+        var (f, t) = NormalizeRange(from, to);
+        var raw = await SoldOrders(f, t)
+            .Select(o => new
+            {
+                Key = o.CustomerUserId != null ? o.CustomerUserId : (o.Channel == OrderChannel.Online ? o.UserId : null),
+                o.Total
+            }).ToListAsync();
+
+        var grouped = raw.GroupBy(x => x.Key)
+            .Select(g => new { g.Key, Orders = g.Count(), Spend = g.Sum(x => x.Total) })
+            .OrderByDescending(x => x.Spend).Take(200).ToList();
+        var ids = grouped.Where(g => g.Key != null).Select(g => g.Key!).ToList();
+        var names = await _db.Users.Where(u => ids.Contains(u.Id)).Select(u => new { u.Id, u.Email }).ToListAsync();
+
+        var rows = grouped.Select(g => new NameValueRow
+        {
+            Name = g.Key == null ? "Walk-in / guest" : (names.FirstOrDefault(n => n.Id == g.Key)?.Email ?? "—"),
+            Units = g.Orders,
+            Revenue = g.Spend
+        }).ToList();
+        ViewBag.From = f; ViewBag.To = t; ViewBag.Heading = "Customer"; ViewBag.UnitsLabel = "Orders"; ViewBag.Title = "Sales by customer"; ViewBag.Active = "SalesByCustomer";
+        return View("SalesBreakdown", rows);
+    }
+
+    // Orders that count as sales in a window: not cancelled or refunded.
+    private IQueryable<Order> SoldOrders(DateTime f, DateTime t) =>
+        _db.Orders.Where(o => o.CreatedAt >= f && o.CreatedAt < t.AddDays(1)
+            && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Refunded);
+
     // Default the report window to the last 30 days when no range is supplied.
     private static (DateTime from, DateTime to) NormalizeRange(DateTime? from, DateTime? to)
     {
@@ -430,3 +525,13 @@ public class PaymentMethodVm
     public decimal TotalAmount { get; set; }
     public int TotalTx { get; set; }
 }
+public class DailySalesRow { public DateTime Day { get; set; } public int Orders { get; set; } public decimal Revenue { get; set; } }
+public class SalesSummaryVm
+{
+    public int Orders { get; set; }
+    public decimal Revenue { get; set; }
+    public int Units { get; set; }
+    public decimal Average { get; set; }
+    public List<DailySalesRow> Daily { get; set; } = new();
+}
+public class NameValueRow { public string Name { get; set; } = ""; public int Units { get; set; } public decimal Revenue { get; set; } }

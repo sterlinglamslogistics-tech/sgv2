@@ -4,11 +4,16 @@
         ? "border-emerald-600 text-emerald-700"
         : "border-transparent text-neutral-400 hover:text-neutral-700";
 }
-<div class="flex gap-1 border-b border-neutral-200 mb-6">
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Reorder"   class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Reorder")">Reorder</a>
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Value"     class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Value")">Stock value</a>
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Movements" class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Movements")">Movements</a>
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Shrinkage" class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Shrinkage")">Shrinkage</a>
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Sales"     class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Sales")">Sales by staff</a>
-    <a asp-area="Inventory" asp-controller="Reports" asp-action="Payments"  class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Payments")">Payment methods</a>
+<div class="flex flex-wrap gap-x-1 gap-y-0 border-b border-neutral-200 mb-6">
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Summary"        class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Summary")">Sales summary</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="SalesByItem"    class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("SalesByItem")">By item</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="SalesByCategory" class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("SalesByCategory")">By category</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="SalesByCustomer" class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("SalesByCustomer")">By customer</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Sales"     class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Sales")">By staff</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Payments"  class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Payments")">Payment methods</a>
+    <span class="w-px bg-neutral-200 mx-1 my-1.5"></span>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Reorder"   class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Reorder")">Reorder</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Value"     class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Value")">Stock value</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Movements" class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Movements")">Movements</a>
+    <a asp-area="Inventory" asp-controller="Reports" asp-action="Shrinkage" class="px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors @Cls("Shrinkage")">Shrinkage</a>
 </div>
