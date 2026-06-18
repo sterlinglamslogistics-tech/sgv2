@@ -90,6 +90,60 @@
     </div>
 </div>
 
+<!-- Top products & staff (last 30 days) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="bg-white border border-neutral-100 rounded-sm">
+        <div class="px-5 py-3 border-b border-neutral-100 flex items-baseline justify-between">
+            <h2 class="text-sm font-medium text-neutral-800">Top products</h2>
+            <span class="text-[11px] text-neutral-400">last 30 days · by units</span>
+        </div>
+        @if (Model.TopProducts.Any())
+        {
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-neutral-50">
+                    @foreach (var tp in Model.TopProducts)
+                    {
+                        <tr class="hover:bg-neutral-50">
+                            <td class="px-5 py-2.5 text-xs text-neutral-700">@tp.Name</td>
+                            <td class="px-5 py-2.5 text-xs text-right text-neutral-500">@tp.Units.ToString("N0") sold</td>
+                            <td class="px-5 py-2.5 text-xs text-right font-medium text-neutral-800">₦@tp.Revenue.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="px-5 py-8 text-center text-sm text-neutral-400">No sales in the last 30 days.</p>
+        }
+    </div>
+    <div class="bg-white border border-neutral-100 rounded-sm">
+        <div class="px-5 py-3 border-b border-neutral-100 flex items-baseline justify-between">
+            <h2 class="text-sm font-medium text-neutral-800">Top staff</h2>
+            <span class="text-[11px] text-neutral-400">last 30 days · POS sales</span>
+        </div>
+        @if (Model.TopStaff.Any())
+        {
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-neutral-50">
+                    @foreach (var ts in Model.TopStaff)
+                    {
+                        <tr class="hover:bg-neutral-50">
+                            <td class="px-5 py-2.5 text-xs text-neutral-700">@ts.Name</td>
+                            <td class="px-5 py-2.5 text-xs text-right text-neutral-500">@ts.Transactions.ToString("N0") sale(s)</td>
+                            <td class="px-5 py-2.5 text-xs text-right font-medium text-neutral-800">₦@ts.Sales.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="px-5 py-8 text-center text-sm text-neutral-400">No POS sales in the last 30 days.</p>
+        }
+    </div>
+</div>
+
 <!-- Recent movements -->
 <div class="bg-white border border-neutral-100 rounded-sm mt-6">
     <div class="px-5 py-3 border-b border-neutral-100"><h2 class="text-sm font-medium text-neutral-800">Recent stock movements</h2></div>

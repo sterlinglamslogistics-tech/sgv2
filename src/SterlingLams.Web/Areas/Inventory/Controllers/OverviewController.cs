@@ -56,6 +56,40 @@ public class OverviewController : InventoryAreaController
         vm.TillSalesToday = await posToday.SumAsync(o => (decimal?)o.Total) ?? 0;
         vm.TillTxToday = await posToday.CountAsync();
 
+        // ── Sales insight: last 30 days, excluding cancelled/refunded. ──────────────────────
+        var since = today.AddDays(-30);
+        var soldOrders = _db.Orders.Where(o => o.CreatedAt >= since
+            && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Refunded);
+
+        // Top products by units sold.
+        vm.TopProducts = await _db.OrderItems
+            .Where(oi => soldOrders.Any(o => o.Id == oi.OrderId))
+            .GroupBy(oi => oi.ProductName)
+            .Select(g => new TopProductRow
+            {
+                Name = g.Key,
+                Units = g.Sum(x => x.Quantity),
+                Revenue = g.Sum(x => (x.Quantity * x.UnitPrice) - x.DiscountAmount)
+            })
+            .OrderByDescending(x => x.Units).Take(5)
+            .ToListAsync();
+
+        // Top staff by POS sales (UserId = cashier on POS orders).
+        var staffAgg = await soldOrders.Where(o => o.Channel == OrderChannel.Pos)
+            .GroupBy(o => o.UserId)
+            .Select(g => new { UserId = g.Key, Sales = g.Sum(x => x.Total), Tx = g.Count() })
+            .OrderByDescending(x => x.Sales).Take(5)
+            .ToListAsync();
+        var staffIds = staffAgg.Select(s => s.UserId).ToList();
+        var staffNames = await _db.Users.Where(u => staffIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.Email }).ToListAsync();
+        vm.TopStaff = staffAgg.Select(s => new TopStaffRow
+        {
+            Name = staffNames.FirstOrDefault(n => n.Id == s.UserId)?.Email ?? "—",
+            Sales = s.Sales,
+            Transactions = s.Tx
+        }).ToList();
+
         // Recent stock movements.
         vm.RecentMovements = await _db.StockMovements
             .OrderByDescending(m => m.Id).Take(8)
@@ -85,7 +119,11 @@ public class InventoryOverviewViewModel
     public decimal TillSalesToday { get; set; }
     public int TillTxToday { get; set; }
     public List<MovementRow> RecentMovements { get; set; } = new();
+    public List<TopProductRow> TopProducts { get; set; } = new();
+    public List<TopStaffRow> TopStaff { get; set; } = new();
 }
+public class TopProductRow { public string Name { get; set; } = ""; public int Units { get; set; } public decimal Revenue { get; set; } }
+public class TopStaffRow { public string Name { get; set; } = ""; public decimal Sales { get; set; } public int Transactions { get; set; } }
 public class BranchUnitsRow { public string Store { get; set; } = ""; public int Units { get; set; } }
 public class StockAlertRow { public string Name { get; set; } = ""; public int Total { get; set; } public int Threshold { get; set; } }
 public class MovementRow { public string Product { get; set; } = ""; public string Store { get; set; } = ""; public int Change { get; set; } public string Type { get; set; } = ""; public DateTime When { get; set; } }
