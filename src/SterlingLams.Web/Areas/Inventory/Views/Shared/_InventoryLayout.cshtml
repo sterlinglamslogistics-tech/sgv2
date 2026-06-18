@@ -13,28 +13,50 @@
     const string icoStocktake = "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z";
     const string icoReport    = "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z";
 
-    // Grouped, Moniebook-style sidebar. Item = (Controller, Action, Label, Icon, MatchByAction, ShowTransferBadge)
-    var navGroups = new (string Header, (string Ctrl, string Action, string Label, string Icon, bool ByAction, bool Badge)[] Items)[]
+    const string icoBag   = "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z";
+    const string icoUsers = "M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3a4 4 0 10-8 0 4 4 0 008 0z";
+    const string icoTag   = "M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z";
+
+    // item = (Label, Controller, Action, Icon, MatchByAction, IsPlaceholder, ShowTransferBadge)
+    (string Label, string Ctrl, string Action, string Icon, bool ByAction, bool Soon, bool Badge) R(string l, string c, string a, string ico, bool ba = false, bool badge = false) => (l, c, a, ico, ba, false, badge);
+    (string Label, string Ctrl, string Action, string Icon, bool ByAction, bool Soon, bool Badge) S(string l, string ico) => (l, "Soon", "Index", ico, false, true, false);
+
+    // Full Moniebook-style tree. Real pages link through; not-yet-built items are placeholders (→ Soon).
+    var nav = new (string Header, bool Collapsible, (string Label, string Ctrl, string Action, string Icon, bool ByAction, bool Soon, bool Badge)[] Items)[]
     {
-        ("", new [] {
-            ("Overview", "Index", "Overview", icoOverview, false, false),
-        }),
-        ("Point of sale", new [] {
-            ("Till", "Index", "POS", icoPos, false, false),
-        }),
-        ("Inventory", new [] {
-            ("Products",  "Index", "All items",        icoProducts,  false, false),
-            ("Stock",     "Index", "Stock adjustment", icoStock,     false, false),
-            ("Stocktake", "Index", "Stock-take",       icoStocktake, false, false),
-            ("Transfers", "Index", "Stock transfer",   icoTransfers, false, true),
-        }),
-        ("Reports", new [] {
-            ("Reports", "Reorder",   "Reorder",     icoReport, true, false),
-            ("Reports", "Value",     "Stock value", icoReport, true, false),
-            ("Reports", "Movements", "Movements",   icoReport, true, false),
-            ("Reports", "Shrinkage", "Shrinkage",   icoReport, true, false),
-        }),
+        ("", false, new[] { R("Overview", "Overview", "Index", icoOverview) }),
+        ("Point of sale", false, new[] { R("POS", "Till", "Index", icoPos) }),
+        ("Sales", true, new[] { S("Completed Sales", icoBag), S("Outstanding Sales", icoBag), S("Saved Carts", icoBag) }),
+        ("CRM", true, new[] { S("Customers", icoUsers), S("Discounts", icoTag) }),
+        ("Inventory", true, new[] {
+            R("All items", "Products", "Index", icoProducts),
+            S("Categories", icoTag),
+            S("Taxes", icoTag),
+            R("Stock adjustment", "Stock", "Index", icoStock),
+            R("Stock-take", "Stocktake", "Index", icoStocktake),
+            R("Stock transfer", "Transfers", "Index", icoTransfers, false, true),
+            S("Stock history", icoReport),
+            S("Batch management", icoStock),
+            S("Production & Recipes", icoStock),
+            S("Purchasing orders", icoStock),
+            S("Measurement Units", icoTag),
+            S("Suppliers", icoUsers) }),
+        ("Reports", true, new[] {
+            R("Reorder", "Reports", "Reorder", icoReport, true),
+            R("Stock value", "Reports", "Value", icoReport, true),
+            R("Stock movement", "Reports", "Movements", icoReport, true),
+            R("Shrinkage", "Reports", "Shrinkage", icoReport, true),
+            S("Sales summary", icoReport), S("Sales by item", icoReport), S("Sales by category", icoReport),
+            S("Sales by staff", icoReport), S("Sales by customer", icoReport), S("Sales by pricing groups", icoReport),
+            S("Payment method", icoReport), S("Discounts", icoReport), S("Taxes ", icoReport),
+            S("Expiring inventory", icoReport), S("Inventory valuation", icoReport) }),
+        ("Administration", true, new[] {
+            S("Staff & Roles", icoUsers), S("Branches", icoStock), S("Registers", icoPos), S("Activity Log", icoReport) }),
     };
+
+    var curFeature = Context.Request.Query["feature"].ToString();
+    bool ItemActive((string Label, string Ctrl, string Action, string Icon, bool ByAction, bool Soon, bool Badge) it)
+        => it.Soon ? (cc == "Soon" && it.Label == curFeature) : (cc == it.Ctrl && (!it.ByAction || ca == it.Action));
 }
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -58,28 +80,50 @@
             <p class="text-[10px] text-emerald-400 tracking-widest uppercase mt-1 font-medium">Inventory System</p>
         </div>
 
-        <nav class="flex-1 px-3 py-4 space-y-4">
-            @foreach (var grp in navGroups)
+        <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+            @foreach (var grp in nav)
             {
-                <div class="space-y-1">
-                    @if (!string.IsNullOrEmpty(grp.Header))
+                if (grp.Collapsible)
+                {
+                    <details class="group/nav" open>
+                        <summary class="cursor-pointer list-none flex items-center justify-between px-3 pt-3 pb-1 text-[10px] tracking-widest uppercase text-neutral-500 hover:text-neutral-300">
+                            <span>@grp.Header</span>
+                            <svg class="w-3 h-3 transition-transform group-open/nav:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </summary>
+                        <div class="space-y-0.5 mb-1">
+                            @foreach (var it in grp.Items)
+                            {
+                                var active = ItemActive(it);
+                                var routeData = it.Soon ? new Dictionary<string, string> { ["feature"] = it.Label } : new Dictionary<string, string>();
+                                <a asp-area="Inventory" asp-controller="@it.Ctrl" asp-action="@it.Action" asp-all-route-data="routeData"
+                                   class="flex items-center gap-3 px-3 py-2 rounded-sm text-sm transition-colors @(active ? "bg-emerald-600 text-white" : it.Soon ? "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/50" : "text-neutral-400 hover:text-white hover:bg-neutral-800")">
+                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@it.Icon"/></svg>
+                                    <span class="flex-1">@it.Label</span>
+                                    @if (it.Badge && pendingTransfers > 0)
+                                    {
+                                        <span class="text-[10px] font-medium bg-emerald-500 text-white rounded-full px-1.5 py-0.5 leading-none">@pendingTransfers</span>
+                                    }
+                                    @if (it.Soon)
+                                    {
+                                        <span class="text-[8px] uppercase tracking-wide text-neutral-600">soon</span>
+                                    }
+                                </a>
+                            }
+                        </div>
+                    </details>
+                }
+                else
+                {
+                    foreach (var it in grp.Items)
                     {
-                        <p class="px-3 pt-3 pb-1 text-[10px] tracking-widest uppercase text-neutral-500">@grp.Header</p>
-                    }
-                    @foreach (var it in grp.Items)
-                    {
-                        var active = it.ByAction ? (cc == it.Ctrl && ca == it.Action) : (cc == it.Ctrl);
+                        var active = ItemActive(it);
                         <a asp-area="Inventory" asp-controller="@it.Ctrl" asp-action="@it.Action"
                            class="flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm transition-colors @(active ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white hover:bg-neutral-800")">
                             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@it.Icon"/></svg>
                             <span class="flex-1">@it.Label</span>
-                            @if (it.Badge && pendingTransfers > 0)
-                            {
-                                <span class="text-[10px] font-medium bg-emerald-500 text-white rounded-full px-1.5 py-0.5 leading-none">@pendingTransfers</span>
-                            }
                         </a>
                     }
-                </div>
+                }
             }
         </nav>
 
@@ -111,6 +155,7 @@
                 @if (TempData["Error"] != null) { <span class="text-xs text-red-700 bg-red-50 px-3 py-1.5 rounded-full">@TempData["Error"]</span> }
                 <span class="text-xs text-neutral-400">@User.Identity?.Name</span>
             </div>
+            
         </header>
         <main class="flex-1 overflow-y-auto p-8">
             @RenderBody()

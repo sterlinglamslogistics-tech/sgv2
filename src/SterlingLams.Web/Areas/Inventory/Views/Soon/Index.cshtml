@@ -1,0 +1,14 @@
+@{
+    ViewData["Title"] = ViewBag.Feature as string ?? "Coming soon";
+}
+<div class="bg-white border border-neutral-100 rounded-sm p-16 text-center max-w-xl mx-auto mt-8">
+    <div class="text-5xl mb-4">🚧</div>
+    <h2 class="font-cormorant text-2xl font-light text-neutral-900 mb-2">@ViewBag.Feature</h2>
+    <p class="text-sm text-neutral-500 leading-relaxed">
+        This is part of the Moniebook-style inventory roadmap and isn't built yet — it's a placeholder.
+        We'll wire it up in an upcoming phase.
+    </p>
+    <p class="text-xs text-neutral-400 mt-5">Roadmap: <span class="font-mono">docs/moniebook/05_ROADMAP.md</span></p>
+    <a asp-area="Inventory" asp-controller="Overview" asp-action="Index"
+       class="inline-block mt-6 px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors">← Back to Overview</a>
+</div>
