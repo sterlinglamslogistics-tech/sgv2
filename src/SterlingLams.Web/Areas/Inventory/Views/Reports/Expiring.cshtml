@@ -1,0 +1,52 @@
+@model List<SterlingLams.Web.Areas.Inventory.Controllers.ExpiringRow>
+@{
+    ViewData["Title"] = "Expiring inventory";
+    var today = DateTime.UtcNow.Date;
+}
+
+@await Html.PartialAsync("_ReportTabs", "Expiring")
+
+<p class="text-xs text-neutral-400 mb-3">Dated stock captured on goods-received adjustments, soonest expiry first.</p>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[640px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Product</th>
+                <th class="text-left px-4 py-3 font-medium">Branch</th>
+                <th class="text-right px-4 py-3 font-medium">Qty</th>
+                <th class="text-left px-4 py-3 font-medium">Expiry</th>
+                <th class="text-left px-4 py-3 font-medium">Status</th>
+                <th class="text-left px-4 py-3 font-medium">Ref</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var r in Model)
+                {
+                    var days = (r.Expiry.Date - today).Days;
+                    var (label, cls) = days < 0 ? ($"Expired {-days}d ago", "bg-red-50 text-red-700")
+                        : days == 0 ? ("Expires today", "bg-red-50 text-red-700")
+                        : days <= 30 ? ($"{days}d left", "bg-amber-50 text-amber-700")
+                        : ($"{days}d left", "bg-emerald-50 text-emerald-700");
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3 text-neutral-700">
+                            @r.Product
+                            @if (!string.IsNullOrEmpty(r.Variant)) { <span class="text-neutral-400 text-xs">· @r.Variant</span> }
+                        </td>
+                        <td class="px-4 py-3 text-neutral-600">@r.Branch</td>
+                        <td class="px-4 py-3 text-right text-neutral-500">@r.Qty</td>
+                        <td class="px-4 py-3 text-neutral-600 text-xs">@r.Expiry.ToString("dd MMM yyyy")</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-sm text-[11px] @cls">@label</span></td>
+                        <td class="px-4 py-3 font-mono text-[11px] text-neutral-400">@r.Reference</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="6" class="px-4 py-10 text-center text-sm text-neutral-400">No dated stock recorded yet. Add unit expiry on a goods-received adjustment to track it here.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,49 @@
+@model List<SterlingLams.Web.Areas.Inventory.Controllers.CategoryRow>
+@{
+    ViewData["Title"] = "Categories";
+    var totalUnits = Model.Sum(c => c.Units);
+    var totalValue = Model.Sum(c => c.Value);
+}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 class="font-cormorant text-2xl font-light text-neutral-900">Categories</h1>
+    <a asp-area="Admin" asp-controller="Categories" asp-action="Index" target="_blank"
+       class="text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-sm px-3 py-1.5">Manage in Website Admin ↗</a>
+</div>
+
+<p class="text-xs text-neutral-400 mb-2">@Model.Count categor@(Model.Count == 1 ? "y" : "ies") · @totalUnits.ToString("N0") units · ₦@totalValue.ToString("N0") retail value</p>
+
+<div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[560px]">
+        <thead>
+            <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
+                <th class="text-left px-4 py-3 font-medium">Category</th>
+                <th class="text-left px-4 py-3 font-medium">Parent</th>
+                <th class="text-right px-4 py-3 font-medium">Products</th>
+                <th class="text-right px-4 py-3 font-medium">Units</th>
+                <th class="text-right px-4 py-3 font-medium">Retail value</th>
+                <th class="text-left px-4 py-3 font-medium">Status</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-50">
+            @if (Model.Any())
+            {
+                @foreach (var c in Model)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-3 text-neutral-800">@c.Name</td>
+                        <td class="px-4 py-3 text-neutral-500 text-xs">@(c.Parent ?? "—")</td>
+                        <td class="px-4 py-3 text-right text-neutral-500">@c.Products</td>
+                        <td class="px-4 py-3 text-right text-neutral-500">@c.Units.ToString("N0")</td>
+                        <td class="px-4 py-3 text-right font-medium text-neutral-800">₦@c.Value.ToString("N0")</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-sm text-[11px] @(c.IsActive ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-500")">@(c.IsActive ? "Active" : "Hidden")</span></td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="6" class="px-4 py-10 text-center text-sm text-neutral-400">No categories yet.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

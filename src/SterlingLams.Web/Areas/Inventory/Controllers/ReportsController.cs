@@ -382,6 +382,41 @@ public class ReportsController : InventoryAreaController
         return View("SalesBreakdown", rows);
     }
 
+    // ── Discounts: usage + value given, by code, over a date range. ─────────────────────────────
+    public async Task<IActionResult> Discounts(DateTime? from = null, DateTime? to = null)
+    {
+        ViewData["Title"] = "Discounts";
+        var (f, t) = NormalizeRange(from, to);
+        var rows = await SoldOrders(f, t)
+            .Where(o => o.DiscountAmount > 0 && o.DiscountCode != null)
+            .GroupBy(o => o.DiscountCode!)
+            .Select(g => new NameValueRow { Name = g.Key, Units = g.Count(), Revenue = g.Sum(x => x.DiscountAmount) })
+            .OrderByDescending(x => x.Revenue).ToListAsync();
+        ViewBag.From = f; ViewBag.To = t;
+        ViewBag.Heading = "Discount code"; ViewBag.UnitsLabel = "Orders"; ViewBag.RevenueLabel = "Discount given";
+        ViewBag.Title = "Discounts"; ViewBag.Active = "Discounts";
+        return View("SalesBreakdown", rows);
+    }
+
+    // ── Expiring inventory: dated stock received via adjustments, soonest expiry first. ──────────
+    public async Task<IActionResult> Expiring()
+    {
+        ViewData["Title"] = "Expiring inventory";
+        var rows = await _db.StockAdjustmentLines
+            .Where(l => l.ExpiryDate != null && l.QtyDelta > 0)
+            .OrderBy(l => l.ExpiryDate)
+            .Select(l => new ExpiringRow
+            {
+                Product = l.ProductName,
+                Variant = l.VariantName,
+                Branch = l.StockAdjustment.Store.Name.Replace("Sterlin Glams ", ""),
+                Qty = l.QtyDelta,
+                Expiry = l.ExpiryDate!.Value,
+                Reference = l.StockAdjustment.AdjustmentNumber
+            }).Take(300).ToListAsync();
+        return View(rows);
+    }
+
     // Orders that count as sales in a window: not cancelled or refunded.
     private IQueryable<Order> SoldOrders(DateTime f, DateTime t) =>
         _db.Orders.Where(o => o.CreatedAt >= f && o.CreatedAt < t.AddDays(1)
@@ -535,3 +570,12 @@ public class SalesSummaryVm
     public List<DailySalesRow> Daily { get; set; } = new();
 }
 public class NameValueRow { public string Name { get; set; } = ""; public int Units { get; set; } public decimal Revenue { get; set; } }
+public class ExpiringRow
+{
+    public string Product { get; set; } = "";
+    public string? Variant { get; set; }
+    public string Branch { get; set; } = "";
+    public int Qty { get; set; }
+    public DateTime Expiry { get; set; }
+    public string Reference { get; set; } = "";
+}
