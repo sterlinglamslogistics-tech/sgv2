@@ -18,17 +18,21 @@ public class WebhooksController : ControllerBase
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
     private readonly ILogger<WebhooksController> _logger;
 
+    private readonly SterlingLams.Web.Services.IAuditService _audit;
+
     public WebhooksController(
         ApplicationDbContext db,
         IPaymentService payment,
         SterlingLams.Web.Services.IOrderFulfilmentService fulfilment,
         SterlingLams.Web.Services.ILoyaltyService loyalty,
+        SterlingLams.Web.Services.IAuditService audit,
         ILogger<WebhooksController> logger)
     {
         _db = db;
         _payment = payment;
         _fulfilment = fulfilment;
         _loyalty = loyalty;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -101,6 +105,8 @@ public class WebhooksController : ControllerBase
                     SterlingLams.Web.Services.OrderNotes.AddSystem(_db, order.Id,
                         $"Payment via Paystack successful (Transaction Reference: {reference}).");
                 await _db.SaveChangesAsync();
+                if (wasUnpaid)
+                    try { await _audit.LogAsync("Payment", "Order", order.Id.ToString(), $"Payment received for {order.OrderNumber} — ₦{order.Total:N0} (Paystack)"); } catch { }
 
                 // Deduct stock through the in-house ledger. Idempotent, so it's safe whether the
                 // browser callback already fulfilled this order or the webhook is the only path

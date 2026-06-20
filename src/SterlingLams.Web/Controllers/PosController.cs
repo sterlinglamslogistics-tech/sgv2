@@ -24,11 +24,14 @@ public class PosController : Controller
     private readonly SterlingLams.Web.Services.IStoreAccessService _access;
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
 
+    private readonly SterlingLams.Web.Services.IAuditService _audit;
+
     public PosController(ApplicationDbContext db, IStockService stock,
         SignInManager<ApplicationUser> signIn, IPasswordHasher<ApplicationUser> hasher,
         UserManager<ApplicationUser> userManager,
         SterlingLams.Web.Services.IStoreAccessService access,
-        SterlingLams.Web.Services.ILoyaltyService loyalty)
+        SterlingLams.Web.Services.ILoyaltyService loyalty,
+        SterlingLams.Web.Services.IAuditService audit)
     {
         _db = db;
         _stock = stock;
@@ -37,6 +40,7 @@ public class PosController : Controller
         _userManager = userManager;
         _access = access;
         _loyalty = loyalty;
+        _audit = audit;
     }
 
     private async Task<Register?> BoundRegisterAsync()
@@ -299,6 +303,8 @@ public class PosController : Controller
         if (fullyRefunded)
             await _loyalty.ReverseForOrderAsync(order.Id);
 
+        try { await _audit.LogAsync("Refund", "Order", order.Id.ToString(), $"POS refund {refundNumber} — ₦{amount:N0} on {order.OrderNumber}{(fullyRefunded ? " (full)" : " (partial)")}"); } catch { }
+
         return Json(new { success = true, refundNumber, amount });
     }
 
@@ -337,6 +343,8 @@ public class PosController : Controller
             _hasher.VerifyHashedPassword(user, user.PinHash!, pin) != PasswordVerificationResult.Failed)
         {
             await _signIn.SignInAsync(user, isPersistent: false);
+            var reg = await BoundRegisterAsync();
+            try { await _audit.LogAsync("Login", "POS", user.Id, $"{user.FullName} signed in to POS{(reg != null ? $" ({reg.Name})" : "")}"); } catch { }
             return Json(new { success = true });
         }
         return Json(new { success = false, message = "Wrong PIN." });
@@ -856,6 +864,8 @@ public class PosController : Controller
 
         // Award loyalty points to the attached customer (no-op for walk-ins with no customer).
         await _loyalty.AccrueForOrderAsync(order.Id);
+
+        try { await _audit.LogAsync("Sale", "Order", order.Id.ToString(), $"POS sale {orderNumber} — ₦{order.Total:N0} ({req.PaymentMethod}) at {register.Name}"); } catch { }
 
         return Json(new { success = true, orderId = order.Id, orderNumber, total = order.Total, change = order.ChangeGiven });
     }

@@ -22,12 +22,14 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             _db = db;
         }
 
-        public async Task<IActionResult> Index(int page = 1, string action = "", string entity = "",
+        // NOTE: the action-type filter is named "act", NOT "action" — an "action" parameter binds
+        // from the MVC route value {action} ("Index"), which silently filtered out every row.
+        public async Task<IActionResult> Index(int page = 1, string act = "", string entity = "",
             string dateFrom = "", string dateTo = "", string q = "")
         {
             ViewData["Title"] = "Audit Log";
 
-            var query = BuildQuery(action, entity, dateFrom, dateTo, q);
+            var query = BuildQuery(act, entity, dateFrom, dateTo, q);
 
             var total = await query.CountAsync();
             var logs = await query
@@ -50,16 +52,16 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 Logs = logs,
                 CurrentPage = page,
                 TotalPages = (int)Math.Ceiling(total / (double)PageSize),
-                ActionFilter = action, EntityFilter = entity, DateFrom = dateFrom, DateTo = dateTo,
+                ActionFilter = act, EntityFilter = entity, DateFrom = dateFrom, DateTo = dateTo,
                 SearchQuery = q,
                 AvailableActions = availableActions, AvailableEntities = availableEntities
             });
         }
 
-        public async Task<IActionResult> ExportCsv(string action = "", string entity = "",
+        public async Task<IActionResult> ExportCsv(string act = "", string entity = "",
             string dateFrom = "", string dateTo = "", string q = "")
         {
-            var logs = await BuildQuery(action, entity, dateFrom, dateTo, q)
+            var logs = await BuildQuery(act, entity, dateFrom, dateTo, q)
                 .OrderByDescending(l => l.CreatedAt)
                 .ToListAsync();
 

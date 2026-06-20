@@ -17,6 +17,7 @@ public class AccountController : Controller
     private readonly SterlingLams.Web.Services.IEmailService _email;
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
     private readonly SterlingLams.Web.Services.ISettingsService _settings;
+    private readonly SterlingLams.Web.Services.IAuditService _audit;
     private readonly IWebHostEnvironment _env;
 
     public AccountController(
@@ -27,6 +28,7 @@ public class AccountController : Controller
         SterlingLams.Web.Services.IEmailService email,
         SterlingLams.Web.Services.ILoyaltyService loyalty,
         SterlingLams.Web.Services.ISettingsService settings,
+        SterlingLams.Web.Services.IAuditService audit,
         IWebHostEnvironment env)
     {
         _userManager = userManager;
@@ -36,6 +38,7 @@ public class AccountController : Controller
         _email = email;
         _loyalty = loyalty;
         _settings = settings;
+        _audit = audit;
         _env = env;
     }
 
@@ -85,6 +88,11 @@ public class AccountController : Controller
             {
                 user.LastLoginAt = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
+                // Audit staff sign-ins (skip ordinary customers to avoid noise).
+                var roles = await _userManager.GetRolesAsync(user);
+                if (roles.Count > 0)
+                    try { await _audit.LogAsync("Login", "Account", user.Id, $"{user.FullName} signed in ({string.Join(", ", roles)})"); }
+                    catch { /* auditing must never block login */ }
             }
             _logger.LogInformation("User {Email} logged in", model.Email);
 

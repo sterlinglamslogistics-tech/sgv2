@@ -43,6 +43,7 @@ public class ReservationSweeper : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var fulfil = scope.ServiceProvider.GetRequiredService<IOrderFulfilmentService>();
         var settings = scope.ServiceProvider.GetRequiredService<ISettingsService>();
+        var audit = scope.ServiceProvider.GetRequiredService<IAuditService>();
 
         var ttlMinutes = (int)await settings.GetDecimalAsync("order.reservation_timeout_minutes", DefaultTtlMinutes);
         if (ttlMinutes < 1) ttlMinutes = DefaultTtlMinutes;
@@ -68,6 +69,7 @@ public class ReservationSweeper : BackgroundService
                 order.UpdatedAt = DateTime.UtcNow;
                 OrderNotes.AddSystem(db, id, $"Order auto-cancelled: payment not received within {ttlMinutes} minutes.");
                 await db.SaveChangesAsync(ct);
+                try { await audit.LogAsync("Cancel", "Order", id.ToString(), $"Order {order.OrderNumber} auto-cancelled — unpaid for over {ttlMinutes} min"); } catch { }
             }
         }
 

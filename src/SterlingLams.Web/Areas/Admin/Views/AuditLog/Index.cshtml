@@ -13,7 +13,7 @@
                placeholder="Search description or user…"
                class="border border-neutral-200 rounded-sm px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-400 min-w-[200px]" />
 
-        <select name="action"
+        <select name="act"
                 class="border border-neutral-200 rounded-sm px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-400 bg-white">
             <option value="">All Actions</option>
             @foreach (var a in Model.AvailableActions)
@@ -51,7 +51,7 @@
 
         <!-- Export respects current filters -->
         <a asp-area="Admin" asp-controller="AuditLog" asp-action="ExportCsv"
-           asp-route-action="@Model.ActionFilter" asp-route-entity="@Model.EntityFilter"
+           asp-route-act="@Model.ActionFilter" asp-route-entity="@Model.EntityFilter"
            asp-route-dateFrom="@Model.DateFrom" asp-route-dateTo="@Model.DateTo" asp-route-q="@Model.SearchQuery"
            class="ml-auto px-4 py-1.5 border border-neutral-300 text-neutral-700 text-xs rounded-sm hover:border-neutral-500 transition-colors">
             ↓ Export CSV
@@ -115,7 +115,7 @@
         {
             <a asp-area="Admin" asp-controller="AuditLog" asp-action="Index"
                asp-route-page="@p"
-               asp-route-action="@Model.ActionFilter"
+               asp-route-act="@Model.ActionFilter"
                asp-route-entity="@Model.EntityFilter"
                asp-route-dateFrom="@Model.DateFrom"
                asp-route-dateTo="@Model.DateTo"

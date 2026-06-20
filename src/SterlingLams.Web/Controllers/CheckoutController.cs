@@ -29,6 +29,7 @@ public class CheckoutController : Controller
     private readonly SterlingLams.Web.Services.IEmailService _email;
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
     private readonly SterlingLams.Web.Services.IStockService _stock;
+    private readonly SterlingLams.Web.Services.IAuditService _audit;
     private readonly IDataProtector _confirmTokenProtector;
 
     public CheckoutController(
@@ -45,6 +46,7 @@ public class CheckoutController : Controller
         SterlingLams.Web.Services.IEmailService email,
         SterlingLams.Web.Services.ILoyaltyService loyalty,
         SterlingLams.Web.Services.IStockService stock,
+        SterlingLams.Web.Services.IAuditService audit,
         IDataProtectionProvider dataProtection)
     {
         _db = db;
@@ -60,6 +62,7 @@ public class CheckoutController : Controller
         _email = email;
         _loyalty = loyalty;
         _stock = stock;
+        _audit = audit;
         _confirmTokenProtector = dataProtection.CreateProtector("Checkout.Confirmation.v1");
     }
 
@@ -561,6 +564,8 @@ public class CheckoutController : Controller
             $"Order placed by customer ({(order.FulfillmentType == FulfillmentType.StorePickup ? "store pickup" : "delivery")}). Awaiting payment.");
         await _db.SaveChangesAsync();
 
+        try { await _audit.LogAsync("Order", "Order", order.Id.ToString(), $"Online order placed {order.OrderNumber} — ₦{order.Total:N0}"); } catch { }
+
         // Newsletter opt-in (deduped) when the customer ticked the box.
         if (vm.SubscribeNewsletter && !string.IsNullOrWhiteSpace(user.Email))
         {
@@ -641,6 +646,8 @@ public class CheckoutController : Controller
                 SterlingLams.Web.Services.OrderNotes.AddSystem(_db, order.Id,
                     $"Payment via {_payment.ProviderName} successful (Transaction Reference: {refToVerify}).");
             await _db.SaveChangesAsync();
+            if (wasUnpaid)
+                try { await _audit.LogAsync("Payment", "Order", order.Id.ToString(), $"Payment received for {order.OrderNumber} — ₦{order.Total:N0} ({_payment.ProviderName})"); } catch { }
 
             // Commit stock first-come-first-served. If an item sold out before this payment
             // landed, auto-cancel + refund instead of confirming.

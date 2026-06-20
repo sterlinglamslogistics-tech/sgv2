@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
 
@@ -24,7 +26,7 @@ public class AuditService : IAuditService
     public async Task LogAsync(string action, string entityType, string? entityId, string description)
     {
         var ctx  = _http.HttpContext;
-        var user = ctx?.User?.Identity?.Name ?? "system";
+        var user = await ResolvePerformerAsync(ctx);
         var ip   = GetClientIp(ctx);
 
         _db.AuditLogs.Add(new AuditLog
@@ -39,6 +41,25 @@ public class AuditService : IAuditService
         });
 
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>The staff member's display name (First Last) when signed in, else their username,
+    /// else "system" (background jobs / unauthenticated).</summary>
+    private async Task<string> ResolvePerformerAsync(HttpContext? ctx)
+    {
+        var id = ctx?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(id))
+        {
+            var u = await _db.Users.Where(x => x.Id == id)
+                .Select(x => new { x.FirstName, x.LastName, x.UserName })
+                .FirstOrDefaultAsync();
+            if (u != null)
+            {
+                var name = $"{u.FirstName} {u.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(name) ? (u.UserName ?? "unknown") : name;
+            }
+        }
+        return ctx?.User?.Identity?.Name ?? "system";
     }
 
     private static string? GetClientIp(HttpContext? ctx)
