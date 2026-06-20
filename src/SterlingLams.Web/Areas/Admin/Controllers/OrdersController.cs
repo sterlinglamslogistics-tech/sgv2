@@ -124,6 +124,19 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 .GroupBy(ri => new { ri.ProductId, ri.ProductVariantId })
                 .ToDictionary(g => (g.Key.ProductId, g.Key.ProductVariantId), g => g.Sum(x => x.Quantity));
 
+            // Customer history: all orders attributed to this buyer (as the user or the POS customer).
+            var customerId = order.Channel == OrderChannel.Pos ? order.CustomerUserId : order.UserId;
+            int custOrders = 0; decimal custRevenue = 0, custAov = 0;
+            if (!string.IsNullOrEmpty(customerId))
+            {
+                var theirOrders = _db.Orders.Where(o => o.UserId == customerId || o.CustomerUserId == customerId);
+                custOrders = await theirOrders.CountAsync();
+                var paid = theirOrders.Where(o => o.IsPaid);
+                custRevenue = await paid.SumAsync(o => (decimal?)o.Total) ?? 0;
+                var paidCount = await paid.CountAsync();
+                custAov = paidCount > 0 ? custRevenue / paidCount : 0;
+            }
+
             var vm = new AdminOrderDetailViewModel
             {
                 Order = order,
@@ -134,6 +147,9 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 RefundedTotal = refunds.Sum(r => r.Amount),
                 RefundStoreId = order.FulfillingStoreId ?? order.PickupStoreId ?? 0,
                 Notes = notes,
+                CustomerTotalOrders = custOrders,
+                CustomerTotalRevenue = custRevenue,
+                CustomerAvgOrderValue = custAov,
                 // Online refunds only here; POS returns are handled at the till.
                 CanRefund = order.IsPaid && order.Channel == OrderChannel.Online && order.Status != OrderStatus.Refunded
             };

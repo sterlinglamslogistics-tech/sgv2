@@ -482,6 +482,11 @@ public class CheckoutController : Controller
                 : FulfillmentType.Delivery,
             PickupStoreId = vm.FulfillmentType == FulfillmentChoice.StorePickup ? vm.SelectedStoreId : null,
             Notes = string.IsNullOrWhiteSpace(vm.OrderNotes) ? null : vm.OrderNotes.Trim(),
+            // Order attribution (WooCommerce-style)
+            CustomerIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            DeviceType = SterlingLams.Web.Infrastructure.OrderAttributionMiddleware.DeviceFromUserAgent(Request.Headers.UserAgent.ToString()),
+            Origin = HttpContext.Session.GetString(SterlingLams.Web.Infrastructure.OrderAttributionMiddleware.OriginKey) ?? "Direct",
+            SessionPageViews = HttpContext.Session.GetInt32(SterlingLams.Web.Infrastructure.OrderAttributionMiddleware.PageViewsKey),
             Subtotal = cart.Subtotal,
             DeliveryFee = deliveryFee,
             DiscountCode = discountCode,

@@ -97,6 +97,16 @@ public class Order
     public string? Notes { get; set; }
     public string? AdminNotes { get; set; }
 
+    // ── Order attribution (captured at checkout for online orders) ──
+    /// <summary>Client IP at the time the order was placed.</summary>
+    public string? CustomerIp { get; set; }
+    /// <summary>Mobile / Tablet / Desktop, derived from the user agent.</summary>
+    public string? DeviceType { get; set; }
+    /// <summary>Where the visit came from: Direct, a referring host, or a utm_source.</summary>
+    public string? Origin { get; set; }
+    /// <summary>Pages viewed in the session before the order was placed.</summary>
+    public int? SessionPageViews { get; set; }
+
     /// <summary>Set when an admin alert has been sent for a paid-but-unfulfilled order, so the
     /// fulfilment retry service doesn't alert repeatedly. Cleared (stays null) once fulfilled.</summary>
     public DateTime? FulfilmentAlertedAt { get; set; }

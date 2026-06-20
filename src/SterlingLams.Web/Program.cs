@@ -103,6 +103,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     // Staff/admin get a much shorter, non-persistent session than shoppers — a stolen or
     // shared back-office cookie shouldn't stay valid for a month. Customers keep the 30-day
     // sliding convenience above.
+
     options.Events ??= new Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationEvents();
     options.Events.OnSigningIn = ctx =>
     {
@@ -252,6 +253,8 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseRateLimiter();
 app.UseSession();
+// Track storefront origin + page views per session for order attribution (needs session).
+app.UseMiddleware<SterlingLams.Web.Infrastructure.OrderAttributionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

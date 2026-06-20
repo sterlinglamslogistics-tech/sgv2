@@ -182,6 +182,52 @@
             <p class="text-xs text-neutral-500">@Model.CustomerEmail</p>
         </div>
 
+        <!-- Customer history -->
+        <div class="bg-white rounded-sm border border-neutral-100 px-6 py-4">
+            <h2 class="text-sm font-medium mb-3">Customer history</h2>
+            <div class="space-y-2">
+                <div>
+                    <p class="text-[11px] text-neutral-400">Total orders</p>
+                    <p class="text-sm text-neutral-800">@Model.CustomerTotalOrders</p>
+                </div>
+                <div>
+                    <p class="text-[11px] text-neutral-400">Total revenue <span class="text-neutral-300">(paid)</span></p>
+                    <p class="text-sm text-neutral-800">₦@Model.CustomerTotalRevenue.ToString("N2")</p>
+                </div>
+                <div>
+                    <p class="text-[11px] text-neutral-400">Average order value</p>
+                    <p class="text-sm text-neutral-800">₦@Model.CustomerAvgOrderValue.ToString("N2")</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order attribution -->
+        @if (Model.Order.Channel == SterlingLams.Web.Models.Domain.OrderChannel.Online
+             && (Model.Order.Origin != null || Model.Order.DeviceType != null || Model.Order.CustomerIp != null || Model.Order.SessionPageViews != null))
+        {
+            <div class="bg-white rounded-sm border border-neutral-100 px-6 py-4">
+                <h2 class="text-sm font-medium mb-3">Order attribution</h2>
+                <div class="space-y-2">
+                    <div>
+                        <p class="text-[11px] text-neutral-400">Origin</p>
+                        <p class="text-sm text-neutral-800">@(Model.Order.Origin ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] text-neutral-400">Device type</p>
+                        <p class="text-sm text-neutral-800">@(Model.Order.DeviceType ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] text-neutral-400">Session page views</p>
+                        <p class="text-sm text-neutral-800">@(Model.Order.SessionPageViews?.ToString() ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] text-neutral-400">Customer IP</p>
+                        <p class="text-sm text-neutral-800 font-mono text-xs">@(Model.Order.CustomerIp ?? "—")</p>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Payment -->
         <div class="bg-white rounded-sm border border-neutral-100 px-6 py-4">
             <h2 class="text-sm font-medium mb-3">Payment</h2>

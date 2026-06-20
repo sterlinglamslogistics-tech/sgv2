@@ -99,6 +99,11 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
 
         /// <summary>Order timeline notes (system + staff), newest first.</summary>
         public List<OrderNote> Notes { get; set; } = new();
+
+        // ── Customer history (across this customer's orders) ──
+        public int CustomerTotalOrders { get; set; }
+        public decimal CustomerTotalRevenue { get; set; }
+        public decimal CustomerAvgOrderValue { get; set; }
     }
 
     // ─── Products ─────────────────────────────────────────────────────────
