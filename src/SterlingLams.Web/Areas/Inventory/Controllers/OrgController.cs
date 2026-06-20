@@ -53,6 +53,24 @@ public class OrgController : InventoryAreaController
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RenameRegister(int id, string name)
+    {
+        var r = await _db.Registers.FindAsync(id);
+        if (r == null) return NotFound();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["Error"] = "Enter a register name.";
+            return RedirectToAction(nameof(Registers));
+        }
+        var old = r.Name;
+        r.Name = name.Trim();
+        await _db.SaveChangesAsync();
+        await LogAsync("Update", "Register", id.ToString(), $"Renamed register '{old}' → '{r.Name}'");
+        TempData["Success"] = "Register renamed.";
+        return RedirectToAction(nameof(Registers));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleRegister(int id)
     {
         var r = await _db.Registers.FindAsync(id);
