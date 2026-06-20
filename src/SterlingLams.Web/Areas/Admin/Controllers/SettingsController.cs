@@ -28,7 +28,8 @@ public class SettingsController : AdminBaseController
             .OrderBy(c => c.Name)
             .Select(c => new { c.Name, c.Slug })
             .ToListAsync();
-        var all = await _settings.GetAllAsync();
+        // POS receipt settings are managed in the Inventory System (Stage 2), so hide that group here.
+        var all = (await _settings.GetAllAsync()).Where(s => s.Group != "POS / Till").ToList();
         return View(all);
     }
 

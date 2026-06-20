@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "POS Settings";
+    var header = ViewBag.ReceiptHeader as string ?? "";
+    var footer = ViewBag.ReceiptFooter as string ?? "";
+}
+
+<div class="mb-5">
+    <h1 class="text-lg font-medium text-neutral-800">POS settings</h1>
+    <p class="text-xs text-neutral-400">Customise what prints on POS receipts.</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2.5">@TempData["Success"]</div>
+}
+
+<div class="bg-white rounded-xl border border-neutral-200 p-6 max-w-2xl">
+    <form asp-action="SaveSettings" method="post" class="space-y-5">
+        @Html.AntiForgeryToken()
+        <div>
+            <label class="block text-xs font-medium text-neutral-700 mb-1">Receipt Header Line</label>
+            <p class="text-[11px] text-neutral-400 mb-1.5">Extra line printed at the top of POS receipts (e.g. a slogan or address). Blank = none.</p>
+            <input type="text" name="receiptHeader" value="@header"
+                   class="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-neutral-700 mb-1">Receipt Footer Line</label>
+            <p class="text-[11px] text-neutral-400 mb-1.5">Message printed at the bottom of POS receipts.</p>
+            <textarea name="receiptFooter" rows="3"
+                      class="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none">@footer</textarea>
+        </div>
+        <div class="flex items-center gap-3">
+            <button type="submit" class="px-6 py-2.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Save settings</button>
+            <p class="text-xs text-neutral-400">Changes take effect immediately.</p>
+        </div>
+    </form>
+</div>

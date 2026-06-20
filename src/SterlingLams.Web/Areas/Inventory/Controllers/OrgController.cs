@@ -31,9 +31,36 @@ public class OrgController : InventoryAreaController
     public async Task<IActionResult> Registers()
     {
         ViewData["Title"] = "Registers";
+        ViewBag.Stores = await _db.Stores.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync();
         var regs = await _db.Registers.Include(r => r.Store).OrderBy(r => r.Store.Name).ThenBy(r => r.Name).ToListAsync();
         ViewBag.OpenSessions = (await _db.TillSessions.Where(s => s.ClosedAt == null).Select(s => s.RegisterId).ToListAsync()).ToHashSet();
         return View(regs);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateRegister(string name, int storeId)
+    {
+        if (string.IsNullOrWhiteSpace(name) || !await _db.Stores.AnyAsync(s => s.Id == storeId))
+        {
+            TempData["Error"] = "Please enter a register name and choose a branch.";
+            return RedirectToAction(nameof(Registers));
+        }
+        _db.Registers.Add(new Register { Name = name.Trim(), StoreId = storeId, IsActive = true });
+        await _db.SaveChangesAsync();
+        await LogAsync("Create", "Register", null, $"Added register '{name.Trim()}'");
+        TempData["Success"] = "Register added.";
+        return RedirectToAction(nameof(Registers));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleRegister(int id)
+    {
+        var r = await _db.Registers.FindAsync(id);
+        if (r == null) return NotFound();
+        r.IsActive = !r.IsActive;
+        await _db.SaveChangesAsync();
+        await LogAsync("Update", "Register", id.ToString(), $"{(r.IsActive ? "Enabled" : "Disabled")} register '{r.Name}'");
+        return RedirectToAction(nameof(Registers));
     }
 
     public async Task<IActionResult> ActivityLog(string? act = null, string q = "", int page = 1)

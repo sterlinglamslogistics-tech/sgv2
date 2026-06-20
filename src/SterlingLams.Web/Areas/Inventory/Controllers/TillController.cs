@@ -2,13 +2,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
+using SterlingLams.Web.Services;
 
 namespace SterlingLams.Web.Areas.Inventory.Controllers;
 
 public class TillController : InventoryAreaController
 {
     private readonly ApplicationDbContext _db;
-    public TillController(ApplicationDbContext db) => _db = db;
+    private readonly ISettingsService _settings;
+    public TillController(ApplicationDbContext db, ISettingsService settings)
+    {
+        _db = db;
+        _settings = settings;
+    }
 
     // Till oversight: cash-up sessions across all branches + today's POS totals.
     public async Task<IActionResult> Index(int? storeId = null, string status = "all")
@@ -72,6 +78,113 @@ public class TillController : InventoryAreaController
         vm.TxToday = await posToday.CountAsync();
 
         return View(vm);
+    }
+
+    // ── POS Discount Reasons (+ presets) ──────────────────────────────────────
+    public async Task<IActionResult> DiscountReasons()
+    {
+        ViewData["Title"] = "POS Discount Reasons";
+        var reasons = await _db.PosDiscountReasons
+            .Include(r => r.Presets.OrderBy(p => p.SortOrder))
+            .OrderBy(r => r.SortOrder)
+            .ToListAsync();
+        return View(reasons);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateReason(string name)
+    {
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var maxSort = await _db.PosDiscountReasons.MaxAsync(r => (int?)r.SortOrder) ?? 0;
+            var reason = new PosDiscountReason { Name = name.Trim(), SortOrder = maxSort + 10, IsActive = true };
+            _db.PosDiscountReasons.Add(reason);
+            await _db.SaveChangesAsync();
+            await LogAsync("Create", "PosDiscountReason", reason.Id.ToString(), $"Created POS discount reason '{reason.Name}'");
+        }
+        return RedirectToAction(nameof(DiscountReasons));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditReason(int id, string name, bool isActive)
+    {
+        var reason = await _db.PosDiscountReasons.FindAsync(id);
+        if (reason != null && !string.IsNullOrWhiteSpace(name))
+        {
+            reason.Name = name.Trim();
+            reason.IsActive = isActive;
+            await _db.SaveChangesAsync();
+            await LogAsync("Update", "PosDiscountReason", id.ToString(), $"Updated POS discount reason '{reason.Name}' (active={isActive})");
+        }
+        return RedirectToAction(nameof(DiscountReasons));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReason(int id)
+    {
+        var reason = await _db.PosDiscountReasons.FindAsync(id);
+        if (reason != null)
+        {
+            var name = reason.Name;
+            _db.PosDiscountReasons.Remove(reason);
+            await _db.SaveChangesAsync();
+            await LogAsync("Delete", "PosDiscountReason", id.ToString(), $"Deleted POS discount reason '{name}'");
+        }
+        return RedirectToAction(nameof(DiscountReasons));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreatePreset(int reasonId, string label, string type, decimal value)
+    {
+        if (!string.IsNullOrWhiteSpace(label) && value > 0)
+        {
+            var maxSort = await _db.PosDiscountPresets.Where(p => p.ReasonId == reasonId).MaxAsync(p => (int?)p.SortOrder) ?? 0;
+            var preset = new PosDiscountPreset
+            {
+                ReasonId = reasonId, Label = label.Trim(),
+                Type = type, Value = value, SortOrder = maxSort + 10
+            };
+            _db.PosDiscountPresets.Add(preset);
+            await _db.SaveChangesAsync();
+            await LogAsync("Create", "PosDiscountPreset", preset.Id.ToString(), $"Added POS discount preset '{preset.Label}' ({type} {value}) to reason {reasonId}");
+        }
+        return RedirectToAction(nameof(DiscountReasons));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePreset(int id)
+    {
+        var preset = await _db.PosDiscountPresets.FindAsync(id);
+        if (preset != null)
+        {
+            var label = preset.Label;
+            _db.PosDiscountPresets.Remove(preset);
+            await _db.SaveChangesAsync();
+            await LogAsync("Delete", "PosDiscountPreset", id.ToString(), $"Deleted POS discount preset '{label}'");
+        }
+        return RedirectToAction(nameof(DiscountReasons));
+    }
+
+    // ── POS settings (receipt header/footer) ──────────────────────────────────
+    public async Task<IActionResult> Settings()
+    {
+        ViewData["Title"] = "POS Settings";
+        ViewBag.ReceiptHeader = await _settings.GetAsync("pos.receipt_header", "");
+        ViewBag.ReceiptFooter = await _settings.GetAsync("pos.receipt_footer", "Thank you for shopping with us!");
+        return View();
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSettings(string? receiptHeader, string? receiptFooter)
+    {
+        await _settings.SaveManyAsync(new Dictionary<string, string>
+        {
+            ["pos.receipt_header"] = receiptHeader?.Trim() ?? "",
+            ["pos.receipt_footer"] = receiptFooter?.Trim() ?? ""
+        });
+        await LogAsync("Update", "Setting", null, "Updated POS receipt settings");
+        TempData["Success"] = "POS settings saved.";
+        return RedirectToAction(nameof(Settings));
     }
 }
 

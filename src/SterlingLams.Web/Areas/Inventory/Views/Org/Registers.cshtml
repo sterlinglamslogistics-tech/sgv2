@@ -2,18 +2,49 @@
 @{
     ViewData["Title"] = "Registers";
     var open = ViewBag.OpenSessions as HashSet<int> ?? new();
+    var stores = ViewBag.Stores as List<SterlingLams.Web.Models.Domain.Store> ?? new();
 }
 
-<h1 class="font-cormorant text-2xl font-light text-neutral-900 mb-4">Registers</h1>
+<h1 class="font-cormorant text-2xl font-light text-neutral-900 mb-1">Registers</h1>
+<p class="text-xs text-neutral-400 mb-4">Each physical till is bound to one of these. Open the POS app at <span class="font-mono">/pos</span>.</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2.5">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5">@TempData["Error"]</div>
+}
+
+<!-- Add register -->
+<div class="bg-white rounded-sm border border-neutral-100 p-5 mb-6">
+    <h2 class="text-sm font-semibold text-neutral-700 mb-3">Add register</h2>
+    <form asp-action="CreateRegister" method="post" class="flex flex-wrap gap-3">
+        @Html.AntiForgeryToken()
+        <input type="text" name="name" placeholder="Register name (e.g. Front Till)" required
+               class="flex-1 min-w-[180px] border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        <select name="storeId" required
+                class="border border-neutral-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-500">
+            <option value="">— Branch —</option>
+            @foreach (var s in stores)
+            {
+                <option value="@s.Id">@s.Name.Replace("Sterlin Glams ", "")</option>
+            }
+        </select>
+        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Add register</button>
+    </form>
+</div>
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
-    <table class="w-full text-sm min-w-[480px]">
+    <table class="w-full text-sm min-w-[560px]">
         <thead>
             <tr class="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400">
                 <th class="text-left px-4 py-3 font-medium">Register</th>
                 <th class="text-left px-4 py-3 font-medium">Branch</th>
                 <th class="text-left px-4 py-3 font-medium">Status</th>
                 <th class="text-left px-4 py-3 font-medium">Till session</th>
+                <th class="text-right px-4 py-3 font-medium">Action</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-neutral-50">
@@ -35,12 +66,21 @@
                                 <span class="text-xs text-neutral-400">Closed</span>
                             }
                         </td>
+                        <td class="px-4 py-3 text-right">
+                            <form asp-action="ToggleRegister" method="post" class="inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <button type="submit" class="text-xs @(r.IsActive ? "text-red-500 hover:text-red-700" : "text-emerald-600 hover:text-emerald-700") transition-colors">
+                                    @(r.IsActive ? "Disable" : "Enable")
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                 }
             }
             else
             {
-                <tr><td colspan="4" class="px-4 py-10 text-center text-sm text-neutral-400">No registers configured.</td></tr>
+                <tr><td colspan="5" class="px-4 py-10 text-center text-sm text-neutral-400">No registers configured.</td></tr>
             }
         </tbody>
     </table>

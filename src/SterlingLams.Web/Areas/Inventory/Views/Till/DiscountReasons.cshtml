@@ -1,11 +1,12 @@
 @model List<SterlingLams.Web.Models.Domain.PosDiscountReason>
 @{
     ViewData["Title"] = "POS Discount Reasons";
-    Layout = "_AdminLayout";
 }
 
-<partial name="_TillTabs" model="@("DiscountReasons")" />
-<p class="text-xs text-neutral-400 -mt-3 mb-5">Configure discount reasons and presets shown on the till.</p>
+<div class="mb-5">
+    <h1 class="text-lg font-medium text-neutral-800">Discount reasons</h1>
+    <p class="text-xs text-neutral-400">Configure the discount reasons and presets shown on the POS.</p>
+</div>
 
 <!-- Add Reason -->
 <div class="bg-white rounded-xl border border-neutral-200 p-5 mb-6">
@@ -13,8 +14,8 @@
     <form asp-action="CreateReason" method="post" class="flex gap-3">
         @Html.AntiForgeryToken()
         <input type="text" name="name" placeholder="Reason name (e.g. Damaged Product)" required
-               class="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500" />
-        <button type="submit" class="px-4 py-2 bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-600 transition-colors">Add Reason</button>
+               class="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Add Reason</button>
     </form>
 </div>
 
@@ -38,10 +39,8 @@
                     <span class="ml-2 text-[10px] bg-neutral-200 text-neutral-500 px-1.5 py-0.5 rounded uppercase tracking-wide">Inactive</span>
                 }
             </div>
-            <!-- Edit reason -->
             <button type="button" onclick="toggleEdit(@reason.Id)"
                     class="text-xs text-neutral-500 hover:text-neutral-700 px-2 py-1 border border-neutral-200 rounded transition-colors">Edit</button>
-            <!-- Delete reason -->
             <form asp-action="DeleteReason" method="post" class="inline" onsubmit="return confirm('Delete this reason and all its presets?')">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@reason.Id" />
@@ -55,12 +54,12 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@reason.Id" />
                 <input type="text" name="name" value="@reason.Name" required
-                       class="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500" />
+                       class="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
                 <label class="flex items-center gap-1.5 text-sm text-neutral-600">
                     <input type="checkbox" name="isActive" value="true" @(reason.IsActive ? "checked" : "") />
                     Active
                 </label>
-                <button type="submit" class="px-4 py-2 bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-600 transition-colors">Save</button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Save</button>
                 <button type="button" onclick="toggleEdit(@reason.Id)" class="px-3 py-2 text-sm text-neutral-500 hover:text-neutral-700">Cancel</button>
             </form>
         </div>
@@ -94,23 +93,24 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="reasonId" value="@reason.Id" />
                 <input type="text" name="label" placeholder="Label (e.g. Discount by 40%)" required
-                       class="flex-1 min-w-[160px] border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
-                <select name="type" class="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+                       class="flex-1 min-w-[160px] border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-emerald-500" />
+                <select name="type" class="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
                     <option value="Percentage">% Percentage</option>
                     <option value="Amount">₦ Amount</option>
                     <option value="NewPrice">₦ New Price</option>
                 </select>
                 <input type="number" name="value" min="0.01" step="0.01" placeholder="Value" required
-                       class="w-24 border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+                       class="w-24 border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-emerald-500" />
                 <button type="submit" class="px-3 py-1.5 bg-neutral-800 text-white text-sm rounded-lg hover:bg-neutral-700 transition-colors">Add Preset</button>
             </form>
         </div>
     </div>
 }
 
+@section Scripts {
 <script>
 function toggleEdit(id) {
-    const el = document.getElementById('edit-' + id);
-    el.classList.toggle('hidden');
+    document.getElementById('edit-' + id).classList.toggle('hidden');
 }
 </script>
+}
