@@ -376,6 +376,10 @@ public class TillController : Controller
                 itemCount = o.Items.Sum(i => i.Quantity),
                 customerName = o.Customer != null
                     ? (o.Customer.FirstName + " " + o.Customer.LastName).Trim()
+                    : null,
+                // On POS, Order.UserId is the cashier who rang up the sale.
+                cashierName = o.User != null
+                    ? (o.User.FirstName + " " + o.User.LastName).Trim()
                     : null
             })
             .ToListAsync();
@@ -847,7 +851,8 @@ public class TillController : Controller
     [Authorize]
     public async Task<IActionResult> Receipt(int id)
     {
-        var order = await _db.Orders.Include(o => o.Items).Include(o => o.PickupStore).Include(o => o.Customer)
+        var order = await _db.Orders.Include(o => o.Items).Include(o => o.PickupStore)
+            .Include(o => o.Customer).Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == id && o.Channel == OrderChannel.Pos);
         if (order == null) return NotFound();
         return View(order);

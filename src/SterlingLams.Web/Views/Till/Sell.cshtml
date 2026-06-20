@@ -1153,11 +1153,12 @@
                 const when = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' +
                              dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                 const who = o.customerName ? ' · ' + o.customerName : '';
+                const by = o.cashierName ? ' · by ' + o.cashierName : '';
                 return `<div data-receipt="${o.id}" title="View / print receipt"
                      class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-neutral-50 transition-colors">
                     <div class="flex-1 min-w-0">
                         <p class="font-medium text-neutral-800 truncate">${o.orderNumber}</p>
-                        <p class="text-[11px] text-neutral-400 truncate">${when} · ${o.itemCount} item${o.itemCount === 1 ? '' : 's'} · ${o.method}${who}</p>
+                        <p class="text-[11px] text-neutral-400 truncate">${when} · ${o.itemCount} item${o.itemCount === 1 ? '' : 's'} · ${o.method}${who}${by}</p>
                     </div>
                     <span class="font-semibold text-neutral-800 flex-shrink-0">${fmt(o.total)}</span>
                     <a href="/Till/Receipt/${o.id}" target="_blank" title="Reprint receipt"
