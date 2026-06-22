@@ -117,6 +117,16 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 .Take(5)
                 .ToListAsync();
 
+            // Orders by status (last 90 days) for the breakdown doughnut.
+            vm.OrdersByStatus = (await _db.Orders
+                    .Where(o => o.CreatedAt >= since90)
+                    .GroupBy(o => o.Status)
+                    .Select(g => new { g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .OrderByDescending(g => g.Count)
+                .Select(g => new StatusSliceRow { Status = g.Key.ToString(), Count = g.Count })
+                .ToList();
+
             return View(vm);
         }
     }

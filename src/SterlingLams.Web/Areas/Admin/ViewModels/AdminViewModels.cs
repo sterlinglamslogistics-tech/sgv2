@@ -18,7 +18,14 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public List<LowStockRow> LowStockItems { get; set; } = new();
         public List<DailyRevenueRow> DailyRevenue { get; set; } = new();
         public List<TopProductRow> TopProducts { get; set; } = new();
+        public List<StatusSliceRow> OrdersByStatus { get; set; } = new();
         public int ChartDays { get; set; } = 30;
+    }
+
+    public class StatusSliceRow
+    {
+        public string Status { get; set; } = "";
+        public int Count { get; set; }
     }
 
     public class DailyRevenueRow
