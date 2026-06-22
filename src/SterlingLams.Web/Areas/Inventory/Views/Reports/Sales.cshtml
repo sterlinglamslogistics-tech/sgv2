@@ -1,9 +1,12 @@
+@using System.Text.Json
 @model SterlingLams.Web.Areas.Inventory.Controllers.SalesByStaffVm
 @{
     ViewData["Title"] = "Sales by staff";
     DateTime from = ViewBag.From; DateTime to = ViewBag.To;
     var inCls = "border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-400";
     decimal avg = Model.TotalTx > 0 ? Model.TotalSales / Model.TotalTx : 0;
+    string J(object o) => JsonSerializer.Serialize(o);
+    var top = Model.Rows.Take(10).ToList();
 }
 
 @await Html.PartialAsync("_ReportTabs", "Sales")
@@ -30,6 +33,13 @@
         <div class="text-2xl font-light text-neutral-800">₦@avg.ToString("N0")</div>
     </div>
 </div>
+
+@if (top.Any())
+{
+    <div class="mb-4">
+        <partial name="_ChartCard" model='new ChartCard { Id = "staffSales", Title = "Sales by staff", Subtitle = "top 10 · total sales", Height = 170 }' />
+    </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
     <table class="w-full text-sm min-w-[480px]">
@@ -62,3 +72,16 @@
     </table>
 </div>
 <p class="text-[11px] text-neutral-400 mt-2">POS sales only, grouped by the cashier who rang up the sale. Cancelled and refunded orders are excluded.</p>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (top.Any())
+        {
+            <text>
+            SLCharts.hbar('staffSales', @Html.Raw(J(top.Select(r => r.Staff))),
+                @Html.Raw(J(top.Select(r => r.Sales))), { money: true, label: 'Sales' });
+            </text>
+        }
+    </script>
+}

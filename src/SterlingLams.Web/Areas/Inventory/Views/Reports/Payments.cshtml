@@ -1,8 +1,10 @@
+@using System.Text.Json
 @model SterlingLams.Web.Areas.Inventory.Controllers.PaymentMethodVm
 @{
     ViewData["Title"] = "Payment methods";
     DateTime from = ViewBag.From; DateTime to = ViewBag.To;
     var inCls = "border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-400";
+    string J(object o) => JsonSerializer.Serialize(o);
 }
 
 @await Html.PartialAsync("_ReportTabs", "Payments")
@@ -29,6 +31,13 @@
         <div class="text-2xl font-light text-neutral-800">@Model.Rows.Count.ToString("N0")</div>
     </div>
 </div>
+
+@if (Model.Rows.Any())
+{
+    <div class="mb-4">
+        <partial name="_ChartCard" model='new ChartCard { Id = "paymentMix", Title = "Payment mix", Subtitle = "share of revenue by method", Height = 150 }' />
+    </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
     <table class="w-full text-sm min-w-[560px]">
@@ -63,3 +72,16 @@
     </table>
 </div>
 <p class="text-[11px] text-neutral-400 mt-2">All channels, grouped by payment provider. Cancelled and refunded orders are excluded.</p>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (Model.Rows.Any())
+        {
+            <text>
+            SLCharts.doughnut('paymentMix', @Html.Raw(J(Model.Rows.Select(r => r.Method))),
+                @Html.Raw(J(Model.Rows.Select(r => r.Amount))), { money: true });
+            </text>
+        }
+    </script>
+}

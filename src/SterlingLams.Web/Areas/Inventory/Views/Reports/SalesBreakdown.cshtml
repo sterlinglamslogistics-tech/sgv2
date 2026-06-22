@@ -1,3 +1,4 @@
+@using System.Text.Json
 @model List<SterlingLams.Web.Areas.Inventory.Controllers.NameValueRow>
 @{
     string active = ViewBag.Active ?? "SalesByItem";
@@ -9,6 +10,8 @@
     var inCls = "border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-emerald-400";
     var totalRev = Model.Sum(r => r.Revenue);
     var maxRev = Model.Any() ? Model.Max(r => r.Revenue) : 0m;
+    string J(object o) => JsonSerializer.Serialize(o);
+    var top = Model.Take(10).ToList();
 }
 
 @await Html.PartialAsync("_ReportTabs", active)
@@ -22,6 +25,13 @@
 </form>
 
 <p class="text-xs text-neutral-400 mb-2">@Model.Count row(s) · ₦@totalRev.ToString("N0") total</p>
+
+@if (top.Any())
+{
+    <div class="mb-4">
+        <partial name="_ChartCard" model='new ChartCard { Id = "breakdownChart", Title = "Top 10 by " + revenueLabel.ToLower(), Subtitle = heading, Height = 170 }' />
+    </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
     <table class="w-full text-sm min-w-[520px]">
@@ -54,3 +64,16 @@
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (top.Any())
+        {
+            <text>
+            SLCharts.hbar('breakdownChart', @Html.Raw(J(top.Select(r => r.Name))),
+                @Html.Raw(J(top.Select(r => r.Revenue))), { money: true, label: '@revenueLabel' });
+            </text>
+        }
+    </script>
+}

@@ -93,9 +93,13 @@
             });
         },
 
-        // Horizontal bars — good for ranked lists (top products/staff).
+        // Horizontal bars — good for ranked lists (top products/staff). Height tracks the row count
+        // (a fixed aspect ratio leaves few bars floating in a tall canvas), so the card's parent box
+        // is sized here and the chart fills it.
         hbar: function (id, labels, data, opts) {
             var c = el(id); if (!c) return null; opts = opts || {};
+            // +70 covers the card's border-box padding plus the value axis; ~42px per row.
+            if (c.parentElement) c.parentElement.style.height = Math.max(140, labels.length * 42 + 70) + 'px';
             return new Chart(c, {
                 type: 'bar',
                 data: { labels: labels, datasets: [{
@@ -104,7 +108,7 @@
                     borderRadius: 3, maxBarThickness: 26
                 }] },
                 options: {
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: moneyTooltip(opts.money) },
                     scales: { x: Object.assign({ beginAtZero: true }, valueAxis(opts.money)), y: catAxis() }
                 }
