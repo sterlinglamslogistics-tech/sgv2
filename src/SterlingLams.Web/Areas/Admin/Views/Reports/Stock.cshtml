@@ -1,5 +1,9 @@
+@using System.Text.Json
 @model SterlingLams.Web.Areas.Admin.Controllers.ReportsController.StockVm
-@{ ViewData["Title"] = "Stock Report"; }
+@{
+    ViewData["Title"] = "Stock Report";
+    string J(object o) => JsonSerializer.Serialize(o);
+}
 
 @await Html.PartialAsync("_ReportTabs", "Stock")
 
@@ -16,16 +20,7 @@
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-    <div class="bg-white border border-neutral-100 rounded-sm p-5">
-        <h2 class="text-sm font-medium text-neutral-800 mb-3">Stock value by branch</h2>
-        @foreach (var b in Model.ByBranch)
-        {
-            <div class="flex justify-between text-sm py-1.5 border-b border-neutral-50 last:border-0">
-                <span class="text-neutral-600">@b.Label <span class="text-neutral-400">(@b.Count units)</span></span>
-                <span class="text-neutral-800">₦@b.Total.ToString("N0")</span>
-            </div>
-        }
-    </div>
+    <partial name="_ChartCard" model='new ChartCard { Id = "stockByBranch", Title = "Stock value by branch", Subtitle = "₦ on hand", Height = 160, Empty = !Model.ByBranch.Any(), EmptyText = "No stock recorded." }' />
 
     <div class="bg-white border border-neutral-100 rounded-sm overflow-hidden">
         <div class="px-4 py-2.5 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">Low stock</div>
@@ -44,3 +39,16 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (Model.ByBranch.Any())
+        {
+            <text>
+            SLCharts.bar('stockByBranch', @Html.Raw(J(Model.ByBranch.Select(b => b.Label))),
+                @Html.Raw(J(Model.ByBranch.Select(b => b.Total))), { money: true, label: 'Stock value' });
+            </text>
+        }
+    </script>
+}

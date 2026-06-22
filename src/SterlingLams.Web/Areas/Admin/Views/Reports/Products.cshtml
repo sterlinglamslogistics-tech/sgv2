@@ -1,3 +1,4 @@
+@using System.Text.Json
 @model List<SterlingLams.Web.Areas.Admin.Controllers.ReportsController.ProductRow>
 @{
     ViewData["Title"] = "Best Sellers";
@@ -6,6 +7,8 @@
     var stores = ViewBag.Stores as List<SterlingLams.Web.Models.Domain.Store> ?? new();
     int? storeId = ViewBag.StoreId;
     var maxRev = Model.Any() ? Model.Max(r => r.Revenue) : 1;
+    string J(object o) => JsonSerializer.Serialize(o);
+    var top = Model.Take(10).ToList();
 }
 
 @await Html.PartialAsync("_ReportTabs", "Products")
@@ -22,6 +25,13 @@
         </select></div>
     <button class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Apply</button>
 </form>
+
+@if (top.Any())
+{
+    <div class="mb-6">
+        <partial name="_ChartCard" model='new ChartCard { Id = "topRevenue", Title = "Top 10 by revenue", Subtitle = "in range", Height = 170 }' />
+    </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-hidden">
     <table class="w-full text-sm">
@@ -51,3 +61,16 @@
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (top.Any())
+        {
+            <text>
+            SLCharts.hbar('topRevenue', @Html.Raw(J(top.Select(r => r.Name))),
+                @Html.Raw(J(top.Select(r => r.Revenue))), { money: true, label: 'Revenue' });
+            </text>
+        }
+    </script>
+}

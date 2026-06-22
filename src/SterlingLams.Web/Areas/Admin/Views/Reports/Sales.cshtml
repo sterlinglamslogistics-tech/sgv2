@@ -1,5 +1,10 @@
+@using System.Text.Json
 @model SterlingLams.Web.Areas.Admin.Controllers.ReportsController.SalesVm
-@{ ViewData["Title"] = "Sales Report"; }
+@{
+    ViewData["Title"] = "Sales Report";
+    string J(object o) => JsonSerializer.Serialize(o);
+    var days = Model.ByDay.OrderBy(d => d.Day).ToList();
+}
 
 @await Html.PartialAsync("_ReportTabs", "Sales")
 
@@ -40,23 +45,13 @@
     </div>
 </div>
 
+<div class="mb-6">
+    <partial name="_ChartCard" model='new ChartCard { Id = "salesByDay", Title = "Daily sales", Subtitle = "revenue / day in range", Height = 70, Empty = !days.Any(), EmptyText = "No sales in range." }' />
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-    <div class="bg-white border border-neutral-100 rounded-sm p-5">
-        <h2 class="text-sm font-medium text-neutral-800 mb-3">By payment method</h2>
-        @if (!Model.ByPayment.Any()) { <p class="text-sm text-neutral-400">No sales in range.</p> }
-        @foreach (var p in Model.ByPayment)
-        {
-            <div class="flex justify-between text-sm py-1.5 border-b border-neutral-50 last:border-0"><span class="text-neutral-600">@p.Label</span><span class="text-neutral-800">₦@p.Amount.ToString("N0")</span></div>
-        }
-    </div>
-    <div class="bg-white border border-neutral-100 rounded-sm p-5">
-        <h2 class="text-sm font-medium text-neutral-800 mb-3">By branch</h2>
-        @if (!Model.ByBranch.Any()) { <p class="text-sm text-neutral-400">No sales in range.</p> }
-        @foreach (var b in Model.ByBranch)
-        {
-            <div class="flex justify-between text-sm py-1.5 border-b border-neutral-50 last:border-0"><span class="text-neutral-600">@b.Label <span class="text-neutral-400">(@b.Count)</span></span><span class="text-neutral-800">₦@b.Total.ToString("N0")</span></div>
-        }
-    </div>
+    <partial name="_ChartCard" model='new ChartCard { Id = "salesByPayment", Title = "By payment method", Subtitle = "share of revenue", Height = 150, Empty = !Model.ByPayment.Any(), EmptyText = "No sales in range." }' />
+    <partial name="_ChartCard" model='new ChartCard { Id = "salesByBranch", Title = "By branch", Subtitle = "revenue", Height = 150, Empty = !Model.ByBranch.Any(), EmptyText = "No sales in range." }' />
 </div>
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-hidden">
@@ -75,3 +70,30 @@
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <partial name="_ChartScripts" />
+    <script>
+        @if (days.Any())
+        {
+            <text>
+            SLCharts.line('salesByDay', @Html.Raw(J(days.Select(d => d.Day.ToString("MMM dd")))),
+                [{ label: 'Revenue', data: @Html.Raw(J(days.Select(d => d.Total))), money: true }]);
+            </text>
+        }
+        @if (Model.ByPayment.Any())
+        {
+            <text>
+            SLCharts.doughnut('salesByPayment', @Html.Raw(J(Model.ByPayment.Select(p => p.Label))),
+                @Html.Raw(J(Model.ByPayment.Select(p => p.Amount))), { money: true });
+            </text>
+        }
+        @if (Model.ByBranch.Any())
+        {
+            <text>
+            SLCharts.bar('salesByBranch', @Html.Raw(J(Model.ByBranch.Select(b => b.Label))),
+                @Html.Raw(J(Model.ByBranch.Select(b => b.Total))), { money: true, label: 'Revenue' });
+            </text>
+        }
+    </script>
+}
