@@ -74,7 +74,7 @@
                                 @{
                                     var bc = o.Status switch
                                     {
-                                        "Delivered" => "bg-emerald-50 text-emerald-700",
+                                        "Delivered" or "Collected" => "bg-emerald-50 text-emerald-700",
                                         "Cancelled" => "bg-red-50 text-red-700",
                                         "Processing" or "Confirmed" => "bg-blue-50 text-blue-700",
                                         _ => "bg-neutral-100 text-neutral-600"

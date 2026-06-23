@@ -75,7 +75,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 .ToListAsync();
 
             // Count per status for tab badges
-            var allStatuses = new[] { "Pending","Confirmed","Processing","ReadyForPickup","Shipped","Delivered","Cancelled" };
+            var allStatuses = new[] { "Pending","Confirmed","Processing","ReadyForPickup","Collected","Shipped","Delivered","Cancelled" };
             var counts = await _db.Orders
                 .GroupBy(o => o.Status)
                 .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
@@ -215,9 +215,72 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 await LogAsync("Update", "Order", order.Id.ToString(),
                     $"Order {order.OrderNumber} status: {old} → {order.Status}");
                 TempData["Success"] = $"Order {order.OrderNumber} updated to {order.Status}.";
+
+                // Store-pickup orders: email the customer their QR pickup pass the first time staff
+                // mark it Ready for pickup (sent once, guarded by PickupReadyEmailedAt).
+                if (order.Status == OrderStatus.ReadyForPickup
+                    && order.FulfillmentType == FulfillmentType.StorePickup
+                    && order.PickupReadyEmailedAt == null)
+                {
+                    await SendPickupReadyEmailAsync(order.Id);
+                }
             }
 
             return RedirectToAction(nameof(Detail), new { id });
+        }
+
+        // Sends the "ready for pickup" email with the QR pass (hosted image + pass link). Generates
+        // the pickup token if missing and stamps PickupReadyEmailedAt so it only sends once.
+        private async Task SendPickupReadyEmailAsync(int orderId)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items).Include(o => o.PickupStore).Include(o => o.User).Include(o => o.Customer)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+            if (order == null || order.FulfillmentType != FulfillmentType.StorePickup) return;
+            var email = order.User?.Email ?? order.Customer?.Email;
+            if (string.IsNullOrWhiteSpace(email)) return;
+
+            if (string.IsNullOrEmpty(order.PickupToken))
+            {
+                order.PickupToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+                await _db.SaveChangesAsync(); // persist the token so the QR pass works even if email send fails
+            }
+
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var passUrl = $"{baseUrl}/pickup/{order.PickupToken}";
+            var qrUrl = $"{passUrl}/qr.png";
+            var store = order.PickupStore;
+            var firstName = order.User?.FirstName ?? order.Customer?.FirstName ?? "there";
+            string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+
+            var items = string.Join("", order.Items.Select(i =>
+                $"<tr><td style=\"padding:4px 0;color:#374151\">{Enc(i.ProductName)}{(i.VariantName != null ? " (" + Enc(i.VariantName) + ")" : "")} &times; {i.Quantity}</td>"
+                + $"<td style=\"padding:4px 0;text-align:right;color:#111\">₦{i.LineTotal:N0}</td></tr>"));
+
+            var storeBlock = store == null ? "" :
+                $"<p style=\"margin:0 0 2px;font-weight:600\">{Enc(store.Name)}</p>"
+                + $"<p style=\"margin:0;color:#6b7280;font-size:13px\">{Enc($"{store.Address}, {store.City}, {store.State}".Trim(' ', ','))}</p>"
+                + (string.IsNullOrWhiteSpace(store.Phone) ? "" : $"<p style=\"margin:2px 0 0;color:#6b7280;font-size:13px\">{Enc(store.Phone)}</p>");
+
+            var body =
+                $"<p>Hi {Enc(firstName)},</p>"
+                + $"<p>Good news — your order <strong>{Enc(order.OrderNumber)}</strong> is <strong>ready for pickup</strong>. Show the QR code below at the counter and we'll hand it over.</p>"
+                + $"<div style=\"text-align:center;margin:18px 0\"><img src=\"{qrUrl}\" alt=\"Pickup QR code\" width=\"200\" height=\"200\" style=\"width:200px;height:200px\" /><br/>"
+                + $"<span style=\"font:12px monospace;color:#6b7280\">{Enc(order.OrderNumber)}</span></div>"
+                + $"<div style=\"text-align:center;margin:0 0 18px\"><a href=\"{passUrl}\" style=\"display:inline-block;background:#ed028b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600\">View pickup pass</a></div>"
+                + $"<p style=\"font-weight:600;margin:18px 0 4px\">Pickup location</p>{storeBlock}"
+                + $"<table style=\"width:100%;border-collapse:collapse;margin-top:16px;font-size:14px\">{items}"
+                + $"<tr><td style=\"padding-top:8px;border-top:1px solid #eee;font-weight:700\">Total</td><td style=\"padding-top:8px;border-top:1px solid #eee;text-align:right;font-weight:700\">₦{order.Total:N0}</td></tr></table>"
+                + "<p style=\"color:#6b7280;font-size:13px;margin-top:16px\">Please bring a valid ID. This pass is unique to your order.</p>";
+
+            var sent = await _email.SendAsync(email!, $"Your order {order.OrderNumber} is ready for pickup", body,
+                order.User?.FullName ?? order.Customer?.FullName);
+            if (sent)
+            {
+                order.PickupReadyEmailedAt = DateTime.UtcNow;
+                OrderNotes.AddSystem(_db, order.Id, "Ready-for-pickup email with QR pass sent to the customer.");
+                await _db.SaveChangesAsync();
+            }
         }
 
         // ── Order notes (WooCommerce-style timeline) ──────────────────────────

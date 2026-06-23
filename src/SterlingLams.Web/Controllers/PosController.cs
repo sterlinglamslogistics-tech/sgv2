@@ -898,6 +898,62 @@ public class PosController : Controller
         return Json(new { success = true, hidden = product.HiddenFromPos });
     }
 
+    // ── Store-pickup QR verification (scan the customer's pass at the till) ──────
+    [Authorize, HttpGet]
+    public async Task<IActionResult> PickupVerify(string? code)
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(new { success = false, message = "This POS isn't set up. Pick a register." });
+        code = (code ?? "").Trim();
+        if (code.StartsWith("SGPICK-", StringComparison.OrdinalIgnoreCase)) code = code[7..];
+        if (code.Length == 0) return Json(new { success = false, message = "No code scanned." });
+
+        var order = await _db.Orders
+            .Include(o => o.Items).Include(o => o.PickupStore).Include(o => o.User).Include(o => o.Customer)
+            .FirstOrDefaultAsync(o => o.PickupToken == code);
+        if (order == null) return Json(new { success = false, message = "No pickup order found for this code." });
+
+        return Json(new
+        {
+            success = true,
+            token = order.PickupToken,
+            orderNumber = order.OrderNumber,
+            status = order.Status.ToString(),
+            ready = order.Status == OrderStatus.ReadyForPickup,
+            collected = order.Status == OrderStatus.Collected,
+            total = order.Total,
+            customer = order.User != null ? order.User.FullName : (order.Customer != null ? order.Customer.FullName : null),
+            pickupStore = order.PickupStore != null ? order.PickupStore.Name : null,
+            sameStore = order.PickupStoreId == register.StoreId,
+            items = order.Items.Select(i => new { name = i.ProductName, variant = i.VariantName, qty = i.Quantity, lineTotal = i.LineTotal })
+        });
+    }
+
+    public class PickupCompleteRequest { public string Token { get; set; } = ""; }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PickupComplete([FromBody] PickupCompleteRequest req)
+    {
+        var register = await BoundRegisterAsync();
+        if (register == null) return Json(new { success = false, message = "This POS isn't set up. Pick a register." });
+        if (!await _access.CanWriteAsync(User, register.StoreId))
+            return Json(new { success = false, message = "You're not assigned to this branch's POS." });
+
+        var token = (req.Token ?? "").Trim();
+        if (token.StartsWith("SGPICK-", StringComparison.OrdinalIgnoreCase)) token = token[7..];
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.PickupToken == token);
+        if (order == null) return Json(new { success = false, message = "Pickup order not found." });
+        if (order.Status == OrderStatus.Collected) return Json(new { success = false, message = "This order was already collected." });
+        if (order.Status != OrderStatus.ReadyForPickup) return Json(new { success = false, message = $"Order is {order.Status} — not ready for pickup." });
+
+        order.Status = OrderStatus.Collected;
+        order.UpdatedAt = DateTime.UtcNow;
+        OrderNotes.AddSystem(_db, order.Id, $"Collected at {register.Name} (QR verified).");
+        await _db.SaveChangesAsync();
+        try { await _audit.LogAsync("Update", "Order", order.Id.ToString(), $"Pickup collected {order.OrderNumber} at {register.Name}"); } catch { }
+        return Json(new { success = true, orderNumber = order.OrderNumber });
+    }
+
     public class TillLine
     {
         public int ProductId { get; set; }

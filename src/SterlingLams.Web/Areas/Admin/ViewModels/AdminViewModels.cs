@@ -92,7 +92,7 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         // (records the refund, returns stock, triggers the gateway), not a status dropdown.
         public List<string> AvailableStatuses { get; set; } = new()
         {
-            "Pending", "Confirmed", "Processing", "ReadyForPickup", "Shipped", "Delivered", "Cancelled"
+            "Pending", "Confirmed", "Processing", "ReadyForPickup", "Collected", "Shipped", "Delivered", "Cancelled"
         };
 
         // ── Refunds ──────────────────────────────────────────────────────────

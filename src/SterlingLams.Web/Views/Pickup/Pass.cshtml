@@ -1,0 +1,77 @@
+@model SterlingLams.Web.Models.Domain.Order
+@{
+    Layout = null;
+    ViewData["Title"] = "Pickup pass";
+    var collected = Model.Status == OrderStatus.Collected;
+    var customer = !string.IsNullOrWhiteSpace(Model.User?.FullName) ? Model.User!.FullName : Model.Customer?.FullName;
+    var store = Model.PickupStore;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Pickup pass · @Model.OrderNumber</title>
+    <link rel="icon" type="image/png" href="~/favicon-32.png" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="bg-neutral-100 min-h-screen flex items-start justify-center p-4">
+    <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden my-6">
+        <div class="text-center px-6 pt-6 pb-2">
+            <img src="~/images/sg-logo.png" alt="Sterlin Glams" class="h-12 mx-auto object-contain mb-3" />
+            @if (collected)
+            {
+                <div class="inline-block text-xs font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">Collected — thank you!</div>
+            }
+            else
+            {
+                <h1 class="text-lg font-semibold text-neutral-900">Your order is ready for pickup</h1>
+                <p class="text-sm text-neutral-500 mt-1">Show this code at the counter to collect.</p>
+            }
+        </div>
+
+        <!-- QR -->
+        <div class="px-6 py-4 flex flex-col items-center">
+            <div class="@(collected ? "opacity-30" : "") border border-neutral-200 rounded-xl p-3 bg-white">
+                <img src="/pickup/@Model.PickupToken/qr.png" alt="Pickup QR code" class="w-56 h-56" />
+            </div>
+            <p class="text-xs text-neutral-400 font-mono mt-2">@Model.OrderNumber</p>
+        </div>
+
+        <!-- Pickup location -->
+        @if (store != null)
+        {
+            <div class="px-6 py-3 border-t border-neutral-100">
+                <p class="text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Pickup location</p>
+                <p class="text-sm font-medium text-neutral-800">@store.Name</p>
+                <p class="text-xs text-neutral-500">@(($"{store.Address}, {store.City}, {store.State}").Trim(' ', ','))</p>
+                @if (!string.IsNullOrWhiteSpace(store.Phone)) { <p class="text-xs text-neutral-500">@store.Phone</p> }
+            </div>
+        }
+
+        <!-- Items -->
+        <div class="px-6 py-3 border-t border-neutral-100">
+            <p class="text-[10px] uppercase tracking-wide text-neutral-400 mb-2">Order</p>
+            @foreach (var i in Model.Items)
+            {
+                <div class="flex justify-between text-sm py-1">
+                    <span class="text-neutral-700">@i.Quantity&times; @i.ProductName@(i.VariantName != null ? $" ({i.VariantName})" : "")</span>
+                    <span class="text-neutral-800">₦@i.LineTotal.ToString("N0")</span>
+                </div>
+            }
+            <div class="flex justify-between text-sm font-semibold pt-2 mt-1 border-t border-neutral-100">
+                <span>Total</span><span>₦@Model.Total.ToString("N0")</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(customer))
+            {
+                <p class="text-xs text-neutral-400 mt-3">For: @customer</p>
+            }
+        </div>
+
+        <div class="px-6 py-4 bg-neutral-50 text-center">
+            <p class="text-[11px] text-neutral-400">Please bring a valid ID. This pass is unique to your order.</p>
+        </div>
+    </div>
+</body>
+</html>

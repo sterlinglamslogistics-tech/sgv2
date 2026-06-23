@@ -12,7 +12,9 @@ public enum OrderStatus
     Refunded,
     // NOTE: append only — persisted as int. Paid online order waiting for stock to be physically
     // transferred between branches to the fulfilling branch before it can ship.
-    AwaitingTransfer
+    AwaitingTransfer,
+    // Store-pickup order collected by the customer (QR verified at the till).
+    Collected
 }
 
 public enum FulfillmentType
@@ -97,6 +99,12 @@ public class Order
     /// idempotent (re-sending the same offline sale never creates a duplicate order). Null for
     /// normal online sales.</summary>
     public string? OfflineClientId { get; set; }
+
+    /// <summary>Secure random token for the store-pickup QR pass — encoded in the customer's QR code
+    /// and verified at the till on collection. Null for non-pickup orders / before it's issued.</summary>
+    public string? PickupToken { get; set; }
+    /// <summary>When the "ready for pickup" email (with the QR pass) was sent — used to send it once.</summary>
+    public DateTime? PickupReadyEmailedAt { get; set; }
 
     public string? TrackingNumber { get; set; }
     public string? Notes { get; set; }
