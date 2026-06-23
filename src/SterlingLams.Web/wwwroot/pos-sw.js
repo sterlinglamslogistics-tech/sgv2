@@ -8,7 +8,7 @@
  *
  * Bump CACHE when shell assets change; IMG_CACHE persists across shell updates.
  */
-const CACHE = 'sgpos-shell-v8';
+const CACHE = 'sgpos-shell-v9';
 const IMG_CACHE = 'sgpos-img-v1';
 
 const PRECACHE = [

@@ -15,6 +15,7 @@
   if (!location.pathname.toLowerCase().startsWith('/pos')) return;
 
   var DB_NAME = 'sgpos', STORE = 'kv', SNAP_KEY = 'snapshot', QUEUE_KEY = 'queue';
+  var SYNC_INTERVAL_MS = 30 * 60 * 1000; // periodic auto-sync cadence (30 minutes)
   var mem = null;          // in-memory snapshot
   var queue = [];          // in-memory outbound sale queue
   var syncing = false;
@@ -364,6 +365,13 @@
     });
     window.addEventListener('online', function () { updateBanner(); refreshSnapshot().then(function () { sync(false); }); });
     window.addEventListener('offline', updateBanner);
+
+    // Periodic auto-sync (default every 30 min): refresh the catalogue/stock snapshot and flush any
+    // queued offline sales, even on a till that stays online all day (no offline->online toggle).
+    setInterval(function () {
+      if (!navigator.onLine) return;
+      refreshSnapshot().then(function () { if (queue.length) sync(false); });
+    }, SYNC_INTERVAL_MS);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
