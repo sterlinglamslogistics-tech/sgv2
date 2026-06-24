@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QRCoder;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
 using SterlingLams.Web.Models.ViewModels;
@@ -63,6 +64,10 @@ public class AccountController : Controller
         var result = await _signInManager.PasswordSignInAsync(
             model.Email, model.Password, model.RememberMe, lockoutOnFailure: true);
 
+        // Password OK but the account has an authenticator enrolled — challenge for the 2FA code.
+        if (result.RequiresTwoFactor)
+            return RedirectToAction(nameof(TwoFactorLogin), new { returnUrl = model.ReturnUrl, rememberMe = model.RememberMe });
+
         if (result.Succeeded)
         {
             // Look up by user name (what just signed in) rather than by email: email isn't
@@ -84,28 +89,8 @@ public class AccountController : Controller
                 return View(model);
             }
 
-            if (user != null)
-            {
-                user.LastLoginAt = DateTime.UtcNow;
-                await _userManager.UpdateAsync(user);
-                // Audit staff sign-ins (skip ordinary customers to avoid noise).
-                var roles = await _userManager.GetRolesAsync(user);
-                if (roles.Count > 0)
-                    try { await _audit.LogAsync("Login", "Account", user.Id, $"{user.FullName} signed in ({string.Join(", ", roles)})"); }
-                    catch { /* auditing must never block login */ }
-            }
             _logger.LogInformation("User {Email} logged in", model.Email);
-
-            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
-                return Redirect(model.ReturnUrl);
-
-            // Inventory-team staff land straight in the dedicated Inventory System.
-            if (user != null
-                && await _userManager.IsInRoleAsync(user, "Inventory")
-                && !await _userManager.IsInRoleAsync(user, "Admin"))
-                return RedirectToAction("Index", "Overview", new { area = "Inventory" });
-
-            return RedirectToLocal(model.ReturnUrl);
+            return await FinishLoginAsync(user, model.ReturnUrl);
         }
 
         if (result.IsLockedOut)
@@ -115,6 +100,72 @@ public class AccountController : Controller
         }
 
         ModelState.AddModelError("", "Invalid email or password.");
+        return View(model);
+    }
+
+    // Shared post-sign-in steps (stamp last-login, audit staff, route to the right home). Used by
+    // both the password path and the 2FA path.
+    private async Task<IActionResult> FinishLoginAsync(ApplicationUser? user, string? returnUrl)
+    {
+        if (user != null)
+        {
+            user.LastLoginAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Count > 0)
+                try { await _audit.LogAsync("Login", "Account", user.Id, $"{user.FullName} signed in ({string.Join(", ", roles)})"); }
+                catch { /* auditing must never block login */ }
+        }
+
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
+
+        // Inventory-team staff land straight in the dedicated Inventory System.
+        if (user != null
+            && await _userManager.IsInRoleAsync(user, "Inventory")
+            && !await _userManager.IsInRoleAsync(user, "Admin"))
+            return RedirectToAction("Index", "Overview", new { area = "Inventory" });
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    // ─── Two-factor (TOTP authenticator) sign-in challenge ────────────────────
+    [HttpGet]
+    public async Task<IActionResult> TwoFactorLogin(string? returnUrl = null, bool rememberMe = false, bool useRecoveryCode = false)
+    {
+        // Must have a password-validated user pending 2FA (set by PasswordSignInAsync).
+        var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (user == null) return RedirectToAction(nameof(Login));
+        return View(new TwoFactorLoginViewModel { ReturnUrl = returnUrl, RememberMe = rememberMe, UseRecoveryCode = useRecoveryCode });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
+    public async Task<IActionResult> TwoFactorLogin(TwoFactorLoginViewModel model)
+    {
+        var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (user == null) return RedirectToAction(nameof(Login));
+        if (!ModelState.IsValid) return View(model);
+
+        var code = (model.Code ?? "").Replace(" ", "").Replace("-", "").Trim();
+        Microsoft.AspNetCore.Identity.SignInResult result;
+        if (model.UseRecoveryCode)
+            result = await _signInManager.TwoFactorRecoveryCodeSignInAsync(code);
+        else
+            result = await _signInManager.TwoFactorAuthenticatorSignInAsync(code, model.RememberMe, model.RememberMachine);
+
+        if (result.Succeeded)
+        {
+            _logger.LogInformation("User {User} completed 2FA login", user.UserName);
+            return await FinishLoginAsync(user, model.ReturnUrl);
+        }
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError("", "Too many failed attempts — your account is locked for 15 minutes.");
+            return View(model);
+        }
+        ModelState.AddModelError("", model.UseRecoveryCode ? "Invalid recovery code." : "Invalid authenticator code.");
         return View(model);
     }
 
@@ -414,6 +465,111 @@ public class AccountController : Controller
             ModelState.AddModelError("", error.Description);
 
         return View(model);
+    }
+
+    // ─── Two-factor management (authenticator app) ───────────────────────────
+    [Authorize, HttpGet]
+    public async Task<IActionResult> Security()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var vm = new TwoFactorSettingsViewModel
+        {
+            Is2faEnabled = await _userManager.GetTwoFactorEnabledAsync(user),
+            RecoveryCodesLeft = await _userManager.CountRecoveryCodesAsync(user),
+            // Recovery codes are shown exactly once, right after enabling (carried in TempData).
+            RecoveryCodes = TempData["RecoveryCodes"] as string
+        };
+        return View(vm);
+    }
+
+    [Authorize, HttpGet]
+    public async Task<IActionResult> SetupTwoFactor()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+        if (await _userManager.GetTwoFactorEnabledAsync(user))
+            return RedirectToAction(nameof(Security));
+
+        var vm = await BuildSetupVmAsync(user);
+        return View(vm);
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EnableTwoFactor(string code)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var clean = (code ?? "").Replace(" ", "").Replace("-", "").Trim();
+        var valid = await _userManager.VerifyTwoFactorTokenAsync(
+            user, _userManager.Options.Tokens.AuthenticatorTokenProvider, clean);
+        if (!valid)
+        {
+            ModelState.AddModelError("code", "That code didn't match — check your app's clock and try the current code.");
+            return View(nameof(SetupTwoFactor), await BuildSetupVmAsync(user));
+        }
+
+        await _userManager.SetTwoFactorEnabledAsync(user, true);
+        var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        TempData["RecoveryCodes"] = string.Join("\n", codes ?? Enumerable.Empty<string>());
+        try { await _audit.LogAsync("Enable2FA", "Account", user.Id, $"{user.FullName} enabled two-factor authentication"); } catch { }
+        TempData["Success"] = "Two-factor authentication is on. Save your recovery codes below.";
+        return RedirectToAction(nameof(Security));
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DisableTwoFactor()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+        await _userManager.SetTwoFactorEnabledAsync(user, false);
+        await _userManager.ResetAuthenticatorKeyAsync(user); // invalidate the old secret
+        try { await _audit.LogAsync("Disable2FA", "Account", user.Id, $"{user.FullName} disabled two-factor authentication"); } catch { }
+        TempData["Success"] = "Two-factor authentication has been turned off.";
+        return RedirectToAction(nameof(Security));
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegenerateRecoveryCodes()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+        if (!await _userManager.GetTwoFactorEnabledAsync(user)) return RedirectToAction(nameof(Security));
+        var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        TempData["RecoveryCodes"] = string.Join("\n", codes ?? Enumerable.Empty<string>());
+        try { await _audit.LogAsync("Update", "Account", user.Id, $"{user.FullName} regenerated 2FA recovery codes"); } catch { }
+        TempData["Success"] = "New recovery codes generated — your old codes no longer work.";
+        return RedirectToAction(nameof(Security));
+    }
+
+    // Builds the authenticator-setup view model: ensures a key exists, then renders the manual key,
+    // the otpauth:// URI and an inline QR image (data URI) for scanning.
+    private async Task<TwoFactorSetupViewModel> BuildSetupVmAsync(ApplicationUser user)
+    {
+        var key = await _userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(key))
+        {
+            await _userManager.ResetAuthenticatorKeyAsync(user);
+            key = await _userManager.GetAuthenticatorKeyAsync(user);
+        }
+        var email = await _userManager.GetEmailAsync(user) ?? user.UserName ?? "user";
+        const string issuer = "Sterlin Glams";
+        var uri = $"otpauth://totp/{Uri.EscapeDataString(issuer)}:{Uri.EscapeDataString(email)}"
+                + $"?secret={key}&issuer={Uri.EscapeDataString(issuer)}&digits=6";
+
+        using var gen = new QRCodeGenerator();
+        using var data = gen.CreateQrCode(uri, QRCodeGenerator.ECCLevel.M);
+        var png = new PngByteQRCode(data).GetGraphic(6);
+
+        // Group the key in 4s for easier manual entry.
+        var spaced = string.Join(" ", System.Text.RegularExpressions.Regex.Matches(key ?? "", ".{1,4}").Select(m => m.Value));
+        return new TwoFactorSetupViewModel
+        {
+            SharedKey = spaced,
+            QrDataUri = "data:image/png;base64," + Convert.ToBase64String(png)
+        };
     }
 
     // ─── Forgot Password ─────────────────────────────────────────────────────

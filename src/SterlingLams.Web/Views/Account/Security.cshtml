@@ -1,0 +1,63 @@
+@model SterlingLams.Web.Models.ViewModels.TwoFactorSettingsViewModel
+@{
+    ViewData["Title"] = "Security";
+}
+
+<div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="mb-10">
+        <p class="section-label">Account</p>
+        <h1 class="font-cormorant text-4xl font-light">Security</h1>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="text-sm text-emerald-700 bg-emerald-50 px-4 py-3 border border-emerald-100 mb-6 max-w-xl">@TempData["Success"]</div>
+    }
+
+    <div class="max-w-xl border border-neutral-200 rounded-sm p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-medium">Two-factor authentication</h2>
+                <p class="text-sm text-neutral-500 mt-1">An authenticator app gives a one-time code at sign-in — a second layer beyond your password.</p>
+            </div>
+            @if (Model.Is2faEnabled)
+            {
+                <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">On</span>
+            }
+            else
+            {
+                <span class="text-xs px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-500 whitespace-nowrap">Off</span>
+            }
+        </div>
+
+        <div class="mt-5">
+            @if (!Model.Is2faEnabled)
+            {
+                <a asp-action="SetupTwoFactor" class="btn-primary inline-block">Set up two-factor</a>
+            }
+            else
+            {
+                <div class="flex flex-wrap items-center gap-3">
+                    <form asp-action="DisableTwoFactor" method="post" onsubmit="return confirm('Turn off two-factor authentication for your account?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-4 py-2 border border-red-200 text-red-600 text-sm rounded-sm hover:border-red-400 transition-colors">Turn off</button>
+                    </form>
+                    <form asp-action="RegenerateRecoveryCodes" method="post" onsubmit="return confirm('Generate new recovery codes? Your current codes will stop working.');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-4 py-2 border border-neutral-200 text-neutral-700 text-sm rounded-sm hover:border-neutral-400 transition-colors">Regenerate recovery codes</button>
+                    </form>
+                    <span class="text-xs text-neutral-400">@Model.RecoveryCodesLeft recovery code(s) left</span>
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.RecoveryCodes))
+        {
+            <div class="mt-6 border-t border-neutral-100 pt-5">
+                <h3 class="text-sm font-medium text-amber-700">Save your recovery codes</h3>
+                <p class="text-xs text-neutral-500 mt-1 mb-3">Store these somewhere safe. Each code works once if you lose access to your authenticator app. They won't be shown again.</p>
+                <pre class="bg-neutral-50 border border-neutral-200 rounded-sm p-4 text-sm font-mono leading-7 whitespace-pre-wrap">@Model.RecoveryCodes</pre>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,65 @@
+@model SterlingLams.Web.Models.ViewModels.TwoFactorLoginViewModel
+@{
+    ViewData["Title"] = "Two-factor verification";
+}
+
+<div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="mb-10">
+        <p class="section-label">Security</p>
+        <h1 class="font-cormorant text-4xl font-light">Two-factor verification</h1>
+    </div>
+
+    <div class="max-w-md">
+        <p class="text-sm text-neutral-600 mb-6">
+            @(Model.UseRecoveryCode
+                ? "Enter one of your saved recovery codes."
+                : "Open your authenticator app and enter the 6-digit code for Sterlin Glams.")
+        </p>
+
+        <form asp-action="TwoFactorLogin" method="post" class="space-y-5">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="ReturnUrl" />
+            <input type="hidden" asp-for="RememberMe" />
+            <input type="hidden" asp-for="UseRecoveryCode" />
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-sm text-red-600 bg-red-50 px-4 py-3 border border-red-100"></div>
+
+            <div>
+                <label asp-for="Code" class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">
+                    @(Model.UseRecoveryCode ? "Recovery code" : "Authenticator code")
+                </label>
+                <input asp-for="Code" autocomplete="one-time-code" inputmode="@(Model.UseRecoveryCode ? "text" : "numeric")"
+                       autofocus class="form-input tracking-widest" />
+                <span asp-validation-for="Code" class="text-xs text-red-500 mt-1 block"></span>
+            </div>
+
+            @if (!Model.UseRecoveryCode)
+            {
+                <label class="flex items-center gap-2 text-sm text-neutral-600">
+                    <input asp-for="RememberMachine" type="checkbox" class="accent-neutral-900" />
+                    Trust this device for 30 days
+                </label>
+            }
+
+            <button type="submit" class="btn-primary">Verify</button>
+        </form>
+
+        <div class="mt-6 text-sm">
+            @if (Model.UseRecoveryCode)
+            {
+                <a asp-action="TwoFactorLogin" asp-route-returnUrl="@Model.ReturnUrl" asp-route-rememberMe="@Model.RememberMe"
+                   class="text-neutral-500 underline hover:text-neutral-800">Use your authenticator app instead</a>
+            }
+            else
+            {
+                <a asp-action="TwoFactorLogin" asp-route-returnUrl="@Model.ReturnUrl" asp-route-rememberMe="@Model.RememberMe" asp-route-useRecoveryCode="true"
+                   class="text-neutral-500 underline hover:text-neutral-800">Can't access your app? Use a recovery code</a>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

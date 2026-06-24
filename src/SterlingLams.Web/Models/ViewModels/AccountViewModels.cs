@@ -16,6 +16,37 @@ public class LoginViewModel
     public string? ReturnUrl { get; set; }
 }
 
+// ─── Two-factor authentication ────────────────────────────────────────────
+public class TwoFactorLoginViewModel
+{
+    [Required(ErrorMessage = "Enter the code")]
+    [Display(Name = "Authenticator code")]
+    public string Code { get; set; } = string.Empty;
+
+    public bool RememberMachine { get; set; }
+    public bool UseRecoveryCode { get; set; }
+    public bool RememberMe { get; set; }
+    public string? ReturnUrl { get; set; }
+}
+
+public class TwoFactorSettingsViewModel
+{
+    public bool Is2faEnabled { get; set; }
+    public int RecoveryCodesLeft { get; set; }
+    /// <summary>Newline-separated recovery codes, shown once right after enabling/regenerating.</summary>
+    public string? RecoveryCodes { get; set; }
+}
+
+public class TwoFactorSetupViewModel
+{
+    public string SharedKey { get; set; } = "";
+    public string QrDataUri { get; set; } = "";
+
+    [Required(ErrorMessage = "Enter the 6-digit code from your app")]
+    [Display(Name = "Verification code")]
+    public string Code { get; set; } = string.Empty;
+}
+
 public class RegisterViewModel
 {
     [Required(ErrorMessage = "First name is required")]

@@ -1,0 +1,51 @@
+@model SterlingLams.Web.Models.ViewModels.TwoFactorSetupViewModel
+@{
+    ViewData["Title"] = "Set up two-factor";
+}
+
+<div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="mb-10">
+        <p class="section-label">Security</p>
+        <h1 class="font-cormorant text-4xl font-light">Set up two-factor authentication</h1>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-10 max-w-3xl">
+        <div>
+            <ol class="space-y-3 text-sm text-neutral-600 list-decimal list-inside">
+                <li>Install an authenticator app (Google Authenticator, Microsoft Authenticator, Authy…).</li>
+                <li>Scan this QR code, or enter the key manually.</li>
+                <li>Enter the 6-digit code the app shows to finish.</li>
+            </ol>
+
+            <div class="mt-6">
+                <img src="@Model.QrDataUri" alt="Authenticator QR code" width="180" height="180"
+                     class="border border-neutral-200 rounded-sm" />
+            </div>
+
+            <div class="mt-4">
+                <p class="text-xs tracking-[0.15em] uppercase text-neutral-500 mb-1">Manual key</p>
+                <code class="text-sm bg-neutral-100 px-3 py-2 rounded-sm inline-block tracking-widest">@Model.SharedKey</code>
+            </div>
+        </div>
+
+        <div>
+            <form asp-action="EnableTwoFactor" method="post" class="space-y-5">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-sm text-red-600 bg-red-50 px-4 py-3 border border-red-100"></div>
+                <div>
+                    <label asp-for="Code" class="block text-xs tracking-[0.15em] uppercase text-neutral-500 mb-2">Verification code</label>
+                    <input asp-for="Code" autocomplete="one-time-code" inputmode="numeric" autofocus class="form-input tracking-widest" />
+                    <span asp-validation-for="Code" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="btn-primary">Verify &amp; enable</button>
+                    <a asp-action="Security" class="text-sm text-neutral-500 underline hover:text-neutral-800">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
