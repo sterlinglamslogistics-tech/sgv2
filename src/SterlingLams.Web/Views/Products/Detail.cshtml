@@ -221,7 +221,6 @@
                     }
 
                     <input type="hidden" id="selected-variant-id" value="" />
-                    <p id="variant-price-adj" class="text-xs text-neutral-400 hidden"></p>
                     <p id="select-colour-prompt" class="text-xs text-amber-600 hidden">
                         Please select all options before adding to bag.
                     </p>
@@ -686,14 +685,8 @@
                 // Low-stock nudge follows the chosen variant (boolean flag only — no counts).
                 document.getElementById('low-stock-nudge')?.classList.toggle('hidden', !match.lowStock);
                 renderVariantStock(match.stores);
-                const adjEl = document.getElementById('variant-price-adj');
-                if (match.priceAdjustment && match.priceAdjustment !== 0 && adjEl) {
-                    const sign = match.priceAdjustment > 0 ? '+' : '';
-                    adjEl.textContent = `${sign}₦${Math.abs(match.priceAdjustment).toLocaleString()} for this option`;
-                    adjEl.classList.remove('hidden');
-                } else if (adjEl) {
-                    adjEl.classList.add('hidden');
-                }
+                // The main price (below) already updates to this variant's full price via
+                // applyVariantPrice(), so no separate "+₦X for this option" note is needed.
             } else {
                 selectedVariantId = null;
                 resetVariantStock();
