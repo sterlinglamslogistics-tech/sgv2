@@ -1,7 +1,6 @@
 @*
-    Loads Chart.js + the shared SLCharts helper. Drop this at the top of a page's
-    @@section Scripts { ... } before any SLCharts.* init calls. Safe to include on any
-    admin/inventory page (both layouts render the "Scripts" section).
+    Loads the SLCharts helper (static, dependency-free SVG charts — no Chart.js, no animation).
+    Drop this at the top of a page's @@section Scripts { ... } before any SLCharts.* init calls.
+    Safe to include on any admin/inventory page (both layouts render the "Scripts" section).
 *@
-<script src="~/lib/chart/chart.umd.min.js" asp-append-version="true"></script>
-<script src="~/js/sl-charts.v2.js" asp-append-version="true"></script>
+<script src="~/js/sl-charts.v3.js" asp-append-version="true"></script>
