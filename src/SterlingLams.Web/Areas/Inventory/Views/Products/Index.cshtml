@@ -239,6 +239,57 @@
     </div>
 </div>
 
+<!-- Edit Product drawer -->
+<div id="edit-drawer" class="fixed inset-y-0 right-0 w-[420px] max-w-[95vw] bg-white shadow-2xl z-50 translate-x-full transition-transform duration-200 flex flex-col">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+        <h3 class="text-base font-semibold text-neutral-800">Edit Product</h3>
+        <div class="flex items-center gap-1 text-neutral-400">
+            <button type="button" id="edit-prev" title="Previous" class="px-2 py-1 hover:text-neutral-700 disabled:opacity-30">‹</button>
+            <button type="button" id="edit-next" title="Next" class="px-2 py-1 hover:text-neutral-700 disabled:opacity-30">›</button>
+            <button type="button" class="drawer-close px-2 py-1 hover:text-neutral-700 text-lg leading-none">&times;</button>
+        </div>
+    </div>
+    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <input type="hidden" id="edit-id" />
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Product Name</label>
+            <input id="edit-name" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" /></div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Category</label>
+            <select id="edit-category" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white">
+                <option value="">Choose…</option>
+                @foreach (var c in cats) { <option value="@c.Value">@c.Text</option> }
+            </select></div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Price</label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">₦</span>
+                <input id="edit-price" type="number" step="any" min="0" class="w-full border border-neutral-200 rounded-md pl-7 pr-3 py-2.5 text-sm text-right focus:outline-none focus:border-blue-400" />
+            </div></div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Button Colour</label>
+            <select id="edit-colour" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white">
+                <option value="">None</option>
+                @foreach (var nc in new[] { "Red:#ef4444","Orange:#f97316","Amber:#f59e0b","Green:#22c55e","Teal:#14b8a6","Blue:#3b82f6","Indigo:#6366f1","Purple:#a855f7","Pink:#ec4899","Grey:#9ca3af","Black:#111827" })
+                {
+                    var parts = nc.Split(':');
+                    <option value="@parts[1]">@parts[0]</option>
+                }
+                @foreach (var c in colours) { <option value="@c">@c</option> }
+            </select></div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Barcode (optional)</label>
+            <input id="edit-barcode" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-blue-400" />
+            <button type="button" id="edit-genbarcode" class="mt-2 text-sm text-blue-700 hover:underline">+ Auto Generate Barcode</button></div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Image</label>
+            <div id="edit-dropzone" class="border-2 border-dashed border-neutral-200 rounded-md p-5 text-center text-sm text-neutral-500 hover:border-blue-300 cursor-pointer">
+                <img id="edit-image-preview" class="hidden mx-auto mb-2 w-20 h-20 object-cover rounded" alt="" />
+                <svg class="w-7 h-7 mx-auto text-blue-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16v12H4z"/></svg>
+                <div id="edit-drop-text">Drag &amp; drop an image, or <span class="text-blue-700">browse files</span></div>
+                <input type="file" id="edit-file" accept=".jpg,.jpeg,.png,.webp,.gif" class="hidden" />
+            </div></div>
+    </div>
+    <div class="flex items-center justify-between gap-2 px-5 py-4 border-t border-neutral-100">
+        <a id="edit-advanced" href="#" class="text-sm text-blue-700 hover:underline">Advanced Options</a>
+        <button type="button" id="edit-save" class="px-6 bg-blue-600 text-white rounded-md py-2 text-sm hover:bg-blue-700">Save</button>
+    </div>
+</div>
+
 <!-- Quick Add modal -->
 <div id="quick-add" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
     <div class="bg-white rounded-lg w-full max-w-sm p-6">
@@ -318,8 +369,9 @@
     // ── Drawers (Filters + Columns) ─────────────────────────────────────────────
     var overlay = document.getElementById('drawer-overlay');
     var filters = document.getElementById('filters-drawer'), columns = document.getElementById('columns-drawer');
+    var editDrawer = document.getElementById('edit-drawer');
     function openDrawer(d) { overlay.classList.remove('hidden'); d.classList.remove('translate-x-full'); }
-    function closeDrawers() { overlay.classList.add('hidden'); filters.classList.add('translate-x-full'); columns.classList.add('translate-x-full'); }
+    function closeDrawers() { overlay.classList.add('hidden'); filters.classList.add('translate-x-full'); columns.classList.add('translate-x-full'); editDrawer.classList.add('translate-x-full'); }
     document.getElementById('filter-btn').addEventListener('click', function () { closeDrawers(); openDrawer(filters); });
     document.getElementById('columns-btn').addEventListener('click', function () { closeDrawers(); openDrawer(columns); });
     overlay.addEventListener('click', closeDrawers);
@@ -348,7 +400,7 @@
             }
             menu.innerHTML =
                   link(base + 'Edit/' + id, '✎ Advanced Edit')
-                + link(base + 'Edit/' + id, '✏ Edit')
+                + '<button type="button" data-edit-id="' + id + '" class="w-full text-left px-3 py-2 hover:bg-neutral-50">✏ Edit</button>'
                 + post('ToggleTrackStock', (tracks ? '☑ Track Stock' : '☐ Track Stock'))
                 + post('Duplicate', '⧉ Duplicate')
                 + post('SetArchived', (isArch ? '↩ Restore' : '🗄 Archive'), '<input type="hidden" name="archived" value="' + (isArch ? 'false' : 'true') + '"/>')
@@ -362,6 +414,109 @@
     });
     document.addEventListener('click', closeMenu);
     window.addEventListener('scroll', closeMenu, true);
+
+    // ── Edit Product drawer ─────────────────────────────────────────────────────
+    var rowIds = Array.prototype.map.call(document.querySelectorAll('.kebab'), function (b) { return b.dataset.id; });
+    var editIdx = -1;
+    function rowFor(id) { var b = document.querySelector('.kebab[data-id="' + id + '"]'); return b ? b.closest('tr') : null; }
+    function cell(tr, col) { return tr ? tr.querySelector('[data-col="' + col + '"]') : null; }
+    function el(id) { return document.getElementById(id); }
+
+    menu.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-edit-id]');
+        if (b) { e.preventDefault(); closeMenu(); openEdit(b.getAttribute('data-edit-id')); }
+    });
+
+    function openEdit(id) {
+        editIdx = rowIds.indexOf(String(id));
+        el('edit-prev').disabled = editIdx <= 0;
+        el('edit-next').disabled = editIdx === -1 || editIdx >= rowIds.length - 1;
+        fetch(base + 'EditData?id=' + encodeURIComponent(id), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.found) { alert('Could not load product.'); return; }
+                el('edit-id').value = d.id;
+                el('edit-name').value = d.name || '';
+                el('edit-category').value = d.categoryId || '';
+                el('edit-price').value = d.price;
+                el('edit-colour').value = d.buttonColour || '';
+                el('edit-barcode').value = d.barcode || '';
+                el('edit-advanced').href = base + 'Edit/' + d.id;
+                var prev = el('edit-image-preview');
+                if (d.imageUrl) { prev.src = d.imageUrl; prev.classList.remove('hidden'); el('edit-drop-text').textContent = 'Drag & drop to replace, or browse'; }
+                else { prev.classList.add('hidden'); prev.removeAttribute('src'); el('edit-drop-text').innerHTML = 'Drag &amp; drop an image, or <span class="text-blue-700">browse files</span>'; }
+                closeDrawers(); openDrawer(editDrawer);
+            })
+            .catch(function () { alert('Could not load product.'); });
+    }
+    el('edit-prev').addEventListener('click', function () { if (editIdx > 0) openEdit(rowIds[editIdx - 1]); });
+    el('edit-next').addEventListener('click', function () { if (editIdx > -1 && editIdx < rowIds.length - 1) openEdit(rowIds[editIdx + 1]); });
+
+    el('edit-genbarcode').addEventListener('click', function () {
+        fetch(base + 'GenerateBarcode', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d && d.ok) el('edit-barcode').value = d.barcode; else alert((d && d.error) || 'Could not generate.'); });
+    });
+
+    function renderColour(td, colour) {
+        if (!td) return;
+        if (!colour) { td.innerHTML = '<span>None</span>'; return; }
+        td.innerHTML = '<span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full inline-block border border-neutral-200" style="background:' + colour + '"></span>' + colour + '</span>';
+    }
+    el('edit-save').addEventListener('click', function () {
+        var id = el('edit-id').value;
+        var fd = new FormData();
+        fd.append('__RequestVerificationToken', token);
+        fd.append('id', id);
+        fd.append('name', el('edit-name').value);
+        fd.append('categoryId', el('edit-category').value);
+        fd.append('price', el('edit-price').value || '0');
+        fd.append('buttonColour', el('edit-colour').value);
+        fd.append('barcode', el('edit-barcode').value);
+        var btn = el('edit-save'); btn.disabled = true; btn.textContent = 'Saving…';
+        fetch(base + 'QuickEdit', { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                btn.disabled = false; btn.textContent = 'Save';
+                if (!d || !d.ok) { alert((d && d.error) || 'Save failed.'); return; }
+                var tr = rowFor(id);
+                if (tr) {
+                    if (cell(tr, 'name')) cell(tr, 'name').textContent = d.displayName;
+                    if (cell(tr, 'sku')) cell(tr, 'sku').textContent = d.sku || '—';
+                    if (cell(tr, 'category')) cell(tr, 'category').textContent = d.categoryName;
+                    if (cell(tr, 'price')) cell(tr, 'price').textContent = d.priceText;
+                    renderColour(cell(tr, 'colour'), d.buttonColour);
+                    if (cell(tr, 'barcode')) cell(tr, 'barcode').textContent = d.barcode || '—';
+                }
+                closeDrawers();
+            })
+            .catch(function () { btn.disabled = false; btn.textContent = 'Save'; alert('Save failed.'); });
+    });
+
+    // Image upload (drag/drop + browse)
+    var dz = el('edit-dropzone'), fileInput = el('edit-file');
+    dz.addEventListener('click', function () { fileInput.click(); });
+    dz.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('border-blue-400'); });
+    dz.addEventListener('dragleave', function () { dz.classList.remove('border-blue-400'); });
+    dz.addEventListener('drop', function (e) { e.preventDefault(); dz.classList.remove('border-blue-400'); if (e.dataTransfer.files[0]) uploadImage(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', function () { if (fileInput.files[0]) uploadImage(fileInput.files[0]); });
+    function uploadImage(file) {
+        var id = el('edit-id').value;
+        var fd = new FormData();
+        fd.append('__RequestVerificationToken', token);
+        fd.append('id', id); fd.append('file', file);
+        el('edit-drop-text').textContent = 'Uploading…';
+        fetch(base + 'UploadImage', { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.ok) { alert((d && d.error) || 'Upload failed.'); el('edit-drop-text').textContent = 'Drag & drop an image, or browse'; return; }
+                var prev = el('edit-image-preview'); prev.src = d.url; prev.classList.remove('hidden');
+                el('edit-drop-text').textContent = 'Image added ✓ — drag to replace';
+                var tr = rowFor(id), ic = cell(tr, 'image');
+                if (ic) ic.innerHTML = '<img src="' + d.url + '" class="w-8 h-8 object-cover rounded inline-block" alt="" />';
+            })
+            .catch(function () { alert('Upload failed.'); el('edit-drop-text').textContent = 'Drag & drop an image, or browse'; });
+    }
 
     // ── Quick Add modal ─────────────────────────────────────────────────────────
     var qa = document.getElementById('quick-add');

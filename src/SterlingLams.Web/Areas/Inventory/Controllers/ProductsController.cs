@@ -10,10 +10,14 @@ namespace SterlingLams.Web.Areas.Inventory.Controllers;
 public class ProductsController : InventoryAreaController
 {
     private readonly ApplicationDbContext _db;
+    private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _config;
     private const int PageSize = 30;
-    public ProductsController(ApplicationDbContext db)
+    public ProductsController(ApplicationDbContext db, IWebHostEnvironment env, IConfiguration config)
     {
         _db = db;
+        _env = env;
+        _config = config;
     }
 
     // List — search matches name, SKU OR barcode (so a scanner finds the product). The "Current" tab
@@ -386,6 +390,128 @@ public class ProductsController : InventoryAreaController
             .Select(x => new { x.Id, x.Name, x.Sku, x.Barcode })
             .FirstOrDefaultAsync();
         return p == null ? Json(new { found = false }) : Json(new { found = true, id = p.Id, name = p.Name });
+    }
+
+    // ── Quick-Edit slide-in modal (Product List "Edit") ─────────────────────────
+
+    // Returns the editable fields for one product as JSON (populates the Edit modal).
+    [HttpGet]
+    public async Task<IActionResult> EditData(int id)
+    {
+        var p = await _db.Products
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                x.Id, x.Name, x.CategoryId, x.Price, x.Barcode, x.Sku,
+                buttonColour = x.PosButtonColour,
+                imageUrl = x.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
+        return p == null ? Json(new { found = false }) : Json(new { found = true, p.Id, p.Name, p.CategoryId, p.Price, p.Barcode, p.Sku, p.buttonColour, p.imageUrl });
+    }
+
+    // Inline save from the Edit modal — core fields only; returns the refreshed row values.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuickEdit(int id, string name, int? categoryId, decimal price, string? buttonColour, string? barcode)
+    {
+        var p = await _db.Products.FindAsync(id);
+        if (p == null) return Json(new { ok = false, error = "Product not found." });
+        if (string.IsNullOrWhiteSpace(name)) return Json(new { ok = false, error = "Name is required." });
+        if (categoryId == null) return Json(new { ok = false, error = "Please choose a category." });
+
+        var trimmedBarcode = string.IsNullOrWhiteSpace(barcode) ? null : barcode.Trim();
+        if (trimmedBarcode != null &&
+            await _db.Products.AnyAsync(x => x.Id != id && x.Barcode == trimmedBarcode))
+            return Json(new { ok = false, error = $"Barcode '{trimmedBarcode}' is already used by another product." });
+
+        p.Name = name.Trim();
+        p.CategoryId = categoryId.Value;
+        p.Price = price;
+        p.PosButtonColour = string.IsNullOrWhiteSpace(buttonColour) ? null : buttonColour.Trim();
+        p.Barcode = trimmedBarcode;
+        p.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await LogAsync("Update", "Product", id.ToString(), $"Quick-edited product '{p.Name}'");
+
+        var catName = await _db.Categories.Where(c => c.Id == p.CategoryId).Select(c => c.Name).FirstOrDefaultAsync() ?? "—";
+        return Json(new
+        {
+            ok = true, id = p.Id, name = p.Name, sku = p.Sku,
+            displayName = string.IsNullOrWhiteSpace(p.Sku) ? p.Name : $"{p.Sku} ({p.Name})",
+            categoryName = catName,
+            priceText = "₦" + p.Price.ToString("N2"),
+            buttonColour = p.PosButtonColour ?? "",
+            barcode = p.Barcode ?? ""
+        });
+    }
+
+    // Generate a unique 12-digit barcode not already used by any product or variant.
+    [HttpGet]
+    public async Task<IActionResult> GenerateBarcode()
+    {
+        var rng = new Random();
+        for (var attempt = 0; attempt < 25; attempt++)
+        {
+            var code = "";
+            for (var i = 0; i < 12; i++) code += rng.Next(0, 10);
+            var taken = await _db.Products.AnyAsync(p => p.Barcode == code)
+                     || await _db.ProductVariants.AnyAsync(v => v.Barcode == code);
+            if (!taken) return Json(new { ok = true, barcode = code });
+        }
+        return Json(new { ok = false, error = "Could not generate a unique barcode — try again." });
+    }
+
+    // Upload a product image from the modal (Cloudinary when configured, else local disk in dev).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file)
+    {
+        var p = await _db.Products.Include(x => x.Images).FirstOrDefaultAsync(x => x.Id == id);
+        if (p == null) return Json(new { ok = false, error = "Product not found." });
+        if (file == null || file.Length == 0) return Json(new { ok = false, error = "No file provided." });
+        if (file.Length > 10 * 1024 * 1024) return Json(new { ok = false, error = "File too large (max 10 MB)." });
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        if (!allowed.Contains(ext)) return Json(new { ok = false, error = "Invalid type — use JPG, PNG, WEBP or GIF." });
+
+        string url;
+        var cloudName = _config["Cloudinary:CloudName"];
+        var apiKey = _config["Cloudinary:ApiKey"];
+        var apiSecret = _config["Cloudinary:ApiSecret"];
+        if (!string.IsNullOrWhiteSpace(cloudName) && !string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(apiSecret))
+        {
+            var cloudinary = new CloudinaryDotNet.Cloudinary(new CloudinaryDotNet.Account(cloudName, apiKey, apiSecret)) { Api = { Secure = true } };
+            await using var s = file.OpenReadStream();
+            var result = await cloudinary.UploadAsync(new CloudinaryDotNet.Actions.ImageUploadParams
+            {
+                File = new CloudinaryDotNet.FileDescription(file.FileName, s),
+                Folder = "sterlinglams/products",
+                PublicId = Guid.NewGuid().ToString("N"),
+                UniqueFilename = false, Overwrite = false
+            });
+            if (result.StatusCode != System.Net.HttpStatusCode.OK || result.SecureUrl == null)
+                return Json(new { ok = false, error = "Image upload failed — try again." });
+            url = result.SecureUrl.ToString();
+        }
+        else
+        {
+            var dir = Path.Combine(_env.WebRootPath, "uploads", "products");
+            Directory.CreateDirectory(dir);
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            await using var stream = System.IO.File.Create(Path.Combine(dir, fileName));
+            await file.CopyToAsync(stream);
+            url = $"/uploads/products/{fileName}";
+        }
+
+        var isFirst = !p.Images.Any();
+        _db.ProductImages.Add(new ProductImage
+        {
+            ProductId = p.Id, Url = url,
+            SortOrder = isFirst ? 0 : p.Images.Max(i => i.SortOrder) + 1,
+            IsPrimary = isFirst
+        });
+        await _db.SaveChangesAsync();
+        await LogAsync("Update", "Product", id.ToString(), $"Added image to '{p.Name}'");
+        return Json(new { ok = true, url });
     }
 
     private async Task LoadCategories(int? selected)
