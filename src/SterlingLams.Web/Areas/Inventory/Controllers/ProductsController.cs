@@ -545,6 +545,11 @@ public class ProductsController : InventoryAreaController
                 alerts = r?.StockAlerts ?? true
             };
         }).ToList();
+        var staff = await _db.Users.Where(u => !u.IsGuest)
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Select(u => new { id = u.Id, name = (u.FirstName + " " + u.LastName).Trim() != "" ? (u.FirstName + " " + u.LastName).Trim() : u.Email })
+            .ToListAsync();
+
         return Json(new
         {
             found = true,
@@ -553,6 +558,7 @@ public class ProductsController : InventoryAreaController
             trackStock = p.TrackStock,
             defaultMin = p.LowStockThreshold,
             reasons = SterlingLams.Web.Models.Domain.AdjustmentReasons.All,
+            staff,
             locations
         });
     }
@@ -565,12 +571,14 @@ public class ProductsController : InventoryAreaController
         public int? Max { get; set; }
         public int OnOrder { get; set; }
         public bool Alerts { get; set; }
+        public string? Reason { get; set; }   // optional per-location override
     }
     public class TrackStockSaveRequest
     {
         public int Id { get; set; }
         public bool TrackStock { get; set; }
         public string? Reason { get; set; }
+        public string? StaffUserId { get; set; }
         public List<TrackStockLoc> Locations { get; set; } = new();
     }
 
@@ -583,9 +591,14 @@ public class ProductsController : InventoryAreaController
         var p = await _db.Products.FindAsync(req.Id);
         if (p == null) return Json(new { ok = false, error = "Product not found." });
 
-        var reason = string.IsNullOrWhiteSpace(req.Reason) ? "Correction" : req.Reason.Trim();
-        var type = SterlingLams.Web.Models.Domain.AdjustmentReasons.MovementType(reason);
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var defaultReason = string.IsNullOrWhiteSpace(req.Reason) ? "Correction" : req.Reason.Trim();
+        // Staff member: the chosen user (must be a real, non-guest user) records who did the count;
+        // fall back to the logged-in user.
+        var actingUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userId = actingUserId;
+        if (!string.IsNullOrWhiteSpace(req.StaffUserId) &&
+            await _db.Users.AnyAsync(u => u.Id == req.StaffUserId && !u.IsGuest))
+            userId = req.StaffUserId;
         var validStoreIds = (await _db.Stores.Where(s => s.IsActive).Select(s => s.Id).ToListAsync()).ToHashSet();
         var locs = req.Locations.Where(l => validStoreIds.Contains(l.StoreId)).ToList();
 
@@ -608,6 +621,9 @@ public class ProductsController : InventoryAreaController
         var seq = await NextAdjustmentSeqAsync();
         foreach (var l in locs)
         {
+            // A per-location reason overrides the all-locations default (each branch = its own BSA header).
+            var reason = string.IsNullOrWhiteSpace(l.Reason) ? defaultReason : l.Reason.Trim();
+            var type = SterlingLams.Web.Models.Domain.AdjustmentReasons.MovementType(reason);
             var current = await _stock.GetStockAsync(req.Id, null, l.StoreId, fallback: false);
             var delta = l.OnHand - current;
             if (delta != 0)

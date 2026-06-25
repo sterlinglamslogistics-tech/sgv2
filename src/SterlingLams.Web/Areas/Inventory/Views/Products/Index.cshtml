@@ -302,13 +302,20 @@
     </div>
     <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         <input type="hidden" id="ts-id" />
-        <label class="flex items-center justify-between bg-neutral-50 rounded-md px-3 py-2.5">
-            <span class="text-sm font-medium text-neutral-700">Track stock</span>
-            <input type="checkbox" id="ts-track" class="w-5 h-5 accent-blue-600" />
-        </label>
+        <div class="flex items-center justify-between">
+            <span class="text-base font-semibold text-neutral-800">Track stock</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="ts-track" class="sr-only peer" />
+                <div class="w-11 h-6 bg-neutral-200 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span>
+            </label>
+        </div>
+        <div><label class="block text-[11px] text-neutral-400 mb-1">Staff member</label>
+            <select id="ts-staff" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white"></select></div>
         <div><label class="block text-[11px] text-neutral-400 mb-1">Reason (all locations)</label>
-            <select id="ts-reason" class="w-full border border-neutral-200 rounded-md px-3 py-2 text-sm bg-white"></select></div>
+            <select id="ts-reason" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white"></select></div>
         <div id="ts-locations" class="space-y-3"></div>
+        <button type="button" id="ts-add" class="w-full text-right text-sm text-neutral-500 hover:text-blue-700">+ Add location</button>
     </div>
     <div class="flex items-center gap-2 px-5 py-4 border-t border-neutral-100">
         <button type="button" class="drawer-close flex-1 border border-neutral-200 rounded-md py-2 text-sm text-neutral-600 hover:border-neutral-400">Cancel</button>
@@ -548,12 +555,37 @@
     }
 
     // ── Track Stock drawer ──────────────────────────────────────────────────────
-    var tsIdx = -1;
-    function stepper(field, value) {
-        return '<div class="inline-flex items-center border border-neutral-200 rounded-md overflow-hidden">'
-            + '<button type="button" data-step="-1" class="px-2 py-1 text-neutral-500 hover:bg-neutral-100">−</button>'
-            + '<input type="number" data-f="' + field + '" value="' + (value == null ? '' : value) + '" class="w-16 text-center text-sm py-1 focus:outline-none" />'
-            + '<button type="button" data-step="1" class="px-2 py-1 text-neutral-500 hover:bg-neutral-100">+</button></div>';
+    var tsIdx = -1, tsStores = [], tsData = {}, tsReasons = [];
+    function tsStepRow(label, field, value) {
+        return '<div><label class="block text-[11px] text-neutral-400 mb-1">' + label + '</label>'
+            + '<div class="flex items-center gap-2">'
+            + '<button type="button" data-step="-1" class="w-8 h-8 shrink-0 rounded-full border border-neutral-300 text-neutral-500 hover:bg-neutral-100 flex items-center justify-center">−</button>'
+            + '<input type="number" data-f="' + field + '" value="' + (value == null ? '' : value) + '" placeholder="0" class="flex-1 w-full border border-neutral-200 rounded-md px-3 py-2 text-sm text-right focus:outline-none focus:border-blue-400" />'
+            + '<button type="button" data-step="1" class="w-8 h-8 shrink-0 rounded-full border border-neutral-300 text-neutral-500 hover:bg-neutral-100 flex items-center justify-center">+</button>'
+            + '</div></div>';
+    }
+    function tsStoreOptions(selId) {
+        return tsStores.map(function (s) { return '<option value="' + s.storeId + '"' + (s.storeId === selId ? ' selected' : '') + '>' + s.name + '</option>'; }).join('');
+    }
+    function tsReasonOptions() {
+        return '<option value="">Reason (optional)</option>' + tsReasons.map(function (r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
+    }
+    function tsCard(l) {
+        return '<div class="border border-neutral-200 rounded-md p-3 space-y-3" data-store="' + l.storeId + '" data-onorder="' + (l.onOrder || 0) + '">'
+            + '<div><label class="block text-[11px] text-neutral-400 mb-1">Location</label>'
+            + '<select data-f="store" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white">' + tsStoreOptions(l.storeId) + '</select></div>'
+            + '<div><label class="block text-[11px] text-neutral-400 mb-1">Reason (optional)</label>'
+            + '<select data-f="reason" class="w-full border border-neutral-200 rounded-md px-3 py-2.5 text-sm bg-white">' + tsReasonOptions() + '</select></div>'
+            + tsStepRow('Current stock', 'onHand', l.onHand)
+            + tsStepRow('Min', 'min', l.min)
+            + tsStepRow('Max', 'max', l.max)
+            + '<div class="border-t border-neutral-100 pt-3 flex items-center justify-between">'
+            + '<span class="flex items-center gap-2 text-sm font-semibold text-neutral-700">Stock alerts'
+            + '<label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" data-f="alerts" class="sr-only peer"' + (l.alerts ? ' checked' : '') + ' />'
+            + '<div class="w-9 h-5 bg-neutral-200 rounded-full peer-checked:bg-blue-600 transition-colors"></div>'
+            + '<span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></span></label></span>'
+            + '<button type="button" data-remove class="text-sm text-red-600 hover:underline">🗑 Remove</button>'
+            + '</div></div>';
     }
     function openTrackStock(id) {
         tsIdx = rowIds.indexOf(String(id));
@@ -566,19 +598,12 @@
                 el('ts-id').value = d.id;
                 el('ts-name').textContent = '— ' + d.name;
                 el('ts-track').checked = !!d.trackStock;
-                el('ts-reason').innerHTML = (d.reasons || []).map(function (r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
-                el('ts-locations').innerHTML = (d.locations || []).map(function (l) {
-                    return '<div class="border border-neutral-200 rounded-md p-3" data-store="' + l.storeId + '">'
-                        + '<div class="text-sm font-medium text-neutral-700 mb-2">' + l.name + '</div>'
-                        + '<div class="grid grid-cols-2 gap-3">'
-                        + '<div><div class="text-[11px] text-neutral-400 mb-1">Current stock</div>' + stepper('onHand', l.onHand) + '</div>'
-                        + '<div><div class="text-[11px] text-neutral-400 mb-1">On order</div>' + stepper('onOrder', l.onOrder) + '</div>'
-                        + '<div><div class="text-[11px] text-neutral-400 mb-1">Min (reorder at)</div>' + stepper('min', l.min) + '</div>'
-                        + '<div><div class="text-[11px] text-neutral-400 mb-1">Max (target)</div>' + stepper('max', l.max) + '</div>'
-                        + '</div>'
-                        + '<label class="flex items-center gap-2 mt-3 text-sm text-neutral-600"><input type="checkbox" data-f="alerts" class="w-4 h-4 accent-blue-600"' + (l.alerts ? ' checked' : '') + ' /> Stock alerts</label>'
-                        + '</div>';
-                }).join('');
+                tsReasons = d.reasons || [];
+                tsStores = (d.locations || []).map(function (l) { return { storeId: l.storeId, name: l.name }; });
+                tsData = {}; (d.locations || []).forEach(function (l) { tsData[l.storeId] = l; });
+                el('ts-staff').innerHTML = '<option value="">— Select staff —</option>' + (d.staff || []).map(function (s) { return '<option value="' + s.id + '">' + s.name + '</option>'; }).join('');
+                el('ts-reason').innerHTML = tsReasons.map(function (r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
+                el('ts-locations').innerHTML = (d.locations || []).map(tsCard).join('');
                 closeDrawers(); openDrawer(tsDrawer);
             })
             .catch(function () { alert('Could not load product.'); });
@@ -587,28 +612,45 @@
     el('ts-next').addEventListener('click', function () { if (tsIdx > -1 && tsIdx < rowIds.length - 1) openTrackStock(rowIds[tsIdx + 1]); });
 
     el('ts-locations').addEventListener('click', function (e) {
-        var b = e.target.closest('[data-step]');
-        if (!b) return;
-        var input = b.parentElement.querySelector('input[data-f]');
-        var cur = parseInt(input.value, 10); if (isNaN(cur)) cur = 0;
-        input.value = Math.max(0, cur + parseInt(b.getAttribute('data-step'), 10));
+        var step = e.target.closest('[data-step]');
+        if (step) {
+            var input = step.parentElement.querySelector('input[data-f]');
+            var cur = parseInt(input.value, 10); if (isNaN(cur)) cur = 0;
+            input.value = Math.max(0, cur + parseInt(step.getAttribute('data-step'), 10));
+            return;
+        }
+        var rem = e.target.closest('[data-remove]');
+        if (rem) { var card = rem.closest('[data-store]'); if (card) card.remove(); }
+    });
+
+    el('ts-add').addEventListener('click', function () {
+        var used = Array.prototype.map.call(el('ts-locations').querySelectorAll('[data-f="store"]'), function (s) { return parseInt(s.value, 10); });
+        var next = tsStores.filter(function (s) { return used.indexOf(s.storeId) === -1; })[0];
+        if (!next) { alert('All locations are already shown.'); return; }
+        var l = tsData[next.storeId] || { storeId: next.storeId, name: next.name, onHand: 0, min: null, max: null, onOrder: 0, alerts: true };
+        el('ts-locations').insertAdjacentHTML('beforeend', tsCard(l));
     });
 
     el('ts-save').addEventListener('click', function () {
         var id = el('ts-id').value;
-        var locations = Array.prototype.map.call(el('ts-locations').children, function (card) {
-            function v(f) { var i = card.querySelector('[data-f="' + f + '"]'); return i ? i.value : ''; }
-            function num(f) { var x = parseInt(v(f), 10); return isNaN(x) ? null : x; }
-            return {
-                storeId: parseInt(card.getAttribute('data-store'), 10),
+        var seen = {}, locations = [];
+        Array.prototype.forEach.call(el('ts-locations').children, function (card) {
+            function pick(f) { var i = card.querySelector('[data-f="' + f + '"]'); return i ? i.value : ''; }
+            function num(f) { var x = parseInt(pick(f), 10); return isNaN(x) ? null : x; }
+            var sid = parseInt(pick('store'), 10);
+            if (!sid || seen[sid]) return;       // skip duplicate-store cards
+            seen[sid] = true;
+            locations.push({
+                storeId: sid,
                 onHand: num('onHand') || 0,
-                onOrder: num('onOrder') || 0,
+                onOrder: parseInt(card.getAttribute('data-onorder'), 10) || 0,
                 min: num('min'),
                 max: num('max'),
-                alerts: card.querySelector('[data-f="alerts"]').checked
-            };
+                alerts: card.querySelector('[data-f="alerts"]').checked,
+                reason: pick('reason')
+            });
         });
-        var payload = { id: parseInt(id, 10), trackStock: el('ts-track').checked, reason: el('ts-reason').value, locations: locations };
+        var payload = { id: parseInt(id, 10), trackStock: el('ts-track').checked, reason: el('ts-reason').value, staffUserId: el('ts-staff').value, locations: locations };
         var btn = el('ts-save'); btn.disabled = true; btn.textContent = 'Saving…';
         fetch(base + 'SaveTrackStock', {
             method: 'POST',
