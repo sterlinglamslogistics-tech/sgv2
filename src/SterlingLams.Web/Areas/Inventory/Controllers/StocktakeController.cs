@@ -30,10 +30,7 @@ public class StocktakeController : InventoryAreaController
     {
         ViewData["Title"] = "Stock Take";
         ViewBag.Stores = await _db.Stores.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync();
-        ViewBag.Staff = await _db.Users.Where(u => !u.IsGuest)
-            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
-            .Select(u => new { id = u.Id, name = (u.FirstName + " " + u.LastName).Trim() != "" ? (u.FirstName + " " + u.LastName).Trim() : u.Email })
-            .ToListAsync();
+        ViewBag.Staff = await StaffOptionsAsync();
         ViewBag.Reasons = LineReasons;
         ViewBag.StoreId = storeId;
         ViewBag.StaffId = staffId;
@@ -99,13 +96,9 @@ public class StocktakeController : InventoryAreaController
         if (req.Lines == null || req.Lines.Count == 0) return Json(new { success = false, message = "Nothing to count." });
 
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var staffName = "";
-        if (!string.IsNullOrWhiteSpace(req.StaffId))
-            staffName = await _db.Users.Where(u => u.Id == req.StaffId)
-                .Select(u => (u.FirstName + " " + u.LastName).Trim() != "" ? (u.FirstName + " " + u.LastName).Trim() : u.Email)
-                .FirstOrDefaultAsync() ?? "";
-        if (string.IsNullOrWhiteSpace(staffName))
-            staffName = await _db.Users.Where(u => u.Id == userId).Select(u => u.Email).FirstOrDefaultAsync() ?? "—";
+        // Only accept a real staff member as the counter; otherwise fall back to the acting user.
+        var staffId = await IsStaffAsync(req.StaffId) ? req.StaffId : userId;
+        var staffName = await StaffNameAsync(staffId) ?? "—";
 
         var ids = req.Lines.Select(l => l.ProductId).Distinct().ToList();
         var products = await _db.Products.Include(p => p.Category)
@@ -116,7 +109,7 @@ public class StocktakeController : InventoryAreaController
         var seq = await NextRefAsync();
         var take = new StockTake
         {
-            Reference = $"ST{seq:D5}", StoreId = store.Id, StaffUserId = req.StaffId ?? userId,
+            Reference = $"ST{seq:D5}", StoreId = store.Id, StaffUserId = staffId,
             StaffName = staffName, Status = "Completed", Note = req.Note, CreatedAt = DateTime.UtcNow
         };
 

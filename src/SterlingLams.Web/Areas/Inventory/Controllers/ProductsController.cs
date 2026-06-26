@@ -608,10 +608,7 @@ public class ProductsController : InventoryAreaController
                 alerts = r?.StockAlerts ?? true
             };
         }).ToList();
-        var staff = await _db.Users.Where(u => !u.IsGuest)
-            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
-            .Select(u => new { id = u.Id, name = (u.FirstName + " " + u.LastName).Trim() != "" ? (u.FirstName + " " + u.LastName).Trim() : u.Email })
-            .ToListAsync();
+        var staff = await StaffOptionsAsync();
 
         return Json(new
         {
@@ -659,8 +656,7 @@ public class ProductsController : InventoryAreaController
         // fall back to the logged-in user.
         var actingUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         var userId = actingUserId;
-        if (!string.IsNullOrWhiteSpace(req.StaffUserId) &&
-            await _db.Users.AnyAsync(u => u.Id == req.StaffUserId && !u.IsGuest))
+        if (await IsStaffAsync(req.StaffUserId))
             userId = req.StaffUserId;
         var validStoreIds = (await _db.Stores.Where(s => s.IsActive).Select(s => s.Id).ToListAsync()).ToHashSet();
         var locs = req.Locations.Where(l => validStoreIds.Contains(l.StoreId)).ToList();
