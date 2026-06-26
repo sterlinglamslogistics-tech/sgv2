@@ -27,6 +27,7 @@ public class PosController : Controller
     private readonly SterlingLams.Web.Services.IAuditService _audit;
     private readonly SterlingLams.Web.Services.ISettingsService _settings;
     private readonly SterlingLams.Web.Services.IEmailService _email;
+    private readonly SterlingLams.Web.Services.IOrderNumberService _orderNumbers;
 
     public PosController(ApplicationDbContext db, IStockService stock,
         SignInManager<ApplicationUser> signIn, IPasswordHasher<ApplicationUser> hasher,
@@ -35,7 +36,8 @@ public class PosController : Controller
         SterlingLams.Web.Services.ILoyaltyService loyalty,
         SterlingLams.Web.Services.IAuditService audit,
         SterlingLams.Web.Services.ISettingsService settings,
-        SterlingLams.Web.Services.IEmailService email)
+        SterlingLams.Web.Services.IEmailService email,
+        SterlingLams.Web.Services.IOrderNumberService orderNumbers)
     {
         _db = db;
         _stock = stock;
@@ -47,6 +49,7 @@ public class PosController : Controller
         _audit = audit;
         _settings = settings;
         _email = email;
+        _orderNumbers = orderNumbers;
     }
 
     // POS card/receipt thumbnail: rewrite a Cloudinary upload URL to a small, cacheable variant so
@@ -1198,7 +1201,7 @@ public class PosController : Controller
         // Random suffix (in addition to millisecond precision) so two checkouts landing in the
         // same millisecond — plausible with multiple registers under load — don't collide on
         // the unique OrderNumber index.
-        var orderNumber = $"POS-{now:yyMMdd}-{now:HHmmssfff}{Random.Shared.Next(100):D2}";
+        var orderNumber = await _orderNumbers.NextAsync(OrderChannel.Pos);
 
         await using var tx = await _db.Database.BeginTransactionAsync();
 
@@ -1382,7 +1385,7 @@ public class PosController : Controller
         var products = await _db.Products.Include(p => p.Variants)
             .Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
 
-        var orderNumber = $"POS-{soldAt:yyMMdd}-{now:HHmmssfff}{Random.Shared.Next(100):D2}";
+        var orderNumber = await _orderNumbers.NextAsync(OrderChannel.Pos);
         var shortfalls = new List<string>();
 
         await using var tx = await _db.Database.BeginTransactionAsync();

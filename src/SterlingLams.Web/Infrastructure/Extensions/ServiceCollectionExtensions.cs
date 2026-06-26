@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
         // ─── Inventory ───────────────────────────────────────────────────────
         services.AddMemoryCache();
         services.AddScoped<IStockService, StockService>();
+        services.AddScoped<IOrderNumberService, OrderNumberService>();
         services.AddScoped<IOrderFulfilmentService, OrderFulfilmentService>();
         services.AddScoped<ITransferWorkflowService, TransferWorkflowService>();
 

@@ -30,6 +30,7 @@ public class CheckoutController : Controller
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
     private readonly SterlingLams.Web.Services.IStockService _stock;
     private readonly SterlingLams.Web.Services.IAuditService _audit;
+    private readonly SterlingLams.Web.Services.IOrderNumberService _orderNumbers;
     private readonly IDataProtector _confirmTokenProtector;
 
     public CheckoutController(
@@ -47,6 +48,7 @@ public class CheckoutController : Controller
         SterlingLams.Web.Services.ILoyaltyService loyalty,
         SterlingLams.Web.Services.IStockService stock,
         SterlingLams.Web.Services.IAuditService audit,
+        SterlingLams.Web.Services.IOrderNumberService orderNumbers,
         IDataProtectionProvider dataProtection)
     {
         _db = db;
@@ -63,6 +65,7 @@ public class CheckoutController : Controller
         _loyalty = loyalty;
         _stock = stock;
         _audit = audit;
+        _orderNumbers = orderNumbers;
         _confirmTokenProtector = dataProtection.CreateProtector("Checkout.Confirmation.v1");
     }
 
@@ -472,9 +475,8 @@ public class CheckoutController : Controller
             }
         }
 
-        // Build order
-        var orderPrefix = await _settings.GetAsync("order.number_prefix", "SL-");
-        var orderNumber = $"{orderPrefix}{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
+        // Build order — short sequential number, e.g. SL-30012.
+        var orderNumber = await _orderNumbers.NextAsync(OrderChannel.Online);
 
         var order = new Order
         {
