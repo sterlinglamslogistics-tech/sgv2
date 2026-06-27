@@ -1,0 +1,91 @@
+@model List<SterlingLams.Web.Areas.Inventory.Controllers.StockReorderRow>
+@{
+    ViewData["Title"] = "Reorder Worksheet";
+    var stores = ViewBag.Stores as List<SterlingLams.Web.Models.Domain.Store> ?? new();
+    int? storeId = ViewBag.StoreId;
+    int page = ViewBag.Page ?? 1; int totalPages = ViewBag.TotalPages ?? 1; int total = ViewBag.Total ?? 0;
+    int totalSuggested = ViewBag.TotalSuggested ?? 0;
+    Dictionary<string, string> rd(int pg) => new() { ["storeId"] = storeId?.ToString() ?? "", ["page"] = pg.ToString() };
+}
+
+<div class="flex items-start justify-between gap-3 mb-5 flex-wrap">
+    <div>
+        <h1 class="text-2xl font-semibold text-neutral-900">Reorder Worksheet</h1>
+        <p class="text-sm text-neutral-500 mt-1">Items at or below their reorder point, with a suggested quantity to bring stock back to Max (accounting for what's already on order).</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" asp-all-route-data="@(new Dictionary<string,string>(rd(1)){ ["format"]="csv" })" class="px-4 py-2 border border-neutral-200 text-neutral-700 text-xs rounded-md hover:border-neutral-400">Export CSV</a>
+        <button type="button" onclick="window.print()" class="px-4 py-2 border border-neutral-200 text-neutral-700 text-xs rounded-md hover:border-neutral-400">Print</button>
+    </div>
+</div>
+
+<form asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" method="get" class="bg-white border border-neutral-200 rounded-md p-4 mb-4 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-[11px] text-neutral-400 mb-1">Filter by location</label>
+        <select name="storeId" onchange="this.form.submit()" class="border border-neutral-200 rounded-md px-3 py-2 text-sm bg-white">
+            <option value="">All locations</option>
+            @foreach (var s in stores) { <option value="@s.Id" selected="@(storeId == s.Id)">@s.Name</option> }
+        </select>
+    </div>
+    <button type="submit" class="px-5 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Apply</button>
+    <div class="ml-auto text-sm text-neutral-500">Total units to order: <span class="font-semibold text-neutral-800">@totalSuggested.ToString("N0")</span></div>
+</form>
+
+<div class="bg-white border border-neutral-200 rounded-md overflow-x-auto">
+    <table class="w-full text-sm min-w-[760px]">
+        <thead class="bg-neutral-50 text-neutral-500 text-xs">
+            <tr>
+                <th class="text-left font-semibold px-4 py-3">Product</th>
+                <th class="text-left font-semibold px-4 py-3">Location</th>
+                <th class="text-left font-semibold px-4 py-3">Barcode</th>
+                <th class="text-left font-semibold px-4 py-3">Category</th>
+                <th class="text-center font-semibold px-4 py-3">Current</th>
+                <th class="text-center font-semibold px-4 py-3">On Order</th>
+                <th class="text-center font-semibold px-4 py-3">Min</th>
+                <th class="text-center font-semibold px-4 py-3">Max</th>
+                <th class="text-center font-semibold px-4 py-3">Suggested Order</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-100">
+            @if (!Model.Any())
+            {
+                <tr><td colspan="9" class="px-4 py-16 text-center text-neutral-400">Nothing to reorder — every item is above its reorder point.</td></tr>
+            }
+            @foreach (var r in Model)
+            {
+                <tr class="hover:bg-neutral-50">
+                    <td class="px-4 py-2.5 text-neutral-800">@r.Product</td>
+                    <td class="px-4 py-2.5 text-neutral-600">@r.Location</td>
+                    <td class="px-4 py-2.5 text-neutral-500 font-mono text-xs">@(r.Barcode ?? "—")</td>
+                    <td class="px-4 py-2.5 text-neutral-500 text-xs">@r.Category</td>
+                    <td class="px-4 py-2.5 text-center @(r.Current == 0 ? "text-red-600" : "text-amber-600")">@r.Current</td>
+                    <td class="px-4 py-2.5 text-center text-neutral-500">@r.OnOrder</td>
+                    <td class="px-4 py-2.5 text-center text-neutral-600">@r.Min</td>
+                    <td class="px-4 py-2.5 text-center text-neutral-500">@(r.Max?.ToString() ?? "—")</td>
+                    <td class="px-4 py-2.5 text-center font-semibold text-blue-700">@r.Suggested</td>
+                </tr>
+            }
+        </tbody>
+        @if (Model.Any())
+        {
+            <tfoot>
+                <tr class="bg-blue-500 text-white font-medium">
+                    <td class="px-4 py-2.5" colspan="8">Total units to order</td>
+                    <td class="px-4 py-2.5 text-center">@totalSuggested</td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+    @if (totalPages > 1)
+    {
+        <div class="flex items-center justify-end gap-4 px-4 py-3 border-t border-neutral-100 text-sm text-neutral-500">
+            <span>Page @(page) of @totalPages (@total.ToString("N0"))</span>
+            <div class="flex items-center gap-1">
+                <a asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" asp-all-route-data="rd(1)" class="px-2 py-1 rounded @(page<=1 ? "text-neutral-300 pointer-events-none" : "hover:bg-neutral-100")">«</a>
+                <a asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" asp-all-route-data="rd(page-1)" class="px-2 py-1 rounded @(page<=1 ? "text-neutral-300 pointer-events-none" : "hover:bg-neutral-100")">‹</a>
+                <a asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" asp-all-route-data="rd(page+1)" class="px-2 py-1 rounded @(page>=totalPages ? "text-neutral-300 pointer-events-none" : "hover:bg-neutral-100")">›</a>
+                <a asp-area="Inventory" asp-controller="Reports" asp-action="ReorderWorksheet" asp-all-route-data="rd(totalPages)" class="px-2 py-1 rounded @(page>=totalPages ? "text-neutral-300 pointer-events-none" : "hover:bg-neutral-100")">»</a>
+            </div>
+        </div>
+    }
+</div>

@@ -640,6 +640,59 @@ public class ReportsController : InventoryAreaController
         return View(await proj.Skip((page - 1) * Size).Take(Size).ToListAsync());
     }
 
+    // ── Reorder Worksheet: per-location items to reorder, with a suggested quantity that accounts
+    //    for stock already on order. Suggested = (Max ?? Min) − On-hand − On-order. No supplier/cost.
+    public async Task<IActionResult> ReorderWorksheet(int? storeId, int page = 1, string? format = null)
+    {
+        const int Size = 25;
+        ViewData["Title"] = "Reorder Worksheet";
+        ViewBag.Stores = await _db.Stores.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync();
+        ViewBag.StoreId = storeId;
+
+        // Reorder point reached when on-hand + on-order is at/below the location's min
+        // (per-location Min, falling back to the product's low-stock threshold).
+        var q = _db.StoreInventories.Include(si => si.Product).ThenInclude(p => p.Category).Include(si => si.Store)
+            .Where(si => si.Product.IsActive && si.ProductVariantId == null && si.Store.IsActive
+                      && (si.MinStock ?? si.Product.LowStockThreshold) > 0
+                      && (si.QuantityOnHand + si.OnOrder) <= (si.MinStock ?? si.Product.LowStockThreshold));
+        if (storeId.HasValue) q = q.Where(si => si.StoreId == storeId.Value);
+
+        var rows = (await q.Select(si => new
+        {
+            Product = si.Product.Name, Barcode = si.Product.Barcode,
+            Category = si.Product.Category != null ? si.Product.Category.Name : "—",
+            Location = si.Store.Name,
+            Current = si.QuantityOnHand,
+            Min = si.MinStock ?? si.Product.LowStockThreshold,
+            si.MaxStock, si.OnOrder
+        }).ToListAsync())
+        .Select(x => new StockReorderRow
+        {
+            Product = x.Product, Barcode = x.Barcode, Category = x.Category, Location = x.Location,
+            Current = x.Current, Min = x.Min, Max = x.MaxStock, OnOrder = x.OnOrder,
+            Suggested = Math.Max(0, (x.MaxStock ?? x.Min) - x.Current - x.OnOrder)
+        })
+        .Where(r => r.Suggested > 0)
+        .OrderByDescending(r => r.Suggested).ThenBy(r => r.Product).ToList();
+
+        if (format == "csv")
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Product,Location,Barcode,Category,Current Stock,On Order,Min,Max,Suggested Order");
+            foreach (var r in rows)
+                sb.Append(Csv(r.Product)).Append(',').Append(Csv(r.Location)).Append(',').Append(Csv(r.Barcode)).Append(',')
+                  .Append(Csv(r.Category)).Append(',').Append(r.Current).Append(',').Append(r.OnOrder).Append(',')
+                  .Append(r.Min).Append(',').Append(r.Max?.ToString() ?? "").Append(',').Append(r.Suggested).AppendLine();
+            await LogAsync("Export", "Inventory", null, "Exported reorder worksheet");
+            return CsvFile(sb, "reorder_worksheet");
+        }
+
+        ViewBag.TotalSuggested = rows.Sum(r => r.Suggested);
+        ViewBag.Total = rows.Count;
+        ViewBag.Page = page; ViewBag.TotalPages = (int)Math.Ceiling(rows.Count / (double)Size);
+        return View(rows.Skip((page - 1) * Size).Take(Size).ToList());
+    }
+
     // ── Stock Discrepancies: transfer received-vs-sent differences (no cost) ─────────────────────
     public async Task<IActionResult> Discrepancies(int days = 7, int? storeId = null, string? reason = null, int page = 1, string? format = null)
     {
@@ -842,6 +895,19 @@ public class StockWarningRow
     public int? Max { get; set; }
     public int OnOrder { get; set; }
     public int Reorder => System.Math.Max(0, (Max ?? Min) - Current);
+}
+
+public class StockReorderRow
+{
+    public string Product { get; set; } = "";
+    public string? Barcode { get; set; }
+    public string Category { get; set; } = "";
+    public string Location { get; set; } = "";
+    public int Current { get; set; }
+    public int Min { get; set; }
+    public int? Max { get; set; }
+    public int OnOrder { get; set; }
+    public int Suggested { get; set; }
 }
 
 public class StockDiscrepancyRow
