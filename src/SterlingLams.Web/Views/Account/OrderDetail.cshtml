@@ -12,8 +12,17 @@
            class="text-xs tracking-widest uppercase text-neutral-400 hover:text-neutral-700 transition-colors">
             ← My Orders
         </a>
-        <h1 class="font-cormorant text-3xl font-light mt-4">Order @Model.OrderNumber</h1>
-        <p class="text-sm text-neutral-400 mt-1">Placed @Model.CreatedAt.ToString("dddd, MMMM d, yyyy")</p>
+        <div class="flex items-end justify-between gap-4 flex-wrap mt-4">
+            <div>
+                <h1 class="font-cormorant text-3xl font-light">Order @Model.OrderNumber</h1>
+                <p class="text-sm text-neutral-400 mt-1">Placed @Model.CreatedAt.ToString("dddd, MMMM d, yyyy")</p>
+            </div>
+            <form asp-controller="Cart" asp-action="Reorder" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="orderId" value="@Model.Id" />
+                <button type="submit" class="text-xs tracking-[0.2em] uppercase border border-neutral-900 text-neutral-900 px-6 py-3 rounded-md hover:bg-neutral-900 hover:text-white transition-colors">Reorder these items</button>
+            </form>
+        </div>
     </div>
 
     <!-- Status banner -->

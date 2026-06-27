@@ -8,6 +8,11 @@
         <h1 class="font-cormorant text-4xl font-light">Shopping Bag</h1>
     </div>
 
+    @if (TempData["CartMessage"] != null)
+    {
+        <div class="mb-8 px-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-md text-center">@TempData["CartMessage"]</div>
+    }
+
     @if (Model.IsEmpty && !Model.SavedItems.Any())
     {
         <div class="text-center py-24">

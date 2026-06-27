@@ -400,6 +400,91 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Profile), new { tab = "profile" });
     }
 
+    // ─── Saved Addresses ───────────────────────────────────────────────────────
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAddress(int id, string label, string fullName, string phone,
+        string line1, string? line2, string city, string state, string? postalCode, bool isDefault = false)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(phone)
+            || string.IsNullOrWhiteSpace(line1) || string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(state))
+        {
+            TempData["Error"] = "Please fill in name, phone, address line 1, city and state.";
+            return RedirectToAction(nameof(Profile), new { tab = "addresses" });
+        }
+
+        var addr = id > 0
+            ? await _db.Addresses.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId)
+            : new Address { UserId = userId };
+        if (addr == null) return NotFound();
+
+        addr.Label = string.IsNullOrWhiteSpace(label) ? "Home" : label.Trim();
+        addr.FullName = fullName.Trim();
+        addr.Phone = phone.Trim();
+        addr.Line1 = line1.Trim();
+        addr.Line2 = string.IsNullOrWhiteSpace(line2) ? null : line2.Trim();
+        addr.City = city.Trim();
+        addr.State = state.Trim();
+        addr.PostalCode = string.IsNullOrWhiteSpace(postalCode) ? null : postalCode.Trim();
+
+        if (id == 0)
+        {
+            // First address becomes the default automatically.
+            if (!await _db.Addresses.AnyAsync(a => a.UserId == userId)) isDefault = true;
+            _db.Addresses.Add(addr);
+        }
+
+        if (isDefault)
+        {
+            foreach (var other in await _db.Addresses.Where(a => a.UserId == userId && a.Id != addr.Id).ToListAsync())
+                other.IsDefault = false;
+            addr.IsDefault = true;
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Address saved.";
+        return RedirectToAction(nameof(Profile), new { tab = "addresses" });
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAddress(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        var addr = await _db.Addresses.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
+        if (addr != null)
+        {
+            var wasDefault = addr.IsDefault;
+            _db.Addresses.Remove(addr);
+            await _db.SaveChangesAsync();
+            if (wasDefault)
+            {
+                var next = await _db.Addresses.Where(a => a.UserId == userId).OrderBy(a => a.Id).FirstOrDefaultAsync();
+                if (next != null) { next.IsDefault = true; await _db.SaveChangesAsync(); }
+            }
+            TempData["Success"] = "Address removed.";
+        }
+        return RedirectToAction(nameof(Profile), new { tab = "addresses" });
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetDefaultAddress(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        var addr = await _db.Addresses.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
+        if (addr != null)
+        {
+            foreach (var other in await _db.Addresses.Where(a => a.UserId == userId).ToListAsync())
+                other.IsDefault = other.Id == id;
+            await _db.SaveChangesAsync();
+            TempData["Success"] = "Default address updated.";
+        }
+        return RedirectToAction(nameof(Profile), new { tab = "addresses" });
+    }
+
     // ─── Orders List ─────────────────────────────────────────────────────────
 
     [Authorize]

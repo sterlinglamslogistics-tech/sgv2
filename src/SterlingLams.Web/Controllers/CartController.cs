@@ -85,6 +85,59 @@ public class CartController : Controller
         });
     }
 
+    // Re-add every still-available item from a past order to the bag (one-click reorder).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reorder(int orderId)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (userId == null) return Challenge();
+
+        var order = await _db.Orders.Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+        if (order == null) return NotFound();
+
+        var cart = GetCart();
+        int added = 0, skipped = 0;
+        foreach (var it in order.Items)
+        {
+            var product = await _db.Products.Include(p => p.Images).Include(p => p.Variants)
+                .FirstOrDefaultAsync(p => p.Id == it.ProductId && p.IsActive);
+            var available = product == null ? 0 : await CombinedAvailableAsync(it.ProductId, it.ProductVariantId);
+            if (product == null || available <= 0) { skipped++; continue; }
+
+            var qty = Math.Max(1, it.Quantity);
+            var existing = cart.Items.FirstOrDefault(c => c.ProductId == it.ProductId && c.VariantId == it.ProductVariantId);
+            if (existing != null)
+            {
+                existing.MaxQuantity = available;
+                existing.Quantity = Math.Min(existing.Quantity + qty, available);
+            }
+            else
+            {
+                var variant = it.ProductVariantId.HasValue ? product.Variants.FirstOrDefault(v => v.Id == it.ProductVariantId) : null;
+                cart.Items.Add(new CartItemViewModel
+                {
+                    ProductId = product.Id,
+                    VariantId = it.ProductVariantId,
+                    ProductName = product.Name,
+                    VariantName = variant?.Name,
+                    Slug = product.Slug,
+                    ImageUrl = product.Images.FirstOrDefault(i => i.IsPrimary)?.Url ?? "/images/placeholder.jpg",
+                    UnitPrice = product.EffectivePrice + (variant?.PriceAdjustment ?? 0),
+                    Quantity = Math.Min(qty, available),
+                    MaxQuantity = available
+                });
+            }
+            added++;
+        }
+        SaveCart(cart);
+
+        TempData["CartMessage"] = added > 0
+            ? $"{added} item(s) from {order.OrderNumber} added to your bag." + (skipped > 0 ? $" {skipped} item(s) are no longer available and were skipped." : "")
+            : "Sorry, none of the items from that order are available right now.";
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateQuantity(int productId, int quantity, int? variantId = null)
     {
