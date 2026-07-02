@@ -38,6 +38,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 .Take(PageSize)
                 .Select(l => new AuditLogRow
                 {
+                    Id = l.Id,
                     Action = l.Action, EntityType = l.EntityType, EntityId = l.EntityId,
                     Description = l.Description, PerformedBy = l.PerformedBy,
                     IpAddress = l.IpAddress, CreatedAt = l.CreatedAt
@@ -83,6 +84,36 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
             var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
             return File(bytes, "text/csv", $"audit_log_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+        }
+
+        // Deleting audit history is restricted to full administrators (the owner) — staff who can
+        // merely VIEW the log (granted the AuditLog section) cannot remove entries.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSelected(int[] ids, string act = "", string entity = "",
+            string dateFrom = "", string dateTo = "", string q = "", int page = 1)
+        {
+            if (!User.IsInRole(AdminSections.AdminRole)) return Forbid();
+            var back = new { act, entity, dateFrom, dateTo, q, page };
+            if (ids == null || ids.Length == 0)
+            {
+                TempData["Error"] = "No log entries were selected.";
+                return RedirectToAction(nameof(Index), back);
+            }
+            var deleted = await _db.AuditLogs.Where(l => ids.Contains(l.Id)).ExecuteDeleteAsync();
+            await LogAsync("Delete", "AuditLog", null, $"Deleted {deleted} audit log entr{(deleted == 1 ? "y" : "ies")}");
+            TempData["Success"] = $"{deleted} log entr{(deleted == 1 ? "y" : "ies")} deleted.";
+            return RedirectToAction(nameof(Index), back);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearAll()
+        {
+            if (!User.IsInRole(AdminSections.AdminRole)) return Forbid();
+            var deleted = await _db.AuditLogs.ExecuteDeleteAsync();
+            // Leave a single record that a clear happened (accountability).
+            await LogAsync("Delete", "AuditLog", null, $"Cleared all audit logs ({deleted} entries)");
+            TempData["Success"] = $"Cleared all {deleted} audit log entries.";
+            return RedirectToAction(nameof(Index));
         }
 
         private IQueryable<AuditLog> BuildQuery(string action, string entity, string dateFrom, string dateTo, string q)

@@ -512,6 +512,7 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
 
     public class AuditLogRow
     {
+        public int Id { get; set; }
         public string Action { get; set; } = "";
         public string EntityType { get; set; } = "";
         public string EntityId { get; set; } = "";
