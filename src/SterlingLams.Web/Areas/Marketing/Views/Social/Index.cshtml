@@ -1,0 +1,106 @@
+@model List<SterlingLams.Web.Models.Domain.SocialPost>
+@using SterlingLams.Web.Models.Domain
+@{
+    ViewData["Title"] = "Social";
+    bool publishing = ViewBag.PublishingEnabled ?? false;
+    string ChannelBadges(SocialChannel c)
+    {
+        var parts = new List<string>();
+        if (c.HasFlag(SocialChannel.Instagram)) parts.Add("Instagram");
+        if (c.HasFlag(SocialChannel.Facebook)) parts.Add("Facebook");
+        if (c.HasFlag(SocialChannel.TikTok)) parts.Add("TikTok");
+        return parts.Count > 0 ? string.Join(" · ", parts) : "—";
+    }
+    (string Css, string Label) StatusBadge(SocialPostStatus s) => s switch
+    {
+        SocialPostStatus.Scheduled => ("bg-blue-50 text-blue-700", "Scheduled"),
+        SocialPostStatus.Published => ("bg-emerald-50 text-emerald-700", "Published"),
+        SocialPostStatus.Failed => ("bg-red-50 text-red-700", "Failed"),
+        _ => ("bg-neutral-100 text-neutral-500", "Draft")
+    };
+}
+@Html.AntiForgeryToken()
+
+<div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+        <h1 class="text-2xl font-light text-neutral-900">Social</h1>
+        <p class="text-sm text-neutral-500 mt-1">Compose and schedule posts for Instagram, Facebook &amp; TikTok.</p>
+    </div>
+    <button type="button" onclick="document.getElementById('compose').classList.toggle('hidden')" class="px-4 py-2 text-sm bg-neutral-900 text-white rounded-sm hover:bg-neutral-700">+ New post</button>
+</div>
+
+@if (TempData["Success"] != null) { <div class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-3 rounded-sm">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-sm">@TempData["Error"]</div> }
+
+@if (!publishing)
+{
+    <div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-sm">
+        <strong>Publishing isn't connected yet.</strong> Linking Instagram/Facebook/TikTok needs Meta &amp; TikTok app approval.
+        Until then, this works as your content calendar — scheduled posts are saved here and will auto-publish once accounts are connected.
+    </div>
+}
+
+<div id="compose" class="hidden bg-white border border-neutral-200 rounded-sm p-5 mb-6">
+    <form asp-area="Marketing" asp-controller="Social" asp-action="Save" method="post" class="space-y-4">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="0" />
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Caption *</label>
+            <textarea name="content" rows="4" required placeholder="What's the post?" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm"></textarea>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Image URL (optional)</label>
+                <input name="imageUrl" placeholder="https://res.cloudinary.com/…" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Schedule for (UTC)</label>
+                <input name="scheduledAt" type="datetime-local" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm" />
+                <p class="text-[10px] text-neutral-400 mt-1">Leave blank to save as a draft.</p>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs text-neutral-500 mb-2">Channels</label>
+            <div class="flex gap-4 text-sm">
+                <label class="flex items-center gap-2"><input type="checkbox" name="channels" value="Instagram" class="rounded-none border-neutral-300 text-neutral-900" /> Instagram</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="channels" value="Facebook" class="rounded-none border-neutral-300 text-neutral-900" /> Facebook</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="channels" value="TikTok" class="rounded-none border-neutral-300 text-neutral-900" /> TikTok</label>
+            </div>
+        </div>
+        <button type="submit" class="px-5 py-2 text-sm bg-neutral-900 text-white rounded-sm hover:bg-neutral-700">Save</button>
+    </form>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="bg-white border border-neutral-200 rounded-sm p-12 text-center text-sm text-neutral-400">No posts yet. Compose one to start your calendar.</div>
+}
+else
+{
+    <div class="space-y-3">
+        @foreach (var p in Model)
+        {
+            var badge = StatusBadge(p.Status);
+            <div class="bg-white border border-neutral-200 rounded-sm p-4 flex items-start gap-4">
+                @if (!string.IsNullOrEmpty(p.ImageUrl))
+                {
+                    <img src="@p.ImageUrl" alt="" class="w-16 h-16 object-cover rounded-sm flex-shrink-0" />
+                }
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[10px] px-2 py-0.5 rounded-full @badge.Css">@badge.Label</span>
+                        <span class="text-xs text-neutral-400">@ChannelBadges(p.Channels)</span>
+                        @if (p.ScheduledAt != null) { <span class="text-xs text-neutral-400">· @p.ScheduledAt.Value.ToString("dd MMM yyyy HH:mm") UTC</span> }
+                    </div>
+                    <p class="text-sm text-neutral-700 mt-1.5 line-clamp-2 whitespace-pre-line">@p.Content</p>
+                    @if (!string.IsNullOrEmpty(p.Error)) { <p class="text-xs text-red-500 mt-1">@p.Error</p> }
+                </div>
+                <form asp-area="Marketing" asp-controller="Social" asp-action="Delete" method="post" onsubmit="return confirm('Delete this post?');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@p.Id" />
+                    <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                </form>
+            </div>
+        }
+    </div>
+}

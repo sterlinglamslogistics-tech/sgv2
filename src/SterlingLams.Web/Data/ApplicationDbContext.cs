@@ -61,6 +61,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<CampaignRecipient> CampaignRecipients => Set<CampaignRecipient>();
     public DbSet<Segment> Segments => Set<Segment>();
+    public DbSet<SocialPost> SocialPosts => Set<SocialPost>();
     public DbSet<MarketingSuppression> MarketingSuppressions => Set<MarketingSuppression>();
     public DbSet<Automation> Automations => Set<Automation>();
     public DbSet<AutomationRun> AutomationRuns => Set<AutomationRun>();

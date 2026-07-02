@@ -196,6 +196,8 @@ builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.CampaignSender
 builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.AutomationSweepService>();
 // Rewards refer-a-friend referrals when the referred customer's first order is paid.
 builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.ReferralRewardService>();
+// Publishes due scheduled social posts (dormant until accounts are connected: Social:Enabled).
+builder.Services.AddHostedService<SterlingLams.Web.Infrastructure.SocialPublisherService>();
 
 // ─── MVC ────────────────────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews()
