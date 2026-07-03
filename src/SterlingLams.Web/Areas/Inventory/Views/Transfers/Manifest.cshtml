@@ -4,6 +4,7 @@
     var imageBy = ViewBag.ImageByProduct as Dictionary<int, string> ?? new();
     var names = ViewBag.Names as Dictionary<string, string> ?? new();
     string qr = ViewBag.QrDataUri ?? "";
+    string publicUrl = ViewBag.PublicUrl ?? "";
     string Who(string? uid) => uid != null && names.TryGetValue(uid, out var n) ? n : "—";
     string Fmt(DateTime? dt) => dt.HasValue ? dt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "—";
     int Qty(SterlingLams.Web.Models.Domain.StockTransferItem i) => i.ApprovedQty ?? i.RequestedQty;
@@ -51,7 +52,15 @@
 </head>
 <body>
 <div class="sheet">
-    <button class="printbtn noprint" onclick="window.print()">Print / Save as PDF</button>
+    <div class="noprint" style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="printbtn" style="margin:0" onclick="window.print()">Print / Save as PDF</button>
+        @if (!string.IsNullOrEmpty(publicUrl))
+        {
+            <input id="share-url" value="@publicUrl" readonly style="flex:1; min-width:220px; font-size:12px; padding:8px 10px; border:1px solid #e5e7eb; border-radius:4px; color:#374151;" />
+            <button type="button" class="printbtn" style="margin:0; background:#059669;" onclick="var i=document.getElementById('share-url');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='Copied';">Copy link</button>
+        }
+    </div>
+    <p class="noprint" style="font-size:11px;color:#9ca3af;margin:-8px 0 16px;">Share this link (or the QR) with the receiver — no account needed to view.</p>
 
     <div class="head">
         <div class="brand">STERLIN GLAMS<small>Stock Transfer Manifest</small></div>

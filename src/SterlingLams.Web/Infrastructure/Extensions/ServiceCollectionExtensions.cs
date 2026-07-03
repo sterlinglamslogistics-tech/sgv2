@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
         // ─── Marketing (campaigns / audiences) ────────────────────────────────
         services.AddScoped<SterlingLams.Web.Services.Marketing.IMarketingService, SterlingLams.Web.Services.Marketing.MarketingService>();
         services.AddScoped<IReferralService, ReferralService>();
+        services.AddSingleton<IManifestTokenService, ManifestTokenService>();
         services.AddScoped<SterlingLams.Web.Services.Social.ISocialPublisher, SterlingLams.Web.Services.Social.NullSocialPublisher>();
 
         // ─── Store-level authorization (writes-only) ──────────────────────────

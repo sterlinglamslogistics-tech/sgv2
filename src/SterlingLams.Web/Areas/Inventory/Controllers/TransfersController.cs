@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using QRCoder;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
 using SterlingLams.Web.Services;
@@ -13,12 +12,14 @@ public class TransfersController : InventoryAreaController
     private readonly ApplicationDbContext _db;
     private readonly ITransferWorkflowService _workflow;
     private readonly IStoreAccessService _access;
+    private readonly IManifestTokenService _manifestTokens;
 
-    public TransfersController(ApplicationDbContext db, ITransferWorkflowService workflow, IStoreAccessService access)
+    public TransfersController(ApplicationDbContext db, ITransferWorkflowService workflow, IStoreAccessService access, IManifestTokenService manifestTokens)
     {
         _db = db;
         _workflow = workflow;
         _access = access;
+        _manifestTokens = manifestTokens;
     }
 
     // Store-level authorization (writes-only): a non-admin may only act on a transfer that
@@ -271,49 +272,17 @@ public class TransfersController : InventoryAreaController
         return View(transfer);
     }
 
-    /// <summary>Printable transfer manifest for the receiving branch — QR (scan to open), product
-    /// photos, approved quantities + total pieces, and who created/approved it. Available once the
-    /// transfer is approved.</summary>
+    /// <summary>Sends staff to the public tokenised manifest (one render path, and the same link a
+    /// receiver without an account can open). Only meaningful once the transfer is approved.</summary>
     public async Task<IActionResult> Manifest(int id)
     {
-        var transfer = await _db.StockTransfers
-            .Include(t => t.FromStore).Include(t => t.ToStore).Include(t => t.Items)
-            .FirstOrDefaultAsync(t => t.Id == id);
-        if (transfer == null) return NotFound();
-        if (transfer.ApprovedAt == null)
+        var approvedAt = await _db.StockTransfers.Where(t => t.Id == id)
+            .Select(t => (DateTime?)t.ApprovedAt).FirstOrDefaultAsync();
+        if (approvedAt == null)
         {
             TempData["Error"] = "The manifest is available once the transfer is approved.";
             return RedirectToAction(nameof(Detail), new { id });
         }
-
-        // Primary image per product.
-        var productIds = transfer.Items.Select(i => i.ProductId).Distinct().ToList();
-        var imgRows = await _db.ProductImages
-            .Where(img => productIds.Contains(img.ProductId))
-            .OrderByDescending(img => img.IsPrimary).ThenBy(img => img.SortOrder)
-            .Select(img => new { img.ProductId, img.Url })
-            .ToListAsync();
-        ViewBag.ImageByProduct = imgRows.GroupBy(x => x.ProductId).ToDictionary(g => g.Key, g => g.First().Url);
-
-        // Created-by / approved-by display names.
-        var uids = new[] { transfer.CreatedByUserId, transfer.ApprovedByUserId }
-            .Where(u => u != null).Cast<string>().Distinct().ToList();
-        ViewBag.Names = (await _db.Users.Where(u => uids.Contains(u.Id))
-                .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email }).ToListAsync())
-            .ToDictionary(u => u.Id, u =>
-            {
-                var n = $"{u.FirstName} {u.LastName}".Trim();
-                return string.IsNullOrWhiteSpace(n) ? (u.Email ?? u.Id) : n;
-            });
-
-        // QR encodes the manifest URL so the receiver can scan to open it.
-        var url = $"{Request.Scheme}://{Request.Host}/Inventory/Transfers/Manifest/{id}";
-        using var gen = new QRCodeGenerator();
-        using var qrData = gen.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var png = new PngByteQRCode(qrData).GetGraphic(5);
-        ViewBag.QrDataUri = "data:image/png;base64," + Convert.ToBase64String(png);
-
-        ViewData["Title"] = $"Manifest {transfer.TransferNumber}";
-        return View(transfer);
+        return Redirect($"/t/manifest/{_manifestTokens.Protect(id)}");
     }
 }
