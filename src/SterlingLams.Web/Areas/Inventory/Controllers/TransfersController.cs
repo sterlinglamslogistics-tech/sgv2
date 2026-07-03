@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QRCoder;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
 using SterlingLams.Web.Services;
@@ -143,9 +144,14 @@ public class TransfersController : InventoryAreaController
         public string? Notes { get; set; }
     }
 
+    // Approving/rejecting a transfer is an administrator decision only — inventory staff can create
+    // and request transfers, but a full admin signs off before stock moves.
+    private const string AdminRole = "Admin";
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(int id, [FromBody] ItemsRequest req)
     {
+        if (!User.IsInRole(AdminRole)) return Json(new { success = false, message = "Only an administrator can approve transfers." });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var deny = await DenyIfNoStoreAccessAsync(id, from: true, to: false); if (deny != null) return deny;
         var result = await _workflow.ApproveAsync(id, req.Items, userId);
@@ -157,6 +163,7 @@ public class TransfersController : InventoryAreaController
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Reject(int id, [FromBody] ReasonRequest req)
     {
+        if (!User.IsInRole(AdminRole)) return Json(new { success = false, message = "Only an administrator can reject transfers." });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var deny = await DenyIfNoStoreAccessAsync(id, from: true, to: false); if (deny != null) return deny;
         var result = await _workflow.RejectAsync(id, req.Reason, userId);
@@ -234,9 +241,16 @@ public class TransfersController : InventoryAreaController
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? u.Id);
 
         var productIds = transfer.Items.Select(i => i.ProductId).Distinct().ToList();
-        ViewBag.AvailableQty = await _db.StoreInventories
+        // A product can have several StoreInventory rows at one store (the null-variant pool + each
+        // variant row), so sum available per product rather than ToDictionary on ProductId (which
+        // would throw on the duplicate key).
+        var invRows = await _db.StoreInventories
             .Where(si => si.StoreId == transfer.FromStoreId && productIds.Contains(si.ProductId))
-            .ToDictionaryAsync(si => si.ProductId, si => si.AvailableQuantity);
+            .Select(si => new { si.ProductId, si.QuantityOnHand, si.QuantityReserved })
+            .ToListAsync();
+        ViewBag.AvailableQty = invRows
+            .GroupBy(x => x.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.QuantityOnHand - x.QuantityReserved));
 
         return View(transfer);
     }
@@ -254,6 +268,52 @@ public class TransfersController : InventoryAreaController
         ViewBag.UserNames = await _db.Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? u.Id);
         ViewData["Title"] = $"Receipt {transfer.TransferNumber}";
+        return View(transfer);
+    }
+
+    /// <summary>Printable transfer manifest for the receiving branch — QR (scan to open), product
+    /// photos, approved quantities + total pieces, and who created/approved it. Available once the
+    /// transfer is approved.</summary>
+    public async Task<IActionResult> Manifest(int id)
+    {
+        var transfer = await _db.StockTransfers
+            .Include(t => t.FromStore).Include(t => t.ToStore).Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == id);
+        if (transfer == null) return NotFound();
+        if (transfer.ApprovedAt == null)
+        {
+            TempData["Error"] = "The manifest is available once the transfer is approved.";
+            return RedirectToAction(nameof(Detail), new { id });
+        }
+
+        // Primary image per product.
+        var productIds = transfer.Items.Select(i => i.ProductId).Distinct().ToList();
+        var imgRows = await _db.ProductImages
+            .Where(img => productIds.Contains(img.ProductId))
+            .OrderByDescending(img => img.IsPrimary).ThenBy(img => img.SortOrder)
+            .Select(img => new { img.ProductId, img.Url })
+            .ToListAsync();
+        ViewBag.ImageByProduct = imgRows.GroupBy(x => x.ProductId).ToDictionary(g => g.Key, g => g.First().Url);
+
+        // Created-by / approved-by display names.
+        var uids = new[] { transfer.CreatedByUserId, transfer.ApprovedByUserId }
+            .Where(u => u != null).Cast<string>().Distinct().ToList();
+        ViewBag.Names = (await _db.Users.Where(u => uids.Contains(u.Id))
+                .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email }).ToListAsync())
+            .ToDictionary(u => u.Id, u =>
+            {
+                var n = $"{u.FirstName} {u.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(n) ? (u.Email ?? u.Id) : n;
+            });
+
+        // QR encodes the manifest URL so the receiver can scan to open it.
+        var url = $"{Request.Scheme}://{Request.Host}/Inventory/Transfers/Manifest/{id}";
+        using var gen = new QRCodeGenerator();
+        using var qrData = gen.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        var png = new PngByteQRCode(qrData).GetGraphic(5);
+        ViewBag.QrDataUri = "data:image/png;base64," + Convert.ToBase64String(png);
+
+        ViewData["Title"] = $"Manifest {transfer.TransferNumber}";
         return View(transfer);
     }
 }

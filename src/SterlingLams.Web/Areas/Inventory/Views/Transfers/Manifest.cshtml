@@ -1,0 +1,124 @@
+@model SterlingLams.Web.Models.Domain.StockTransfer
+@{
+    Layout = null;
+    var imageBy = ViewBag.ImageByProduct as Dictionary<int, string> ?? new();
+    var names = ViewBag.Names as Dictionary<string, string> ?? new();
+    string qr = ViewBag.QrDataUri ?? "";
+    string Who(string? uid) => uid != null && names.TryGetValue(uid, out var n) ? n : "—";
+    string Fmt(DateTime? dt) => dt.HasValue ? dt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : "—";
+    int Qty(SterlingLams.Web.Models.Domain.StockTransferItem i) => i.ApprovedQty ?? i.RequestedQty;
+    var totalPieces = Model.Items.Sum(i => Qty(i));
+    var totalLines = Model.Items.Count;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manifest @Model.TransferNumber</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2937; margin: 0; padding: 32px; font-size: 13px; }
+    .sheet { max-width: 820px; margin: 0 auto; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 18px; }
+    .brand { font-size: 20px; letter-spacing: 3px; font-weight: 600; }
+    .brand small { display:block; letter-spacing: 2px; font-size: 10px; color:#6b7280; font-weight:400; margin-top:2px; }
+    .doc { text-align: right; display:flex; gap:14px; align-items:flex-start; }
+    .doc h1 { font-size: 15px; margin: 0 0 2px; text-transform: uppercase; letter-spacing: 1px; }
+    .doc .ref { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+    .doc img { width: 92px; height: 92px; }
+    .route { display:flex; align-items:center; gap:12px; font-size:15px; font-weight:600; margin: 4px 0 18px; }
+    .route .arrow { color:#9ca3af; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 20px; }
+    .meta .lbl { color: #6b7280; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; }
+    .meta .val { font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+    th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; background:#f9fafb; }
+    th.num, td.num { text-align: center; }
+    .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; background:#f3f4f6; }
+    .thumb-empty { width:44px; height:44px; border-radius:4px; background:#f3f4f6; }
+    .chk { width: 16px; height: 16px; border: 1.5px solid #9ca3af; border-radius: 3px; display:inline-block; }
+    tfoot td { font-weight: 700; border-top: 2px solid #111; border-bottom: none; font-size: 14px; }
+    .note { font-size: 12px; color: #374151; background:#f9fafb; padding:10px 12px; border-radius:4px; margin-bottom: 20px; }
+    .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 44px; }
+    .sig { border-top: 1px solid #9ca3af; padding-top: 6px; font-size: 11px; color: #6b7280; }
+    .sig strong { display:block; color:#111; font-size:13px; margin-bottom:1px; }
+    .foot { margin-top: 26px; text-align: center; font-size: 10px; color: #9ca3af; }
+    .printbtn { display:inline-block; margin-bottom:16px; padding:8px 16px; background:#111; color:#fff; border:none; border-radius:4px; font-size:12px; cursor:pointer; }
+    @@media print { body { padding: 0; } .noprint { display: none; } }
+</style>
+</head>
+<body>
+<div class="sheet">
+    <button class="printbtn noprint" onclick="window.print()">Print / Save as PDF</button>
+
+    <div class="head">
+        <div class="brand">STERLIN GLAMS<small>Stock Transfer Manifest</small></div>
+        <div class="doc">
+            <div>
+                <h1>Transfer Manifest</h1>
+                <div class="ref">@Model.TransferNumber</div>
+            </div>
+            @if (!string.IsNullOrEmpty(qr)) { <img src="@qr" alt="Scan" /> }
+        </div>
+    </div>
+
+    <div class="route">
+        <span>@Model.FromStore?.Name</span>
+        <span class="arrow">&rarr;</span>
+        <span>@Model.ToStore?.Name</span>
+    </div>
+
+    <div class="meta">
+        <div><div class="lbl">Created by</div><div class="val">@Who(Model.CreatedByUserId)</div><div class="lbl" style="margin-top:2px">@Fmt(Model.CreatedAt)</div></div>
+        <div><div class="lbl">Approved by</div><div class="val">@Who(Model.ApprovedByUserId)</div><div class="lbl" style="margin-top:2px">@Fmt(Model.ApprovedAt)</div></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th class="num">#</th>
+                <th>Photo</th>
+                <th>Product</th>
+                <th class="num">Qty</th>
+                <th class="num">Received ✓</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ int n = 1; }
+            @foreach (var i in Model.Items)
+            {
+                var img = imageBy.TryGetValue(i.ProductId, out var u) ? u : null;
+                <tr>
+                    <td class="num">@(n++)</td>
+                    <td>@if (!string.IsNullOrEmpty(img)) { <img class="thumb" src="@img" alt="" /> } else { <span class="thumb-empty"></span> }</td>
+                    <td>@i.ProductName @if (!string.IsNullOrEmpty(i.VariantName)) { <span style="color:#6b7280"> · @i.VariantName</span> }</td>
+                    <td class="num">@Qty(i)</td>
+                    <td class="num"><span class="chk"></span></td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3">Total — @totalLines item@(totalLines == 1 ? "" : "s")</td>
+                <td class="num">@totalPieces</td>
+                <td class="num"></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Note))
+    {
+        <div class="note"><strong>Note:</strong> @Model.Note</div>
+    }
+
+    <div class="sigs">
+        <div class="sig"><strong>Dispatched by</strong>Name / signature &amp; date</div>
+        <div class="sig"><strong>Received &amp; checked by</strong>Name / signature &amp; date</div>
+    </div>
+
+    <div class="foot">Generated from Sterlin Glams Inventory — verify every line against the physical goods on arrival. @Model.TransferNumber</div>
+</div>
+</body>
+</html>

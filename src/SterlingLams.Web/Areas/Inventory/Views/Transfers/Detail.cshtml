@@ -26,11 +26,18 @@
     <span class="text-neutral-200">/</span>
     <h1 class="text-lg font-medium text-neutral-800 font-mono">@Model.TransferNumber</h1>
     <span class="text-[10px] px-2 py-0.5 rounded-full @TransferStatusDisplay.BadgeClass(Model.Status)">@TransferStatusDisplay.Label(Model.Status)</span>
-    @if (Model.DispatchedAt.HasValue)
-    {
-        <a asp-action="Receipt" asp-route-id="@Model.Id" target="_blank"
-           class="ml-auto text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-sm px-3 py-1.5">🖨 Print receipt</a>
-    }
+    <span class="ml-auto flex items-center gap-2">
+        @if (Model.ApprovedAt.HasValue)
+        {
+            <a asp-action="Manifest" asp-route-id="@Model.Id" target="_blank"
+               class="text-xs text-emerald-700 hover:text-emerald-900 border border-emerald-200 rounded-sm px-3 py-1.5">📄 Transfer manifest</a>
+        }
+        @if (Model.DispatchedAt.HasValue)
+        {
+            <a asp-action="Receipt" asp-route-id="@Model.Id" target="_blank"
+               class="text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-sm px-3 py-1.5">🖨 Print receipt</a>
+        }
+    </span>
 </div>
 
 <div id="t-alert" class="hidden mb-4 text-sm rounded-sm px-4 py-2"></div>
@@ -231,7 +238,7 @@
         </div>
 
         <!-- Actions -->
-        @if (Model.Status == TransferStatus.PendingApproval)
+        @if (Model.Status == TransferStatus.PendingApproval && User.IsInRole("Admin"))
         {
             <div class="bg-white border border-neutral-100 rounded-sm p-4">
                 <h2 class="text-sm font-medium text-neutral-800 mb-1">Approve request</h2>
@@ -244,6 +251,12 @@
                         <button id="btn-reject" class="w-full bg-red-600 text-white text-sm rounded-sm py-2 hover:bg-red-700 transition-colors">Confirm Reject</button>
                     </div>
                 </div>
+            </div>
+        }
+        else if (Model.Status == TransferStatus.PendingApproval)
+        {
+            <div class="bg-amber-50 border border-amber-200 rounded-sm p-4 text-sm text-amber-800">
+                Awaiting administrator approval. Only an admin can approve or reject this transfer.
             </div>
         }
         else if (Model.Status == TransferStatus.Approved)
