@@ -12,6 +12,10 @@
         </p>
     </div>
     <div class="flex gap-2 flex-wrap">
+        <a asp-area="Admin" asp-controller="Inventory" asp-action="Reservations"
+           class="px-4 py-2 border border-neutral-300 text-neutral-700 text-xs rounded-sm hover:bg-neutral-50 transition-colors">
+            🔒 Stock holds
+        </a>
         <!-- Ensure all products have inventory rows -->
         <form asp-area="Admin" asp-controller="Inventory" asp-action="EnsureInventoryRecords" method="post">
             @Html.AntiForgeryToken()

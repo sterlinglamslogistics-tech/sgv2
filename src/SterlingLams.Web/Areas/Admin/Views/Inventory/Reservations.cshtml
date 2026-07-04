@@ -1,0 +1,86 @@
+@model List<SterlingLams.Web.Areas.Admin.ViewModels.ReservationRowViewModel>
+@{
+    ViewData["Title"] = "Stock Holds";
+    var totalUnits = Model.Sum(r => r.Quantity);
+    string Age(DateTime createdUtc)
+    {
+        var span = DateTime.UtcNow - createdUtc;
+        if (span.TotalMinutes < 1) return "just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} min ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} hr ago";
+        return $"{(int)span.TotalDays} day(s) ago";
+    }
+}
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+    <div>
+        <h1 class="text-xl font-semibold text-neutral-900">Stock Holds</h1>
+        <p class="text-sm text-neutral-500 mt-0.5">Units reserved by unpaid online orders. Holds are freed automatically when an order is paid (becomes a sale) or abandoned.</p>
+    </div>
+    <a asp-area="Admin" asp-controller="Inventory" asp-action="Index"
+       class="text-sm text-neutral-600 hover:text-neutral-900">← Back to Inventory</a>
+</div>
+
+<div class="flex gap-3 mb-5 text-sm">
+    <span class="px-3 py-1.5 bg-neutral-100 rounded-sm text-neutral-700"><strong>@Model.Count</strong> hold(s)</span>
+    <span class="px-3 py-1.5 bg-neutral-100 rounded-sm text-neutral-700"><strong>@totalUnits</strong> unit(s) held</span>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="bg-white border border-neutral-200 rounded-sm p-12 text-center text-sm text-neutral-400">
+        No active stock holds. Every unit is free to sell.
+    </div>
+}
+else
+{
+    <div class="bg-white border border-neutral-200 rounded-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs uppercase tracking-wide text-neutral-500 border-b border-neutral-200 bg-neutral-50">
+                    <th class="px-4 py-3">Product</th>
+                    <th class="px-4 py-3">Branch</th>
+                    <th class="px-4 py-3 text-center">Qty held</th>
+                    <th class="px-4 py-3">Order</th>
+                    <th class="px-4 py-3">Held for</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr class="border-b border-neutral-100 hover:bg-neutral-50">
+                        <td class="px-4 py-3">
+                            @if (!string.IsNullOrEmpty(r.ProductSlug))
+                            {
+                                <a asp-area="" asp-controller="Products" asp-action="Detail" asp-route-slug="@r.ProductSlug"
+                                   target="_blank" class="text-neutral-900 hover:text-brand-500">@r.ProductName</a>
+                            }
+                            else
+                            {
+                                <span class="text-neutral-900">@r.ProductName</span>
+                            }
+                            @if (!string.IsNullOrEmpty(r.VariantName))
+                            {
+                                <span class="text-neutral-400"> · @r.VariantName</span>
+                            }
+                        </td>
+                        <td class="px-4 py-3 text-neutral-600">@r.StoreName</td>
+                        <td class="px-4 py-3 text-center font-medium text-neutral-900">@r.Quantity</td>
+                        <td class="px-4 py-3">
+                            <a asp-area="Admin" asp-controller="Orders" asp-action="Detail" asp-route-id="@r.OrderId"
+                               class="text-neutral-700 hover:text-brand-500 font-mono text-xs">@r.OrderNumber</a>
+                            <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full @(r.IsPaid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")">
+                                @(r.IsPaid ? "Paid" : r.OrderStatus)
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-neutral-500">@Age(r.CreatedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="text-xs text-neutral-400 mt-3">
+        A hold on a <strong>paid</strong> order is unusual (it should have converted to a sale) — worth investigating if you see one.
+        Showing the most recent @Model.Count.
+    </p>
+}

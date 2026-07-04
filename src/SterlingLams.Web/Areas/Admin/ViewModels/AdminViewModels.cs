@@ -605,4 +605,20 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public double? Longitude { get; set; }
         public bool IsActive { get; set; } = true;
     }
+
+    /// <summary>One active stock hold (reservation) on an unpaid online order — for the read-only
+    /// admin "Stock holds" diagnostic view (why an item reads as out-of-stock).</summary>
+    public class ReservationRowViewModel
+    {
+        public int OrderId { get; set; }
+        public string OrderNumber { get; set; } = "";
+        public string OrderStatus { get; set; } = "";
+        public bool IsPaid { get; set; }
+        public string ProductName { get; set; } = "";
+        public string? ProductSlug { get; set; }
+        public string? VariantName { get; set; }
+        public string StoreName { get; set; } = "";
+        public int Quantity { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }

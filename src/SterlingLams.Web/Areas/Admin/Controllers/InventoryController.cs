@@ -110,6 +110,52 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             });
         }
 
+        // ── Stock holds (reservations) — read-only diagnostic (OP-27) ────────────
+        // Every unpaid online order holds its units (bumps StoreInventory.QuantityReserved) until it's
+        // paid (→ sale) or abandoned (→ freed by the sweeper). This surfaces those holds so "out of
+        // stock caused by a hold" can be diagnosed. Newest first.
+        public async Task<IActionResult> Reservations()
+        {
+            ViewData["Title"] = "Stock Holds";
+
+            var res = await _db.StockReservations
+                .Include(r => r.Order)
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(500)
+                .ToListAsync();
+
+            var productIds = res.Select(r => r.ProductId).Distinct().ToList();
+            var storeIds   = res.Select(r => r.StoreId).Distinct().ToList();
+            var variantIds = res.Where(r => r.ProductVariantId.HasValue)
+                                 .Select(r => r.ProductVariantId!.Value).Distinct().ToList();
+
+            var products = (await _db.Products.Where(p => productIds.Contains(p.Id))
+                .Select(p => new { p.Id, p.Name, p.Slug }).ToListAsync())
+                .ToDictionary(p => p.Id);
+            var stores = (await _db.Stores.Where(s => storeIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.Name }).ToListAsync())
+                .ToDictionary(s => s.Id, s => s.Name);
+            var variants = (await _db.ProductVariants.Where(v => variantIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.Name }).ToListAsync())
+                .ToDictionary(v => v.Id, v => v.Name);
+
+            var rows = res.Select(r => new SterlingLams.Web.Areas.Admin.ViewModels.ReservationRowViewModel
+            {
+                OrderId     = r.OrderId,
+                OrderNumber = r.Order?.OrderNumber ?? $"#{r.OrderId}",
+                OrderStatus = r.Order?.Status.ToString() ?? "",
+                IsPaid      = r.Order?.IsPaid ?? false,
+                ProductName = products.TryGetValue(r.ProductId, out var p) ? p.Name : $"Product #{r.ProductId}",
+                ProductSlug = products.TryGetValue(r.ProductId, out var p2) ? p2.Slug : null,
+                VariantName = r.ProductVariantId.HasValue && variants.TryGetValue(r.ProductVariantId.Value, out var vn) ? vn : null,
+                StoreName   = stores.TryGetValue(r.StoreId, out var sn) ? sn : $"Store #{r.StoreId}",
+                Quantity    = r.Quantity,
+                CreatedAt   = r.CreatedAt,
+            }).ToList();
+
+            return View(rows);
+        }
+
         // ── Set stock for a product across all stores (saves absolute quantities) ─
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SetProductStock(int productId, IFormCollection form)
