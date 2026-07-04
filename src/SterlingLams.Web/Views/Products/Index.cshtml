@@ -20,6 +20,26 @@
     ViewData["Canonical"] = string.IsNullOrWhiteSpace(Model.Filters.Category)
         ? canonBase
         : $"{canonBase}?category={Model.Filters.Category}";
+
+    // BreadcrumbList structured data (OP-39): Home > Collections, or Home > <Category> on a filtered view.
+    var sdBase = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var hasCategory = !string.IsNullOrWhiteSpace(Model.Filters.Category);
+    var crumbLeafName = hasCategory ? (Model.PageTitle ?? "Collections") : "Collections";
+    var crumbLeafUrl = hasCategory ? $"{sdBase}/products?category={Model.Filters.Category}" : $"{sdBase}/products";
+    var breadcrumbLd = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "BreadcrumbList",
+        ["itemListElement"] = new object[]
+        {
+            new Dictionary<string, object?> { ["@type"] = "ListItem", ["position"] = 1, ["name"] = "Home", ["item"] = sdBase },
+            new Dictionary<string, object?> { ["@type"] = "ListItem", ["position"] = 2, ["name"] = crumbLeafName, ["item"] = crumbLeafUrl },
+        },
+    });
+}
+
+@section Head {
+    <script type="application/ld+json" nonce="@Context.Items["csp-nonce"]">@Html.Raw(breadcrumbLd)</script>
 }
 
 <div class="max-w-7xl mx-auto px-6 py-12">
