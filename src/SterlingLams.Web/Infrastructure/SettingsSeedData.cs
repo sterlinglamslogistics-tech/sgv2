@@ -92,6 +92,14 @@ public static class SettingsSeedData
         new() { Key = "notifications.abandoned_cart_discount_step", Group = "Notifications", Label = "Discount From Email #", Type = "number", Value = "3", Description = "Which recovery email first carries the discount (e.g. 3 = only the final email).", SortOrder = 10 },
         new() { Key = "notifications.abandoned_cart_discount_expiry_days", Group = "Notifications", Label = "Recovery Coupon Expiry (days)", Type = "number", Value = "7", Description = "How long each recovery coupon stays valid.", SortOrder = 11 },
 
+        // ── Welcome popup (exit-intent list growth) ───────────────────────────
+        new() { Key = "popup.enabled",      Group = "Marketing", Label = "Welcome Popup",            Type = "boolean",  Value = "false", Description = "Show an exit-intent popup offering a first-order discount for a newsletter signup.", SortOrder = 1 },
+        new() { Key = "popup.discount_pct", Group = "Marketing", Label = "Popup Discount (%)",       Type = "number",   Value = "10",    Description = "First-order discount given to new subscribers via the popup. 0 = just collect the email, no coupon.", SortOrder = 2 },
+        new() { Key = "popup.headline",     Group = "Marketing", Label = "Popup Headline",           Type = "text",     Value = "Get 10% off your first order", Description = "Main line on the popup.", SortOrder = 3 },
+        new() { Key = "popup.subtext",      Group = "Marketing", Label = "Popup Subtext",            Type = "textarea", Value = "Join our list for early access to new pieces and exclusive offers.", Description = "Line under the headline.", SortOrder = 4 },
+        new() { Key = "popup.min_order",    Group = "Marketing", Label = "Popup Coupon Min Order (₦)", Type = "number", Value = "0",     Description = "Minimum order value for the popup coupon. 0 = no minimum.", SortOrder = 5 },
+        new() { Key = "popup.expiry_days",  Group = "Marketing", Label = "Popup Coupon Expiry (days)", Type = "number", Value = "14",    Description = "How long the welcome coupon stays valid.", SortOrder = 6 },
+
         // ── Inventory ─────────────────────────────────────────────────────────
         new() { Key = "inventory.show_low_stock_nudge", Group = "Inventory", Label = "Show \"Low stock\" Nudge", Type = "boolean", Value = "true", Description = "Show a 'Low stock — order soon' nudge on product pages when an item is at/below the threshold.", SortOrder = 2 },
         new() { Key = "storefront.hide_out_of_stock", Group = "Inventory", Label = "Hide out-of-stock items on storefront", Type = "boolean", Value = "false", Description = "When on, products with no stock anywhere are hidden from the shop and category pages (a direct link returns Not Found). For variant products, only the in-stock options (size/colour) are shown and sold-out ones are hidden; the product is hidden only when every option is out.", SortOrder = 3 },

@@ -10,13 +10,19 @@ public class HomeController : Controller
     private readonly ILogger<HomeController> _logger;
     private readonly ApplicationDbContext _db;
     private readonly SterlingLams.Web.Services.IMerchandisingService _merch;
+    private readonly SterlingLams.Web.Services.ISettingsService _settings;
+    private readonly SterlingLams.Web.Services.Marketing.IMarketingService _marketing;
 
     public HomeController(ILogger<HomeController> logger, ApplicationDbContext db,
-        SterlingLams.Web.Services.IMerchandisingService merch)
+        SterlingLams.Web.Services.IMerchandisingService merch,
+        SterlingLams.Web.Services.ISettingsService settings,
+        SterlingLams.Web.Services.Marketing.IMarketingService marketing)
     {
         _logger = logger;
         _db = db;
         _merch = merch;
+        _settings = settings;
+        _marketing = marketing;
     }
 
     [Microsoft.AspNetCore.OutputCaching.OutputCache(PolicyName = "Storefront")]
@@ -101,6 +107,40 @@ public class HomeController : Controller
             await _db.SaveChangesAsync();
         }
         return Json(new { success = true, message = "Thank you for subscribing!" });
+    }
+
+    /// <summary>Newsletter signup from the welcome/exit-intent popup, which also hands out a first-order
+    /// discount. A unique single-use coupon is minted only for a genuinely new subscriber (so it can't be
+    /// farmed by re-submitting), and only while the offer is switched on.</summary>
+    [HttpPost]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
+    public async Task<IActionResult> WelcomeOffer(string email)
+    {
+        email = (email ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@') || email.Length is < 5 or > 200)
+            return Json(new { success = false, message = "Please enter a valid email address." });
+
+        var enabled = await _settings.GetBoolAsync("popup.enabled", false);
+        var pct = await _settings.GetIntAsync("popup.discount_pct", 10);
+        var minOrder = await _settings.GetDecimalAsync("popup.min_order", 0m);
+        var expiry = await _settings.GetIntAsync("popup.expiry_days", 14);
+
+        var isNew = !await _db.NewsletterSubscribers.AnyAsync(s => s.Email == email);
+        if (isNew)
+        {
+            _db.NewsletterSubscribers.Add(new Models.Domain.NewsletterSubscriber { Email = email, CreatedAt = DateTime.UtcNow });
+            await _db.SaveChangesAsync();
+        }
+
+        string? code = null;
+        if (enabled && pct > 0 && isNew)
+            code = await _marketing.MintCouponAsync(SterlingLams.Web.Models.Domain.DiscountType.Percentage,
+                pct, expiry, minOrder > 0m ? minOrder : null, $"Newsletter welcome ({pct}% off)");
+
+        var message = code != null
+            ? $"You're in! Use the code below for {pct}% off your first order."
+            : (isNew ? "You're on the list — thank you for subscribing!" : "You're already on our list.");
+        return Json(new { success = true, message, code, pct });
     }
 
     public IActionResult Collections()

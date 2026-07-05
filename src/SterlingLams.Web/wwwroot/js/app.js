@@ -571,3 +571,68 @@ function bindProductCards(root) {
     const top = document.getElementById('back-to-top');
     if (top) top.addEventListener('click', (e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
 }());
+
+// ─── Welcome / exit-intent popup (first-order discount → newsletter signup) ────
+(function () {
+    const pop = document.getElementById('welcome-popup');
+    if (!pop) return;                                   // only present when the offer is enabled
+    const KEY = 'sg-welcome-v1';
+    if (localStorage.getItem(KEY)) return;              // shown / dismissed / subscribed already
+    if (/^\/(checkout|cart)/i.test(location.pathname)) return; // never interrupt a purchase
+
+    let shown = false;
+    function show() {
+        if (shown) return;
+        shown = true;
+        localStorage.setItem(KEY, 'shown');             // at most once per browser
+        pop.classList.remove('hidden');
+        const inp = pop.querySelector('[data-welcome-email]');
+        if (inp) setTimeout(() => inp.focus(), 50);
+    }
+    function hide() { pop.classList.add('hidden'); }
+
+    // Desktop exit-intent: cursor leaves the viewport past the top edge.
+    document.addEventListener('mouseout', (e) => { if (!e.relatedTarget && e.clientY <= 0) show(); });
+    // Touch / no-exit-intent fallback: after 30s on the site.
+    setTimeout(show, 30000);
+
+    pop.querySelectorAll('[data-welcome-close]').forEach(b => b.addEventListener('click', hide));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.classList.contains('hidden')) hide(); });
+
+    const form = pop.querySelector('[data-welcome-submit]');
+    const msg = pop.querySelector('[data-welcome-msg]');
+    if (form) form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = (pop.querySelector('[data-welcome-email]').value || '').trim();
+        const btn = form.querySelector('button[type=submit]');
+        btn.disabled = true; if (msg) msg.textContent = '';
+        try {
+            const res = await fetch('/Home/WelcomeOffer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'email=' + encodeURIComponent(email)
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem(KEY, 'subscribed');
+                if (data.code) {
+                    pop.querySelector('[data-welcome-form]').classList.add('hidden');
+                    pop.querySelector('[data-welcome-success-msg]').textContent = data.message;
+                    pop.querySelector('[data-welcome-code]').textContent = data.code;
+                    pop.querySelector('[data-welcome-success]').classList.remove('hidden');
+                } else if (msg) {
+                    msg.textContent = data.message;
+                    msg.className = 'text-xs text-center mt-3 text-emerald-600';
+                    setTimeout(hide, 1800);
+                }
+            } else if (msg) {
+                msg.textContent = data.message;
+                msg.className = 'text-xs text-center mt-3 text-red-500';
+                btn.disabled = false;
+            }
+        } catch {
+            if (msg) { msg.textContent = 'Something went wrong. Please try again.'; msg.className = 'text-xs text-center mt-3 text-red-500'; }
+            btn.disabled = false;
+        }
+    });
+}());

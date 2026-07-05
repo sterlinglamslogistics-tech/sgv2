@@ -1,0 +1,48 @@
+@inject SterlingLams.Web.Services.ISettingsService Settings
+@{
+    var popupEnabled = await Settings.GetBoolAsync("popup.enabled", false);
+    var popupPct = await Settings.GetIntAsync("popup.discount_pct", 10);
+    var popupHeadline = await Settings.GetAsync("popup.headline", $"Get {popupPct}% off your first order");
+    var popupSubtext = await Settings.GetAsync("popup.subtext", "Join our list for early access to new pieces and exclusive offers.");
+}
+@* Exit-intent / welcome popup. Hidden by default; app.js decides when to show (once per browser),
+   posts to /Home/WelcomeOffer, and swaps in the success view with the minted coupon. No inline JS
+   (storefront CSP is nonce-strict). Renders nothing unless the offer is switched on in Settings. *@
+@if (popupEnabled)
+{
+    <div id="welcome-popup" data-pct="@popupPct" class="hidden fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" data-welcome-close></div>
+        <div class="relative bg-white max-w-md w-full p-8 shadow-2xl">
+            <button type="button" data-welcome-close aria-label="Close"
+                    class="absolute top-3 right-3 text-neutral-400 hover:text-neutral-800 text-2xl leading-none">&times;</button>
+
+            <div data-welcome-form>
+                <p class="text-xs tracking-[0.3em] uppercase text-brand-500 mb-3 text-center">Sterlin Glams</p>
+                <h2 class="font-cormorant text-3xl font-light text-neutral-900 text-center mb-2 leading-tight">@popupHeadline</h2>
+                <p class="text-sm text-neutral-500 text-center mb-6">@popupSubtext</p>
+                <form data-welcome-submit class="space-y-3">
+                    <input type="email" required placeholder="Your email address" data-welcome-email
+                           class="w-full border border-neutral-300 px-4 py-3 text-sm focus:outline-none focus:border-neutral-900" />
+                    <button type="submit"
+                            class="w-full bg-brand-500 text-white text-xs tracking-[0.2em] uppercase py-3 hover:bg-brand-600 transition-colors">
+                        Get my discount
+                    </button>
+                </form>
+                <p data-welcome-msg class="text-xs text-center mt-3 min-h-[1rem]"></p>
+                <button type="button" data-welcome-close class="block mx-auto mt-2 text-[11px] text-neutral-400 hover:text-neutral-600">No thanks</button>
+            </div>
+
+            <div data-welcome-success class="hidden text-center">
+                <div class="text-3xl mb-2">🎉</div>
+                <h2 class="font-cormorant text-2xl font-light text-neutral-900 mb-2">You're in!</h2>
+                <p class="text-sm text-neutral-500 mb-4" data-welcome-success-msg></p>
+                <div class="border-2 border-dashed border-brand-300 bg-brand-50 py-3 px-4 mb-4">
+                    <div class="text-[10px] uppercase tracking-widest text-neutral-400 mb-1">Your code</div>
+                    <div class="text-xl font-mono font-semibold text-brand-600" data-welcome-code></div>
+                </div>
+                <button type="button" data-welcome-close
+                        class="text-xs tracking-[0.2em] uppercase text-neutral-700 hover:text-neutral-900">Continue shopping</button>
+            </div>
+        </div>
+    </div>
+}
