@@ -2,8 +2,10 @@
 (function () {
     const loader = document.getElementById('page-loader');
     if (!loader) return;
-    const hide = () => loader.classList.add('is-hidden');
-    const show = () => loader.classList.remove('is-hidden');
+    // Toggle via inline styles (not a CSS class) so hiding never depends on a class the CSS build
+    // might tree-shake out — a purged class once left the overlay covering (blocking) the page.
+    const hide = () => { loader.style.opacity = '0'; loader.style.visibility = 'hidden'; loader.style.pointerEvents = 'none'; };
+    const show = () => { loader.style.opacity = '1'; loader.style.visibility = 'visible'; loader.style.pointerEvents = 'auto'; };
 
     hide();                                        // DOM is ready by the time app.js runs
     window.addEventListener('pageshow', hide);     // restored from bfcache → don't stay covered

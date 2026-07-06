@@ -36,20 +36,16 @@
     justify-content: center;
     background: #fafaf9;
     transition: opacity .45s ease, visibility .45s ease;
-    animation: plSafety .01s linear 5s forwards;
+    /* CSS-only backstop: even if app.js never runs, the overlay clears itself and can't trap the page. */
+    animation: plSafety .01s linear 2.5s forwards;
   }
-  #page-loader.is-hidden {
-    opacity: 0;
-    visibility: hidden;
-    animation: none;
-  }
-  @keyframes plSafety { to { opacity: 0; visibility: hidden; } }
+  @keyframes plSafety { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
   .pl-diamond { perspective: 320px; }
   .pl-diamond svg {
     transform-origin: center;
     animation: plTurn 1.5s cubic-bezier(.65, 0, .35, 1) infinite;
-    filter: drop-shadow(0 2px 6px rgba(201, 146, 16, .25));
+    filter: drop-shadow(0 2px 6px rgba(237, 2, 139, .25));
   }
   @keyframes plTurn {
     0%   { transform: rotateY(0deg); }
