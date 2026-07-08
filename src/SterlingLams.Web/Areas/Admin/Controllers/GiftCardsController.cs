@@ -10,6 +10,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers;
 /// <summary>Issue and manage gift cards. Financial — full administrators only (Section = null).</summary>
 public class GiftCardsController : AdminBaseController
 {
+    protected override string? Section => "GiftCards";
+
     private readonly ApplicationDbContext _db;
     private readonly IGiftCardService _giftCards;
 

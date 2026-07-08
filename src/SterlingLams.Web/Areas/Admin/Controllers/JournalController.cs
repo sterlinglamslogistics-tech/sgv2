@@ -10,6 +10,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers;
 /// <summary>Manage Journal (blog / lookbook) posts. Content tool — full administrators only.</summary>
 public class JournalController : AdminBaseController
 {
+    protected override string? Section => "Journal";
+
     private readonly ApplicationDbContext _db;
     public JournalController(ApplicationDbContext db) => _db = db;
 

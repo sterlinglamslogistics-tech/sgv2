@@ -7,6 +7,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers;
 /// <summary>Moderate product reviews — approve, hide, reply, delete. Full administrators only.</summary>
 public class ReviewsController : AdminBaseController
 {
+    protected override string? Section => "Reviews";
+
     private readonly ApplicationDbContext _db;
     public ReviewsController(ApplicationDbContext db) => _db = db;
 
