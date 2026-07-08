@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sterling Glams — Platform Overview</title>
+<style>
+  :root{
+    --pink:#ed028b; --ink:#1c1917; --muted:#6b6560; --paper:#faf8f6; --line:#e7e2dd;
+    --dark:#141018; --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);color:var(--ink);background:#0c0a09;-webkit-font-smoothing:antialiased;overflow:hidden}
+
+  /* ── Slide framework ─────────────────────────────────────────── */
+  .deck{position:relative;height:100vh;width:100vw;overflow:hidden}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:6vh 8vw;background:var(--paper);animation:fade .4s ease}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .kicker{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--pink);font-weight:600;margin-bottom:1.1rem}
+  h1{font-family:var(--serif);font-weight:600;line-height:1.02;letter-spacing:-.01em}
+  h2{font-family:var(--serif);font-weight:600;font-size:clamp(2rem,4.6vw,3.4rem);line-height:1.05;margin-bottom:.4rem}
+  h3{font-family:var(--serif);font-weight:600;font-size:1.5rem;margin-bottom:.35rem}
+  p.lead{font-size:clamp(1rem,1.5vw,1.25rem);color:var(--muted);max-width:60ch;line-height:1.55}
+
+  ul.pts{list-style:none;margin-top:1.4rem;display:grid;gap:.85rem;max-width:66ch}
+  ul.pts li{position:relative;padding-left:1.7rem;font-size:clamp(.98rem,1.35vw,1.15rem);line-height:1.5;color:#2a2621}
+  ul.pts li::before{content:"";position:absolute;left:0;top:.55em;width:.55rem;height:.55rem;background:var(--pink);border-radius:2px}
+  ul.pts li b{color:var(--ink)}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:2.2rem}
+  .muted{color:var(--muted)}
+
+  /* cards / grids */
+  .grid{display:grid;gap:1rem;margin-top:1.6rem}
+  .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:1.15rem 1.25rem}
+  .card h4{font-size:.95rem;font-weight:700;margin-bottom:.3rem;display:flex;align-items:center;gap:.5rem}
+  .card p{font-size:.85rem;color:var(--muted);line-height:1.45}
+  .card .ic{color:var(--pink);font-size:1.05rem}
+
+  /* flow steps */
+  .flow{display:flex;align-items:stretch;gap:.5rem;margin-top:1.8rem;flex-wrap:wrap}
+  .step{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;position:relative}
+  .step .n{font-family:var(--serif);font-size:1.5rem;color:var(--pink);line-height:1}
+  .step h4{font-size:.9rem;margin:.35rem 0 .2rem} .step p{font-size:.76rem;color:var(--muted);line-height:1.4}
+  .flow .arrow{display:flex;align-items:center;color:#cbb;font-size:1.3rem}
+
+  /* stat row */
+  .stats{display:flex;gap:2.5rem;margin-top:2rem;flex-wrap:wrap}
+  .stat .num{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.6rem);color:var(--pink);line-height:1}
+  .stat .lbl{font-size:.82rem;color:var(--muted);margin-top:.2rem;max-width:22ch}
+
+  /* diagram */
+  .diagram{margin-top:1.4rem}
+  .layer{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;margin:.55rem 0}
+  .node{background:#fff;border:1px solid var(--line);border-radius:10px;padding:.7rem 1rem;text-align:center;font-size:.82rem;font-weight:600;min-width:120px}
+  .node small{display:block;font-weight:400;color:var(--muted);font-size:.7rem;margin-top:.15rem}
+  .node.pink{background:var(--pink);color:#fff;border-color:var(--pink)} .node.pink small{color:#ffd6ee}
+  .node.dark{background:var(--dark);color:#fff;border-color:var(--dark)} .node.dark small{color:#b9b1c9}
+  .rail{text-align:center;color:#c9c1bb;font-size:1.1rem;line-height:.6}
+
+  /* dark / title slides */
+  .slide.dark{background:var(--dark);color:#fff}
+  .slide.dark .kicker{color:#ff7ac6}
+  .slide.dark h1{font-size:clamp(2.6rem,7vw,5.4rem)}
+  .slide.dark p.lead{color:#cdc6d6}
+  .slide.dark .brandmark{font-family:var(--serif);letter-spacing:.28em;text-transform:uppercase}
+  .cover-grad{background:radial-gradient(1200px 600px at 20% 10%,rgba(237,2,139,.28),transparent 60%),var(--dark)}
+  .pill{display:inline-block;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:.35rem .9rem;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#e9e3f0;margin-right:.5rem;margin-top:.5rem}
+
+  .sec{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;margin-top:1.4rem}
+  .sec .card h4{color:var(--ink)}
+
+  /* chrome */
+  .chrome{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;
+    padding:.6rem 1.4rem;font-size:.72rem;color:#9a938d;pointer-events:none;z-index:20}
+  .slide.dark ~ .chrome{color:#8a8494}
+  .wm{font-family:var(--serif);letter-spacing:.24em;text-transform:uppercase;font-size:.7rem}
+  .progress{position:fixed;top:0;left:0;height:3px;background:var(--pink);z-index:30;transition:width .3s}
+  .nav{position:fixed;bottom:.5rem;right:1rem;display:flex;gap:.4rem;z-index:40}
+  .nav button{pointer-events:auto;border:1px solid var(--line);background:#fff;color:var(--ink);width:34px;height:34px;
+    border-radius:8px;font-size:1rem;cursor:pointer;opacity:.85}
+  .nav button:hover{opacity:1;border-color:var(--pink);color:var(--pink)}
+
+  @media print{
+    body,.deck{height:auto;overflow:visible}
+    .slide{display:flex!important;position:relative;height:100vh;page-break-after:always;box-shadow:none}
+    .chrome,.nav,.progress{display:none}
+  }
+  @media (max-width:820px){ .two-col,.g3,.g4,.g2,.sec{grid-template-columns:1fr} .flow{flex-direction:column} }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 · COVER -->
+  <section class="slide dark cover-grad active">
+    <div class="kicker">Unified Commerce Platform</div>
+    <h1>Sterling&nbsp;Glams</h1>
+    <p class="lead" style="margin-top:1.2rem">One system for the whole business — online store, in-store point of sale, multi-branch inventory, and marketing — built on a single source of truth.</p>
+    <div>
+      <span class="pill">Storefront</span><span class="pill">Orders</span><span class="pill">Inventory</span>
+      <span class="pill">POS</span><span class="pill">Marketing</span><span class="pill">Security</span>
+    </div>
+    <p style="margin-top:2.4rem;color:#9089a0;font-size:.8rem">Company presentation · Prepared by the engineering team</p>
+  </section>
+
+  <!-- 2 · WHAT WE BUILT -->
+  <section class="slide">
+    <div class="kicker">The big idea</div>
+    <h2>One platform. One database. No silos.</h2>
+    <p class="lead">Every channel reads and writes the same live data, so stock, sales, customers and prices are always in sync — in the shop and online, at the same time.</p>
+    <ul class="pts">
+      <li><b>Customer storefront</b> — browse, search, buy, track orders, wishlist, loyalty.</li>
+      <li><b>Point of Sale</b> — a fast in-store till for all three boutiques (Abuja, Allen, Ikota).</li>
+      <li><b>Inventory system</b> — real stock across branches, transfers, stock-takes, ledgers.</li>
+      <li><b>Marketing hub</b> — campaigns, automations, abandoned-cart recovery, referrals.</li>
+      <li><b>Admin backend</b> — products, orders, customers, reports, settings, staff & roles.</li>
+    </ul>
+    <p class="muted" style="margin-top:1.4rem;font-size:.9rem">Replaced the previous third‑party ERP — the website database is now the single source of truth, owned by us, with no per‑seat licence fees.</p>
+  </section>
+
+  <!-- 3 · TECH & HOSTING -->
+  <section class="slide">
+    <div class="kicker">Foundations</div>
+    <h2>Modern, proven technology</h2>
+    <div class="grid g3">
+      <div class="card"><h4><span class="ic">◆</span> Application</h4><p>ASP.NET Core 9 (C#) — a fast, secure, enterprise framework used by banks and Fortune 500s.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Database</h4><p>PostgreSQL — the reliable, battle‑tested open‑source database. Our single source of truth.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Storefront UI</h4><p>Server‑rendered + Tailwind CSS. Fast, elegant, mobile‑first, SEO‑friendly.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Payments</h4><p>Paystack, Stripe & Flutterwave — switchable, keys entered securely in the admin.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Images</h4><p>Cloudinary CDN — auto‑optimised, modern formats. ~95% lighter than the originals.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Hosting</h4><p>Cloud‑hosted with automatic deploys on every update. CDN‑ready for global speed.</p></div>
+    </div>
+  </section>
+
+  <!-- 4 · ARCHITECTURE DIAGRAM -->
+  <section class="slide">
+    <div class="kicker">How it fits together</div>
+    <h2>Architecture at a glance</h2>
+    <div class="diagram">
+      <div class="layer">
+        <div class="node dark">Customers<small>web & mobile</small></div>
+        <div class="node dark">Store staff<small>cashiers · managers</small></div>
+        <div class="node dark">Owner / Admin</div>
+      </div>
+      <div class="rail">▼&nbsp;&nbsp;&nbsp;&nbsp;▼&nbsp;&nbsp;&nbsp;&nbsp;▼</div>
+      <div class="layer">
+        <div class="node">Storefront</div>
+        <div class="node">POS / Till</div>
+        <div class="node">Inventory</div>
+        <div class="node">Marketing</div>
+        <div class="node">Admin</div>
+      </div>
+      <div class="rail">▼&nbsp;&nbsp;&nbsp;&nbsp;▼&nbsp;&nbsp;&nbsp;&nbsp;▼</div>
+      <div class="layer"><div class="node pink" style="min-width:60%">PostgreSQL — single live source of truth<small>products · stock · orders · customers · loyalty · settings</small></div></div>
+      <div class="rail">▼</div>
+      <div class="layer">
+        <div class="node">Payments<small>Paystack / Stripe / Flutterwave</small></div>
+        <div class="node">Images<small>Cloudinary CDN</small></div>
+        <div class="node">Email / SMTP</div>
+        <div class="node">Logistics<small>delivery dispatch</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · STOREFRONT -->
+  <section class="slide">
+    <div class="kicker">The customer experience</div>
+    <h2>A storefront that sells</h2>
+    <div class="two-col">
+      <ul class="pts">
+        <li><b>Elegant catalogue</b> with grouped categories, search, filters and product variants (size, colour, stone).</li>
+        <li><b>Rich product pages</b> — image zoom, related pieces, reviews, stock awareness, SEO‑optimised.</li>
+        <li><b>Frictionless cart & checkout</b> — delivery or in‑store pickup, discount codes, gift cards, loyalty.</li>
+        <li><b>Mobile‑first</b> and <b>fast</b> — images auto‑optimised to a fraction of their size.</li>
+      </ul>
+      <div class="grid g2" style="margin-top:0;align-self:center">
+        <div class="card"><div class="stat"><div class="num">95%</div><div class="lbl">smaller product images (WebP, auto‑sized)</div></div></div>
+        <div class="card"><div class="stat"><div class="num">100+</div><div class="lbl">concurrent shoppers handled with zero errors (load‑tested)</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · ONLINE ORDER FLOW -->
+  <section class="slide">
+    <div class="kicker">Online order flow</div>
+    <h2>From browse to delivered</h2>
+    <div class="flow">
+      <div class="step"><div class="n">1</div><h4>Browse & add</h4><p>Customer builds a cart; stock is checked live.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">2</div><h4>Checkout</h4><p>Address, delivery or pickup, discounts, loyalty.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">3</div><h4>Pay</h4><p>Secure hosted payment (Paystack / Stripe / Flutterwave).</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">4</div><h4>Confirm</h4><p>Provider webhook verified & the order marked paid.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">5</div><h4>Fulfil</h4><p>Stock deducted, loyalty earned, dispatch to logistics.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">6</div><h4>Notify</h4><p>Confirmation email; status tracked to Delivered.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.6rem;font-size:.9rem">Every money step is <b>idempotent and self‑healing</b>: if a customer closes the tab mid‑payment, the verified webhook still completes the order — and a background service retries anything that got stuck.</p>
+  </section>
+
+  <!-- 7 · PAYMENTS -->
+  <section class="slide">
+    <div class="kicker">Payments</div>
+    <h2>Taking money, safely</h2>
+    <ul class="pts">
+      <li><b>We never store card details.</b> Customers pay on the provider’s secure hosted page.</li>
+      <li><b>Webhooks are cryptographically verified</b> (HMAC signature) — a fake “paid” message is rejected.</li>
+      <li><b>Amounts are re‑checked</b> — an order is only fulfilled if the money actually covers the total.</li>
+      <li><b>Provider is switchable</b> and keys are entered in the admin, <b>encrypted at rest</b>, visible to the owner only.</li>
+      <li><b>Refunds</b> are handled in‑system with a full audit trail and stock return.</li>
+    </ul>
+  </section>
+
+  <!-- 8 · INVENTORY -->
+  <section class="slide">
+    <div class="kicker">Inventory system</div>
+    <h2>Real stock, every branch</h2>
+    <div class="two-col">
+      <ul class="pts">
+        <li><b>Per‑variant, per‑store balances</b> — know exactly what’s where.</li>
+        <li><b>Movement ledger</b> — every change (sale, return, transfer, adjustment) is recorded and typed.</li>
+        <li><b>Branch transfers</b> with approve → dispatch → receive workflow.</li>
+        <li><b>Stock‑takes</b> with barcode scanning and variance reporting.</li>
+        <li><b>Low‑stock alerts</b> and reports for reordering decisions.</li>
+      </ul>
+      <ul class="pts">
+        <li><b>Store‑level access control</b> — staff only touch the branches they’re assigned to.</li>
+        <li><b>Barcode‑native</b> — scan to find, count, or sell.</li>
+        <li><b>Reserved vs available</b> — online holds never oversell the shop floor.</li>
+        <li><b>Full audit</b> — who changed what, when, and why.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 9 · UNIFIED STOCK -->
+  <section class="slide dark">
+    <div class="kicker">The differentiator</div>
+    <h2>One stock pool — online <span style="color:var(--pink)">and</span> in‑store</h2>
+    <p class="lead" style="margin-top:.8rem">The website and every till draw from the <b style="color:#fff">same live ledger</b>. Sell the last bracelet at the Allen counter and it disappears from the website instantly — and vice‑versa.</p>
+    <div class="grid g3" style="margin-top:2rem">
+      <div class="card" style="background:#221b29;border-color:#3a3145"><h4 style="color:#fff"><span class="ic">✓</span> No overselling</h4><p style="color:#c9c1d4">Checkout locks the stock row and re‑checks under load — two sales can’t both take the last piece.</p></div>
+      <div class="card" style="background:#221b29;border-color:#3a3145"><h4 style="color:#fff"><span class="ic">✓</span> Always accurate</h4><p style="color:#c9c1d4">No nightly sync, no spreadsheets — the number you see is the truth.</p></div>
+      <div class="card" style="background:#221b29;border-color:#3a3145"><h4 style="color:#fff"><span class="ic">✓</span> One customer view</h4><p style="color:#c9c1d4">Loyalty, history and profiles are shared across web and till.</p></div>
+    </div>
+  </section>
+
+  <!-- 10 · POS -->
+  <section class="slide">
+    <div class="kicker">Point of Sale · in‑store</div>
+    <h2>A till built for the shop floor</h2>
+    <div class="grid g4">
+      <div class="card"><h4>Cash &amp; sessions</h4><p>Open/close float, cash in/out, X &amp; Z reports.</p></div>
+      <div class="card"><h4>Fast selling</h4><p>Barcode scan, variants, custom items, split payments.</p></div>
+      <div class="card"><h4>Receipts</h4><p>Print or email; branded header/footer.</p></div>
+      <div class="card"><h4>Park &amp; recall</h4><p>Hold a sale, serve the next customer, resume later.</p></div>
+      <div class="card"><h4>Works offline</h4><p>Keeps selling with no internet; syncs automatically when back.</p></div>
+      <div class="card"><h4>Per‑cashier PIN</h4><p>Each cashier signs in with a PIN; actions are attributed.</p></div>
+      <div class="card"><h4>Refunds</h4><p>Partial or full, stock returned, points reversed.</p></div>
+      <div class="card"><h4>Pickup</h4><p>Verify &amp; hand over online “buy‑&amp;‑collect” orders.</p></div>
+    </div>
+  </section>
+
+  <!-- 11 · POS TRUST -->
+  <section class="slide">
+    <div class="kicker">Point of Sale · control</div>
+    <h2>Trust &amp; loss‑prevention built in</h2>
+    <ul class="pts">
+      <li><b>Manager approval</b> — require a manager’s PIN before a refund or a large discount (configurable, server‑enforced).</li>
+      <li><b>Loyalty at the till</b> — customers earn <i>and</i> redeem points in‑store, not just online.</li>
+      <li><b>Per‑branch staff</b> — cashiers are tied to their store; approvals and reports respect it.</li>
+      <li><b>Full audit trail</b> — every sale, refund, discount and approval is logged with who did it.</li>
+      <li><b>Accurate money</b> — refunds return exactly what was paid (discounts &amp; points accounted for).</li>
+    </ul>
+  </section>
+
+  <!-- 12 · MARKETING -->
+  <section class="slide">
+    <div class="kicker">Marketing hub</div>
+    <h2>Growth, on autopilot</h2>
+    <div class="grid g3">
+      <div class="card"><h4><span class="ic">◆</span> Campaigns &amp; segments</h4><p>Target audiences (new, VIP, lapsed) with branded email campaigns.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Automations</h4><p>Welcome, post‑purchase and win‑back sequences that run themselves.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Abandoned‑cart recovery</h4><p>Multi‑step reminders with escalating, unique coupons.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Referral program</h4><p>Customers invite friends and earn rewards.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Revenue attribution</h4><p>See which emails actually drove sales.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Product recommendations</h4><p>Best‑sellers &amp; new arrivals auto‑inserted into emails.</p></div>
+    </div>
+  </section>
+
+  <!-- 13 · LOYALTY -->
+  <section class="slide">
+    <div class="kicker">Loyalty</div>
+    <h2>Rewards that follow the customer</h2>
+    <div class="flow">
+      <div class="step"><div class="n">＋</div><h4>Earn everywhere</h4><p>Points on every purchase — online and in‑store.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">₦</div><h4>Redeem anywhere</h4><p>Spend points as a discount at checkout or the till.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">↺</div><h4>Fair &amp; automatic</h4><p>Points are returned automatically on refunds.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.6rem;font-size:.9rem">One balance per customer, shared across every channel — configurable earn rate and point value in settings.</p>
+  </section>
+
+  <!-- 14 · SECURITY OVERVIEW -->
+  <section class="slide dark">
+    <div class="kicker">Security</div>
+    <h2>Security is designed in, not bolted on</h2>
+    <p class="lead" style="margin-top:.7rem">Protecting customer data, money, and staff access at every layer.</p>
+    <div class="sec">
+      <div class="card"><h4><span class="ic">🔒</span> Payments</h4><p>No card data stored · signed webhooks · amount verification · encrypted keys.</p></div>
+      <div class="card"><h4><span class="ic">🔑</span> Access control</h4><p>Role‑based + per‑store permissions · cashier PINs · manager approval.</p></div>
+      <div class="card"><h4><span class="ic">🗝️</span> Secrets</h4><p>API keys &amp; SMTP passwords encrypted at rest · owner‑only integration screen.</p></div>
+      <div class="card"><h4><span class="ic">👁️</span> Data privacy</h4><p>Customer PII gated · order details never exposed to anonymous visitors.</p></div>
+    </div>
+  </section>
+
+  <!-- 15 · SECURITY DETAIL -->
+  <section class="slide">
+    <div class="kicker">Security · in depth</div>
+    <h2>Every layer, hardened</h2>
+    <div class="two-col">
+      <ul class="pts">
+        <li><b>HTTPS everywhere</b> and a strict <b>Content‑Security‑Policy</b> to block injection.</li>
+        <li><b>Anti‑forgery tokens</b> on every action that changes data.</li>
+        <li><b>Rate‑limiting</b> on login &amp; PIN entry to stop brute‑force.</li>
+        <li><b>Hidden staff URLs</b> — admin areas live behind configurable secret paths.</li>
+      </ul>
+      <ul class="pts">
+        <li><b>Concurrency‑safe money</b> — sales &amp; refunds lock rows so nothing double‑counts.</li>
+        <li><b>Idempotent operations</b> — a repeated webhook or offline re‑sync never charges or deducts twice.</li>
+        <li><b>Full audit log</b> — a permanent record of who did what, with before/after values.</li>
+        <li><b>Owner‑only integrations</b> — payment &amp; email keys are visible to you alone.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 16 · RELIABILITY -->
+  <section class="slide">
+    <div class="kicker">Reliability &amp; correctness</div>
+    <h2>Built to be trusted with money</h2>
+    <div class="grid g2">
+      <div class="card"><h4><span class="ic">◆</span> Self‑healing fulfilment</h4><p>A background service retries any paid‑but‑unfulfilled order and alerts the admin if something needs a look.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Race‑safe checkout</h4><p>Row‑locking + re‑checks under load — verified against 100–200 concurrent buyers with zero errors.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Offline resilience</h4><p>The till keeps trading without internet and reconciles safely on reconnect.</p></div>
+      <div class="card"><h4><span class="ic">◆</span> Tested &amp; audited</h4><p>Automated tests plus a documented, phased security &amp; correctness audit.</p></div>
+    </div>
+  </section>
+
+  <!-- 17 · BENEFITS -->
+  <section class="slide">
+    <div class="kicker">Why it matters</div>
+    <h2>What the business gets</h2>
+    <ul class="pts">
+      <li><b>One system, one truth</b> — no reconciling website vs shop vs spreadsheet.</li>
+      <li><b>No licence fees</b> — we own the platform; the previous third‑party ERP is retired.</li>
+      <li><b>Sell everywhere without overselling</b> — online and all branches share live stock.</li>
+      <li><b>Marketing that runs itself</b> — recover lost carts, win back customers, grow referrals.</li>
+      <li><b>Trustworthy money handling</b> — auditable, concurrency‑safe, loss‑prevention controls.</li>
+      <li><b>Scales with growth</b> — new branches, staff and campaigns without re‑platforming.</li>
+    </ul>
+  </section>
+
+  <!-- 18 · CLOSING -->
+  <section class="slide dark cover-grad">
+    <div class="kicker">Thank you</div>
+    <h1 style="font-size:clamp(2.4rem,6vw,4.6rem)">One platform.<br>Every channel.<br>In sync.</h1>
+    <p class="lead" style="margin-top:1.2rem">Sterling Glams — a modern, secure, unified commerce platform for the storefront, the shop floor, and everything in between.</p>
+    <p style="margin-top:2rem;color:#9089a0;font-size:.82rem">Questions &amp; discussion</p>
+  </section>
+
+</div>
+
+<div class="chrome"><span class="wm">Sterling Glams</span><span id="counter">1 / 18</span></div>
+<div class="nav"><button id="prev" aria-label="Previous">‹</button><button id="next" aria-label="Next">›</button></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s,k)=>s.classList.toggle('active', k===i));
+    counter.textContent = (i+1) + ' / ' + slides.length;
+    progress.style.width = ((i+1)/slides.length*100) + '%';
+    window.scrollTo(0,0);
+  }
+  function next(){ show(i+1); } function prev(){ show(i-1); }
+  document.getElementById('next').onclick = next;
+  document.getElementById('prev').onclick = prev;
+  document.addEventListener('keydown', e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){ e.preventDefault(); next(); }
+    else if(['ArrowLeft','PageUp'].includes(e.key)){ e.preventDefault(); prev(); }
+    else if(e.key==='Home'){ show(0); } else if(e.key==='End'){ show(slides.length-1); }
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+  });
+  show(0);
+</script>
+</body>
+</html>
