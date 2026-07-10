@@ -1,6 +1,7 @@
 @model List<SterlingLams.Web.Models.Domain.Register>
 @{
     ViewData["Title"] = "Registers";
+    var canManageOrg = ViewData["CanManageOrg"] as bool? == true; // Owner is view-only here
     var open = ViewBag.OpenSessions as HashSet<int> ?? new();
     var stores = ViewBag.Stores as List<SterlingLams.Web.Models.Domain.Store> ?? new();
 }
@@ -17,6 +18,8 @@
     <div class="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5">@TempData["Error"]</div>
 }
 
+@if (canManageOrg)
+{
 <!-- Add register -->
 <div class="bg-white rounded-sm border border-neutral-100 p-5 mb-6">
     <h2 class="text-sm font-semibold text-neutral-700 mb-3">Add register</h2>
@@ -35,6 +38,7 @@
         <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Add register</button>
     </form>
 </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
     <table class="w-full text-sm min-w-[560px]">
@@ -77,15 +81,22 @@
                             }
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <button type="button" onclick="document.getElementById('rename-@r.Id').classList.toggle('hidden')"
-                                    class="text-xs text-neutral-500 hover:text-neutral-700 transition-colors mr-3">Rename</button>
-                            <form asp-action="ToggleRegister" method="post" class="inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@r.Id" />
-                                <button type="submit" class="text-xs @(r.IsActive ? "text-red-500 hover:text-red-700" : "text-emerald-600 hover:text-emerald-700") transition-colors">
-                                    @(r.IsActive ? "Disable" : "Enable")
-                                </button>
-                            </form>
+                            @if (canManageOrg)
+                            {
+                                <button type="button" onclick="document.getElementById('rename-@r.Id').classList.toggle('hidden')"
+                                        class="text-xs text-neutral-500 hover:text-neutral-700 transition-colors mr-3">Rename</button>
+                                <form asp-action="ToggleRegister" method="post" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="text-xs @(r.IsActive ? "text-red-500 hover:text-red-700" : "text-emerald-600 hover:text-emerald-700") transition-colors">
+                                        @(r.IsActive ? "Disable" : "Enable")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-[10px] text-neutral-300">—</span>
+                            }
                         </td>
                     </tr>
                 }

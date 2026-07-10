@@ -1,6 +1,7 @@
 @model List<SterlingLams.Web.Areas.Inventory.Controllers.StaffRow>
 @{
     ViewData["Title"] = "Staff & roles";
+    var canManageOrg = ViewData["CanManageOrg"] as bool? == true; // Owner is view-only here
     var roleCounts = ViewBag.RoleCounts as Dictionary<string, int> ?? new();
     string RoleBadge(string r) => r switch
     {
@@ -73,16 +74,19 @@
                             {
                                 <span class="text-[11px] text-neutral-400 mr-2">Not set</span>
                             }
-                            <button type="button" onclick="cashierPin('@s.Id')" class="text-xs text-neutral-600 hover:text-neutral-900 transition-colors">@(s.HasPin ? "Change" : "Set PIN")</button>
-                            @if (s.HasPin)
+                            @if (canManageOrg)
                             {
-                                <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierPin" method="post" class="inline ml-2"
-                                      onsubmit="return confirm('Remove this staff member’s POS PIN?');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="id" value="@s.Id" />
-                                    <input type="hidden" name="pin" value="" />
-                                    <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">Clear</button>
-                                </form>
+                                <button type="button" onclick="cashierPin('@s.Id')" class="text-xs text-neutral-600 hover:text-neutral-900 transition-colors">@(s.HasPin ? "Change" : "Set PIN")</button>
+                                @if (s.HasPin)
+                                {
+                                    <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierPin" method="post" class="inline ml-2"
+                                          onsubmit="return confirm('Remove this staff member’s POS PIN?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@s.Id" />
+                                        <input type="hidden" name="pin" value="" />
+                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">Clear</button>
+                                    </form>
+                                }
                             }
                         </td>
                         <td class="px-4 py-3 text-neutral-400 text-xs">@(s.LastLogin?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Never")</td>
@@ -109,6 +113,8 @@
     <p class="text-xs text-neutral-400">Staff who sign into the POS app with a PIN. They have no back-office access.</p>
 </div>
 
+@if (canManageOrg)
+{
 <!-- Add cashier -->
 <div class="bg-white rounded-sm border border-neutral-100 p-5 mb-5">
     <h3 class="text-sm font-semibold text-neutral-700 mb-3">Add cashier</h3>
@@ -133,6 +139,7 @@
         <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Add cashier</button>
     </form>
 </div>
+}
 
 <div class="bg-white border border-neutral-100 rounded-sm overflow-x-auto">
     <table class="w-full text-sm min-w-[640px]">
@@ -158,29 +165,43 @@
                             }
                         </td>
                         <td class="px-4 py-3">
-                            <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierStore" method="post" class="flex items-center gap-2">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@c.Id" />
-                                <select name="storeId" onchange="this.form.submit()"
-                                        class="border border-neutral-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:border-emerald-500">
-                                    <option value="0">All branches</option>
-                                    @foreach (var s in stores)
-                                    {
-                                        <option value="@s.Id" selected="@(c.StoreId == s.Id)">@Branch(s.Name)</option>
-                                    }
-                                </select>
-                            </form>
+                            @if (canManageOrg)
+                            {
+                                <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierStore" method="post" class="flex items-center gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@c.Id" />
+                                    <select name="storeId" onchange="this.form.submit()"
+                                            class="border border-neutral-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:border-emerald-500">
+                                        <option value="0">All branches</option>
+                                        @foreach (var s in stores)
+                                        {
+                                            <option value="@s.Id" selected="@(c.StoreId == s.Id)">@Branch(s.Name)</option>
+                                        }
+                                    </select>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-xs text-neutral-600">@(c.StoreId == 0 ? "All branches" : Branch(stores.FirstOrDefault(s => s.Id == c.StoreId)?.Name ?? "—"))</span>
+                            }
                         </td>
                         <td class="px-4 py-3 text-neutral-400 text-xs">@(c.LastLogin?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") ?? "Never")</td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <button type="button" onclick="cashierPin('@c.Id')" class="text-xs text-neutral-600 hover:text-neutral-900 transition-colors mr-3">Change PIN</button>
-                            <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierPin" method="post" class="inline"
-                                  onsubmit="return confirm('Remove POS access for this cashier?');">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@c.Id" />
-                                <input type="hidden" name="pin" value="" />
-                                <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">Remove access</button>
-                            </form>
+                            @if (canManageOrg)
+                            {
+                                <button type="button" onclick="cashierPin('@c.Id')" class="text-xs text-neutral-600 hover:text-neutral-900 transition-colors mr-3">Change PIN</button>
+                                <form asp-area="Inventory" asp-controller="Org" asp-action="SetCashierPin" method="post" class="inline"
+                                      onsubmit="return confirm('Remove POS access for this cashier?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@c.Id" />
+                                    <input type="hidden" name="pin" value="" />
+                                    <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">Remove access</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-[10px] text-neutral-300">—</span>
+                            }
                         </td>
                     </tr>
                 }

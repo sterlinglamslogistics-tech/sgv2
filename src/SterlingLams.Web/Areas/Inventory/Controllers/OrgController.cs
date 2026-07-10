@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using SterlingLams.Web.Data;
 using SterlingLams.Web.Models.Domain;
@@ -17,6 +18,23 @@ public class OrgController : InventoryAreaController
     {
         _db = db;
         _userManager = userManager;
+    }
+
+    /// <summary>Managers of the Inventory admin (staff/registers/branches). Owner is view-only here.</summary>
+    private bool CanManageOrg => User.IsInRole("Admin") || User.IsInRole("Developer") || User.IsInRole("Inventory");
+
+    // Owner is view-only in the Inventory Administration — block every write.
+    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        ViewData["CanManageOrg"] = CanManageOrg; // let views hide management controls from Owner
+        var m = context.HttpContext.Request.Method;
+        var isWrite = m == "POST" || m == "PUT" || m == "DELETE" || m == "PATCH";
+        if (isWrite && !CanManageOrg)
+        {
+            context.Result = RedirectToAction("AccessDenied", "Account", new { area = "" });
+            return;
+        }
+        await base.OnActionExecutionAsync(context, next);
     }
 
     public async Task<IActionResult> Branches()
