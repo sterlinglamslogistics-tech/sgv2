@@ -1,0 +1,75 @@
+@model SterlingLams.Web.Models.Domain.ApplicationUser
+@{
+    ViewData["Title"] = "Edit User";
+    var role = ViewBag.Role as string ?? "";
+}
+
+<div class="max-w-2xl">
+    <p class="text-xs text-neutral-400 mb-4">
+        <a asp-area="Admin" asp-controller="Users" asp-action="Index" class="hover:text-neutral-700">&larr; Users</a>
+        <span class="mx-1">/</span> Edit User
+    </p>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-sm">@TempData["Error"]</div>
+    }
+
+    <form asp-area="Admin" asp-controller="Users" asp-action="Edit" asp-route-id="@Model.Id" method="post"
+          class="bg-white border border-neutral-200 rounded-sm p-6 space-y-5">
+        @Html.AntiForgeryToken()
+
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-sm font-medium text-neutral-800">@Model.FirstName @Model.LastName</div>
+                <div class="text-xs text-neutral-400">@(string.IsNullOrEmpty(role) ? "" : $"Role: {role}")</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">First Name</label>
+                <input name="firstName" value="@Model.FirstName" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Last Name</label>
+                <input name="lastName" value="@Model.LastName" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Email <span class="text-red-400">*</span></label>
+            <input name="email" type="email" required value="@Model.Email" autocomplete="off"
+                   class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+            <p class="text-[11px] text-neutral-400 mt-1">This is also their sign-in username. Changing it signs them out of any active session.</p>
+        </div>
+
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">New Password</label>
+            <div class="flex gap-2">
+                <input name="newPassword" type="text" id="pwd-field" minlength="8" autocomplete="new-password" placeholder="Leave blank to keep current password"
+                       class="flex-1 border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+                <button type="button" onclick="genPwd()"
+                        class="px-3 py-2 border border-neutral-200 text-neutral-600 text-xs rounded-sm hover:bg-neutral-50 transition-colors whitespace-nowrap">Generate</button>
+            </div>
+            <p class="text-[11px] text-neutral-400 mt-1">Optional. Minimum 8 characters. Share the new password securely.</p>
+        </div>
+
+        <div class="flex gap-3">
+            <button type="submit" class="px-6 py-2.5 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Save changes</button>
+            <a asp-area="Admin" asp-controller="Users" asp-action="Index"
+               class="px-6 py-2.5 border border-neutral-200 text-neutral-600 text-sm rounded-sm hover:bg-neutral-50 transition-colors">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+function genPwd() {
+    var c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@@#$';
+    var s = '';
+    for (var i = 0; i < 12; i++) s += c[Math.floor(Math.random() * c.length)];
+    document.getElementById('pwd-field').value = s;
+}
+</script>
+}

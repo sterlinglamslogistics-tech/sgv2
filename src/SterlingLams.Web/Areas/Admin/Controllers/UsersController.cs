@@ -244,6 +244,81 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // ── Edit a user's details (name, email, optional new password) ─────────
+        [HttpGet]
+        public async Task<IActionResult> Edit(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+            if (user.Email == User.Identity?.Name)
+                return RedirectToAction("Index", "MyAccount", new { area = "" }); // edit your own on /me
+            ViewData["Title"] = "Edit User";
+            ViewBag.Role = (await _userManager.GetRolesAsync(user)).FirstOrDefault(r => r != "Customer") ?? "Customer";
+            return View(user);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(string id, string firstName, string lastName, string email, string? newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+            if (user.Email == User.Identity?.Name)
+            {
+                TempData["Error"] = "Edit your own details from the account menu.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            email = (email ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["Error"] = "Email is required.";
+                return RedirectToAction(nameof(Edit), new { id });
+            }
+
+            // Email = username; keep them in sync (Identity re-normalises). Block duplicates.
+            if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+            {
+                var dupe = await _userManager.FindByEmailAsync(email);
+                if (dupe != null && dupe.Id != user.Id)
+                {
+                    TempData["Error"] = "Another account already uses that email.";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+                var r1 = await _userManager.SetUserNameAsync(user, email);
+                var r2 = await _userManager.SetEmailAsync(user, email);
+                if (!r1.Succeeded || !r2.Succeeded)
+                {
+                    TempData["Error"] = string.Join(" ", r1.Errors.Concat(r2.Errors).Select(e => e.Description));
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+                user.EmailConfirmed = true;
+            }
+
+            user.FirstName = (firstName ?? "").Trim();
+            user.LastName = (lastName ?? "").Trim();
+            await _userManager.UpdateAsync(user);
+
+            if (!string.IsNullOrWhiteSpace(newPassword))
+            {
+                if (newPassword.Length < 8)
+                {
+                    TempData["Error"] = "Name/email saved, but the new password must be at least 8 characters.";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var pr = await _userManager.ResetPasswordAsync(user, token, newPassword);
+                if (!pr.Succeeded)
+                {
+                    TempData["Error"] = "Name/email saved, but password change failed: " + string.Join(" ", pr.Errors.Select(e => e.Description));
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+            }
+
+            await LogAsync("Update", "User", user.Id, $"Edited details for {user.Email}");
+            TempData["Success"] = $"{user.Email} updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
         // ── Set / clear a till PIN for this user ───────────────────────────────
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SetPin(string id, string pin)

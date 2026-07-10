@@ -18,7 +18,6 @@ namespace SterlingLams.Web.Controllers;
 [Route("me")]
 public class MyAccountController : Controller
 {
-    private static readonly string[] StaffRoles = { "Admin", "Operations", "Sales", "Inventory", "Social Media" };
     private static readonly HashSet<string> AllowedImg = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
 
@@ -36,8 +35,10 @@ public class MyAccountController : Controller
         _config = config;
     }
 
+    // Any backend role (i.e. anything other than the storefront "Customer" role) counts as staff —
+    // this covers Admin, Owner, Developer, the default staff roles, and any custom role.
     private async Task<bool> IsStaffAsync(ApplicationUser u) =>
-        (await _users.GetRolesAsync(u)).Any(r => StaffRoles.Contains(r));
+        (await _users.GetRolesAsync(u)).Any(r => !string.Equals(r, "Customer", StringComparison.OrdinalIgnoreCase));
 
     // Gate the whole controller: anyone who isn't a signed-in staff member gets a plain 404 — the page
     // simply doesn't exist to outsiders (same as the secret-prefixed backends), rather than a login

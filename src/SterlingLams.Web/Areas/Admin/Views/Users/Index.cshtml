@@ -181,6 +181,8 @@
                         @if (!isSelf && canManage)
                         {
                             <div class="flex items-center justify-end gap-3 whitespace-nowrap">
+                                <a asp-area="Admin" asp-controller="Users" asp-action="Edit" asp-route-id="@u.Id"
+                                   class="text-xs text-neutral-600 hover:text-neutral-900 transition-colors">Edit</a>
                                 <button type="button" data-no-loading="1"
                                         onclick="setPin('@u.Id', '@u.Email')"
                                         class="text-xs text-brand-500 hover:text-brand-700 transition-colors">Set PIN</button>
