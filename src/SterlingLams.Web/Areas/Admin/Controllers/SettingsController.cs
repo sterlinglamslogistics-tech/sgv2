@@ -8,17 +8,28 @@ namespace SterlingLams.Web.Areas.Admin.Controllers;
 public class SettingsController : AdminBaseController
 {
     protected override string Section => "Settings";
+    // Access is enforced per settings-group below, not by a blanket :manage on write.
+    protected override bool EnforceManageOnWrite => false;
 
     private readonly ISettingsService _settings;
     private readonly ApplicationDbContext _db;
     private readonly SterlingLams.Web.Services.IStorefrontCache _storefrontCache;
+    private readonly IPermissionService _perms;
 
     public SettingsController(ISettingsService settings, ApplicationDbContext db,
-        SterlingLams.Web.Services.IStorefrontCache storefrontCache)
+        SterlingLams.Web.Services.IStorefrontCache storefrontCache, IPermissionService perms)
     {
         _settings = settings;
         _db = db;
         _storefrontCache = storefrontCache;
+        _perms = perms;
+    }
+
+    /// <summary>True if the current user may see/edit the given settings group.</summary>
+    private async Task<bool> CanEditGroupAsync(string? group)
+    {
+        var allowed = await _perms.GetAllowedSettingsGroupsAsync(User);
+        return allowed == null || (group != null && allowed.Contains(group));
     }
 
     public async Task<IActionResult> Index(string tab = "General")
@@ -39,12 +50,21 @@ public class SettingsController : AdminBaseController
         var all = (await _settings.GetAllAsync())
             .Where(s => s.Group != "POS / Pos" && s.Group != "Emails"
                      && s.Group != "Payments" && s.Group != "SMTP" && s.Group != "Billing").ToList();
+        // Granular: a role may be granted only specific settings groups. null = all groups.
+        var allowedGroups = await _perms.GetAllowedSettingsGroupsAsync(User);
+        if (allowedGroups != null)
+            all = all.Where(s => allowedGroups.Contains(s.Group)).ToList();
         return View(all);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(string group, IFormCollection form)
     {
+        if (!await CanEditGroupAsync(group))
+        {
+            TempData["Error"] = "You don't have access to that settings group.";
+            return RedirectToAction(nameof(Index));
+        }
         var updates = new Dictionary<string, string>();
         var all = await _settings.GetAllAsync();
         var groupSettings = all.Where(s => s.Group == group).ToList();
@@ -86,6 +106,10 @@ public class SettingsController : AdminBaseController
     {
         if (string.IsNullOrWhiteSpace(key))
             return BadRequest(new { error = "Missing setting key." });
+
+        var group = (await _settings.GetAllAsync()).FirstOrDefault(s => s.Key == key)?.Group;
+        if (!await CanEditGroupAsync(group))
+            return StatusCode(403, new { error = "No access to that settings group." });
 
         await _settings.SaveManyAsync(new Dictionary<string, string> { [key] = value ?? string.Empty });
         await _storefrontCache.EvictAsync();

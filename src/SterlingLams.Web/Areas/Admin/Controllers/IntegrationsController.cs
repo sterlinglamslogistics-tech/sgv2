@@ -11,7 +11,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers;
 /// </summary>
 public class IntegrationsController : AdminBaseController
 {
-    protected override string? Section => null; // full admin only
+    protected override string? Section => "Integrations"; // grantable; write actions still require :manage
 
     private static readonly string[] Groups = { "Payments", "SMTP" };
     private static readonly string[] Providers = { "paystack", "stripe", "flutterwave" };

@@ -25,11 +25,8 @@
 
         <!-- Section permissions -->
         <div class="bg-white rounded-sm border border-neutral-100 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-sm font-medium text-neutral-800">Section Access</h2>
-                    <p class="text-xs text-neutral-400 mt-0.5">Tick the admin sections this role can access.</p>
-                </div>
+            <div class="flex items-center justify-between mb-1">
+                <h2 class="text-sm font-medium text-neutral-800">Section Access</h2>
                 <div class="flex gap-3">
                     <button type="button" onclick="toggleAllSections(true)"
                             class="text-[11px] text-neutral-500 hover:text-neutral-900 underline underline-offset-2">Select all</button>
@@ -37,26 +34,70 @@
                             class="text-[11px] text-neutral-500 hover:text-neutral-900 underline underline-offset-2">Clear</button>
                 </div>
             </div>
+            <p class="text-xs text-neutral-400 mb-4"><strong>View</strong> = read only · <strong>Manage</strong> = create, edit &amp; delete. Settings can be granted group-by-group.</p>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div id="section-access" class="space-y-1.5">
                 @foreach (var sec in SterlingLams.Web.Areas.Admin.AdminSections.All)
                 {
-                    var isChecked = Model.SelectedSections.Contains(sec.Key);
-                    <label class="flex items-center gap-2.5 px-3 py-2.5 border border-neutral-200 rounded-sm hover:bg-neutral-50 cursor-pointer">
-                        <input type="checkbox" name="sections" value="@sec.Key"
-                               @(isChecked ? "checked" : "")
-                               class="section-cb rounded border-neutral-300 accent-neutral-900 flex-shrink-0" />
-                        <svg class="w-4 h-4 text-neutral-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@sec.Icon"/>
-                        </svg>
-                        <span class="text-sm text-neutral-700">@sec.Label</span>
-                    </label>
+                    if (sec.Key == "Settings")
+                    {
+                        var anySettings = Model.SelectedSections.Any(s => s == "Settings" || s.StartsWith("Settings:"));
+                        var allSettings = Model.SelectedSections.Contains("Settings") || Model.SelectedSections.Contains("Settings:manage");
+                        <details class="border border-neutral-200 rounded-sm" @(anySettings ? "open" : "")>
+                            <summary class="cursor-pointer list-none flex items-center justify-between px-3 py-2.5">
+                                <span class="flex items-center gap-2.5">
+                                    <svg class="w-4 h-4 text-neutral-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@sec.Icon"/></svg>
+                                    <span class="text-sm text-neutral-700">Settings</span>
+                                </span>
+                                <span class="text-[11px] text-neutral-400">choose groups &#9662;</span>
+                            </summary>
+                            <div class="px-3 pb-3 pt-1 border-t border-neutral-100">
+                                <label class="flex items-center gap-2 py-1.5 text-sm text-neutral-700">
+                                    <input type="checkbox" name="sections" value="Settings:manage" id="settings-all"
+                                           class="rounded border-neutral-300 accent-neutral-900" @(allSettings ? "checked" : "") />
+                                    <span class="font-medium">All settings groups</span>
+                                </label>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-1">
+                                    @foreach (var grp in SterlingLams.Web.Areas.Admin.AdminSections.SettingsGroups)
+                                    {
+                                        <label class="flex items-center gap-2 px-2.5 py-1.5 border border-neutral-100 rounded-sm hover:bg-neutral-50 cursor-pointer">
+                                            <input type="checkbox" name="sections" value="Settings:@grp"
+                                                   class="settings-grp rounded border-neutral-300 accent-neutral-900 flex-shrink-0"
+                                                   @(Model.SelectedSections.Contains("Settings:" + grp) ? "checked" : "") />
+                                            <span class="text-xs text-neutral-600">@grp</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        </details>
+                    }
+                    else
+                    {
+                        var viewOn = Model.SelectedSections.Contains(sec.Key) || Model.SelectedSections.Contains(sec.Key + ":manage");
+                        var manageOn = Model.SelectedSections.Contains(sec.Key + ":manage");
+                        <div class="flex items-center justify-between px-3 py-2.5 border border-neutral-200 rounded-sm">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <svg class="w-4 h-4 text-neutral-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@sec.Icon"/></svg>
+                                <span class="text-sm text-neutral-700 truncate">@sec.Label</span>
+                            </span>
+                            <span class="flex items-center gap-4 flex-shrink-0">
+                                <label class="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer">
+                                    <input type="checkbox" name="sections" value="@sec.Key" data-key="@sec.Key"
+                                           class="perm-view rounded border-neutral-300 accent-neutral-900" @(viewOn ? "checked" : "") /> View
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer">
+                                    <input type="checkbox" name="sections" value="@(sec.Key):manage" data-key="@sec.Key"
+                                           class="perm-manage rounded border-neutral-300 accent-neutral-900" @(manageOn ? "checked" : "") /> Manage
+                                </label>
+                            </span>
+                        </div>
+                    }
                 }
             </div>
 
             <p class="text-[11px] text-neutral-400 mt-4">
-                Note: <strong>Roles &amp; Permissions</strong> management is always restricted to full Administrators
-                and cannot be granted to other roles.
+                Note: <strong>Roles &amp; Permissions</strong>, <strong>Users</strong> and <strong>Subscribe</strong> stay
+                restricted to full Administrators and can't be granted to other roles.
             </p>
         </div>
 
@@ -75,8 +116,37 @@
 
 @section Scripts {
 <script>
+// Manage implies View; clearing View clears Manage.
+document.querySelectorAll('.perm-manage').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+        if (cb.checked) {
+            var v = document.querySelector('.perm-view[data-key="' + cb.dataset.key + '"]');
+            if (v) v.checked = true;
+        }
+    });
+});
+document.querySelectorAll('.perm-view').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+        if (!cb.checked) {
+            var m = document.querySelector('.perm-manage[data-key="' + cb.dataset.key + '"]');
+            if (m) m.checked = false;
+        }
+    });
+});
+// "All settings groups" ties the individual group boxes together.
+var settingsAll = document.getElementById('settings-all');
+if (settingsAll) {
+    settingsAll.addEventListener('change', function () {
+        if (settingsAll.checked)
+            document.querySelectorAll('.settings-grp').forEach(function (cb) { cb.checked = false; });
+    });
+    document.querySelectorAll('.settings-grp').forEach(function (cb) {
+        cb.addEventListener('change', function () { if (cb.checked) settingsAll.checked = false; });
+    });
+}
 function toggleAllSections(check) {
-    document.querySelectorAll('.section-cb').forEach(cb => cb.checked = check);
+    document.querySelectorAll('#section-access input[type="checkbox"]').forEach(function (cb) { cb.checked = check; });
+    if (check && settingsAll) { settingsAll.checked = false; } // prefer explicit groups over the "all" shortcut
 }
 </script>
 }

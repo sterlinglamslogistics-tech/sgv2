@@ -17,6 +17,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
         protected virtual string? Section => null;
 
         /// <summary>
+        /// When true (default), write requests (POST/PUT/DELETE/PATCH) require the "<Section>:manage"
+        /// permission, while reads only need view. Controllers that enforce finer access themselves
+        /// (e.g. Settings, per settings-group) override this to false.
+        /// </summary>
+        protected virtual bool EnforceManageOnWrite => true;
+
+        /// <summary>
         /// Enforces section-based access before every action. Administrators bypass all checks.
         /// Staff roles must have the section granted; otherwise they're sent to Access Denied.
         /// Also exposes the user's allowed sections to the layout for sidebar filtering.
@@ -55,10 +62,18 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                     return;
                 }
             }
-            else if (!await perms.CanAccessAsync(User, section))
+            else
             {
-                context.Result = RedirectToAction("AccessDenied", "Account", new { area = "" });
-                return;
+                var method = context.HttpContext.Request.Method;
+                var isWrite = method == "POST" || method == "PUT" || method == "DELETE" || method == "PATCH";
+                var ok = isWrite && EnforceManageOnWrite
+                    ? await perms.CanManageAsync(User, section)   // write needs manage
+                    : await perms.CanAccessAsync(User, section);  // read needs view
+                if (!ok)
+                {
+                    context.Result = RedirectToAction("AccessDenied", "Account", new { area = "" });
+                    return;
+                }
             }
 
             await next();

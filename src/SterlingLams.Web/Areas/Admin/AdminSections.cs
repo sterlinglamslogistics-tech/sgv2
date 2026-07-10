@@ -45,7 +45,7 @@ public static class AdminSections
         new("Stores",     "Stores",     "Stores",     "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z", "Settings"),
         new("Users",      "Users",      "Users",      "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", "Settings", OwnerOnly: true),
         new("Roles",      "Roles & Permissions", "Roles", "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", "Settings", OwnerOnly: true),
-        new("Integrations", "Integrations", "Integrations", "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", "Settings", OwnerOnly: true),
+        new("Integrations", "Integrations", "Integrations", "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", "Settings"),
         new("Subscribe",  "Subscribe",  "Subscribe",  "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", "Settings", OwnerOnly: true),
         new("AuditLog",   "Audit Log",  "AuditLog",   "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", "Settings"),
         new("Settings",   "Settings",   "Settings",   "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z", "Settings"),
@@ -61,7 +61,35 @@ public static class AdminSections
     public const string AdminRole = "Admin";
 
     /// <summary>Roles that ship by default (besides Admin and Customer).</summary>
-    public static readonly string[] DefaultStaffRoles = { "Operations", "Sales", "Inventory", "Social Media" };
+    public static readonly string[] DefaultStaffRoles = { "Owner", "Developer", "Operations", "Sales", "Inventory", "Social Media" };
+
+    /// <summary>
+    /// Settings groups that can be granted individually (a role with any of these can open the Settings
+    /// page and see only those groups). Mirrors the groups shown on the Settings page — the groups that
+    /// live elsewhere (POS, Emails, Payments, SMTP, Billing) are intentionally excluded.
+    /// </summary>
+    public static readonly string[] SettingsGroups =
+    {
+        "General", "Store", "Homepage", "Homepage Feature", "Announcement Bar", "Collections",
+        "Content Pages", "Orders", "Shipping", "Inventory", "Loyalty", "Referrals", "Reviews",
+        "Gift Cards", "Notifications", "Marketing", "Security"
+    };
 
     public static bool IsValidSection(string key) => All.Any(s => s.Key == key);
+
+    /// <summary>
+    /// Validates a stored permission string. Permissions come in three shapes: a bare section key
+    /// ("Orders" = view), "<section>:manage" (create/edit/delete), or "Settings:&lt;Group&gt;"
+    /// (access to one settings group). "Settings:manage" means all settings groups.
+    /// </summary>
+    public static bool IsValidPermission(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        var i = key.IndexOf(':');
+        if (i < 0) return IsValidSection(key);
+        var baseKey = key[..i];
+        var sub = key[(i + 1)..];
+        if (baseKey == "Settings") return sub == "manage" || SettingsGroups.Contains(sub);
+        return sub == "manage" && IsValidSection(baseKey);
+    }
 }

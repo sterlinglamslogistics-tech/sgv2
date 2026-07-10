@@ -47,10 +47,14 @@ public class RolesController : AdminBaseController
             if (name == "Customer") continue; // not a backend role
 
             var usersInRole = await _userManager.GetUsersInRoleAsync(name);
+            // Collapse granular grants ("Orders", "Orders:manage", "Settings:General") to distinct
+            // base-section labels for the summary column.
             var sections = name == "Admin"
                 ? AdminSections.All.Select(s => s.Label).ToList()
                 : (await _perms.GetRoleSectionsAsync(name))
-                    .Select(key => AdminSections.All.FirstOrDefault(s => s.Key == key)?.Label ?? key)
+                    .Select(key => { var i = key.IndexOf(':'); return i < 0 ? key : key[..i]; })
+                    .Distinct()
+                    .Select(baseKey => AdminSections.All.FirstOrDefault(s => s.Key == baseKey)?.Label ?? baseKey)
                     .ToList();
 
             rows.Add(new AdminRoleRow
