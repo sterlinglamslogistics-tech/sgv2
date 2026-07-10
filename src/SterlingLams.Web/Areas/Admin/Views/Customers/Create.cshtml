@@ -1,0 +1,74 @@
+@{
+    ViewData["Title"] = "New Customer";
+}
+
+<div class="max-w-2xl">
+    <p class="text-xs text-neutral-400 mb-4">
+        <a asp-area="Admin" asp-controller="Customers" asp-action="Index" class="hover:text-neutral-700">&larr; Customers</a>
+        <span class="mx-1">/</span> New Customer
+    </p>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-sm">@TempData["Error"]</div>
+    }
+
+    <form asp-area="Admin" asp-controller="Customers" asp-action="Create" method="post" class="bg-white border border-neutral-200 rounded-sm p-6 space-y-5">
+        @Html.AntiForgeryToken()
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">First Name</label>
+                <input name="firstName" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Last Name</label>
+                <input name="lastName" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Email <span class="text-red-400">*</span></label>
+            <input name="email" type="email" required autocomplete="off"
+                   class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+        </div>
+
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Phone</label>
+            <input name="phone" type="tel" placeholder="+234 800 000 0000"
+                   class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+        </div>
+
+        <div>
+            <label class="block text-xs text-neutral-500 mb-1">Password <span class="text-red-400">*</span></label>
+            <div class="flex gap-2">
+                <input name="password" type="text" id="pwd-field" required minlength="8" autocomplete="new-password"
+                       class="flex-1 border border-neutral-200 rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-neutral-400" />
+                <button type="button" onclick="genPwd()"
+                        class="px-3 py-2 border border-neutral-200 text-neutral-600 text-xs rounded-sm hover:bg-neutral-50 transition-colors whitespace-nowrap">Generate</button>
+            </div>
+            <p class="text-[11px] text-neutral-400 mt-1">Minimum 8 characters. Share this securely with the customer.</p>
+        </div>
+
+        <div class="bg-neutral-50 border border-neutral-100 rounded-sm px-4 py-3 text-[11px] text-neutral-500">
+            Storefront access only — this account can shop and track orders, but can never sign in to the backend.
+        </div>
+
+        <div class="flex gap-3">
+            <button type="submit" class="px-6 py-2.5 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Create Customer</button>
+            <a asp-area="Admin" asp-controller="Customers" asp-action="Index"
+               class="px-6 py-2.5 border border-neutral-200 text-neutral-600 text-sm rounded-sm hover:bg-neutral-50 transition-colors">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+function genPwd() {
+    var c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@@#$';
+    var s = '';
+    for (var i = 0; i < 12; i++) s += c[Math.floor(Math.random() * c.length)];
+    document.getElementById('pwd-field').value = s;
+}
+</script>
+}

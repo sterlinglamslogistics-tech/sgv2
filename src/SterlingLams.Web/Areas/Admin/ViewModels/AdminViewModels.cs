@@ -435,8 +435,11 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public int TotalPages { get; set; } = 1;
         public int TotalCount { get; set; }
 
-        // All assignable roles (for the dropdown + role filter)
+        // All roles (for the role filter, incl. Admin)
         public List<string> AvailableRoles { get; set; } = new();
+        // Roles that can be assigned to a user from the row dropdown — staff roles + Customer,
+        // never Admin (full access can't be granted here).
+        public List<string> AssignableRoles { get; set; } = new();
 
         // Stat cards
         public int TotalUsers { get; set; }
@@ -470,7 +473,8 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public string Email { get; set; } = "";
         public string? Phone { get; set; }
         public string Password { get; set; } = "";
-        public bool MakeAdmin { get; set; }
+        /// <summary>Backend staff role to assign (e.g. Operations/Sales/Inventory/Social Media).</summary>
+        public string Role { get; set; } = "";
     }
 
     // ─── Roles & Permissions ───────────────────────────────────────────────

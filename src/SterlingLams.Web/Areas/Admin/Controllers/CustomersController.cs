@@ -2,10 +2,12 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SterlingLams.Web.Areas.Admin.ViewModels;
 using SterlingLams.Web.Data;
+using SterlingLams.Web.Models.Domain;
 using SterlingLams.Web.Services;
 
 namespace SterlingLams.Web.Areas.Admin.Controllers
@@ -16,12 +18,104 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly ILoyaltyService _loyalty;
+        private readonly UserManager<ApplicationUser> _userManager;
         private const int PageSize = 30;
 
-        public CustomersController(ApplicationDbContext db, ILoyaltyService loyalty)
+        public CustomersController(ApplicationDbContext db, ILoyaltyService loyalty,
+            UserManager<ApplicationUser> userManager)
         {
             _db = db;
             _loyalty = loyalty;
+            _userManager = userManager;
+        }
+
+        // ── Create a storefront-only customer account ─────────────────────────
+        [HttpGet]
+        public IActionResult Create()
+        {
+            ViewData["Title"] = "New Customer";
+            return View();
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(string firstName, string lastName, string email, string? phone, string password)
+        {
+            ViewData["Title"] = "New Customer";
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            {
+                TempData["Error"] = "Email and password are required.";
+                return View();
+            }
+            if (await _userManager.FindByEmailAsync(email.Trim()) != null)
+            {
+                TempData["Error"] = "A user with that email already exists.";
+                return View();
+            }
+
+            // Storefront-only: no backend role is assigned, so they can shop but never reach the backend.
+            var user = new ApplicationUser
+            {
+                UserName = email.Trim(),
+                Email = email.Trim(),
+                FirstName = (firstName ?? "").Trim(),
+                LastName = (lastName ?? "").Trim(),
+                PhoneNumber = phone?.Trim(),
+                EmailConfirmed = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+            var result = await _userManager.CreateAsync(user, password);
+            if (!result.Succeeded)
+            {
+                TempData["Error"] = string.Join(" ", result.Errors.Select(e => e.Description));
+                return View();
+            }
+            await LogAsync("Create", "Customer", user.Id, $"Created customer account {user.Email} (storefront only)");
+            TempData["Success"] = $"Customer {user.Email} created — storefront access only.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ── Delete a customer (admin-only; never orphans order history) ───────
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(string id)
+        {
+            if (!User.IsInRole("Admin")) return Forbid();
+
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+            if (user.Email == User.Identity?.Name)
+            {
+                TempData["Error"] = "You cannot delete your own account.";
+                return RedirectToAction(nameof(Index));
+            }
+            // Only ever delete storefront customers here, never a staff/admin account.
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Any())
+            {
+                TempData["Error"] = "This is a staff account — manage it on the Users page.";
+                return RedirectToAction(nameof(Index));
+            }
+            var orders = await _db.Orders.CountAsync(o => o.UserId == id || o.CustomerUserId == id);
+            if (orders > 0)
+            {
+                TempData["Error"] = $"{user.Email} has {orders} order(s) on record — deleting would remove their history. Consider keeping the account.";
+                return RedirectToAction(nameof(Index));
+            }
+            try
+            {
+                var result = await _userManager.DeleteAsync(user);
+                if (!result.Succeeded)
+                {
+                    TempData["Error"] = "Could not delete: " + string.Join("; ", result.Errors.Select(e => e.Description));
+                    return RedirectToAction(nameof(Index));
+                }
+                await LogAsync("Delete", "Customer", id, $"Deleted customer {user.Email}");
+                TempData["Success"] = $"{user.Email} has been deleted.";
+            }
+            catch
+            {
+                TempData["Error"] = "Could not delete this customer — they're still linked to other records.";
+            }
+            return RedirectToAction(nameof(Index));
         }
 
         public async Task<IActionResult> Index(string q = "", string segment = "", string tag = "", int page = 1)

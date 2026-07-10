@@ -14,7 +14,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 {
     public class UsersController : AdminBaseController
     {
-        protected override string Section => "Users";
+        // Section == null → full administrators only. User & role management is owner-only.
+        protected override string? Section => null;
 
         private readonly ApplicationDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -127,6 +128,8 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 RoleFilter     = role,
                 StatusFilter   = status,
                 AvailableRoles = staffRoles,
+                // Assignable per user: staff roles (never Admin) + Customer (removes backend access).
+                AssignableRoles = staffRoles.Where(r => r != "Admin").Append("Customer").ToList(),
                 CurrentPage    = page,
                 TotalPages     = (int)Math.Ceiling(total / (double)PageSize),
                 TotalCount     = total,
@@ -141,17 +144,22 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
         }
 
         // ── Create new staff/admin user ────────────────────────────────────────
+        // Staff roles a new user can be given (never Admin — full access isn't grantable here).
+        private static string[] StaffRoles => SterlingLams.Web.Areas.Admin.AdminSections.DefaultStaffRoles;
+
         [HttpGet]
         public IActionResult Create()
         {
             ViewData["Title"] = "New User";
-            return View(new AdminCreateUserViewModel());
+            ViewBag.Roles = StaffRoles;
+            return View(new AdminCreateUserViewModel { Role = StaffRoles.First() });
         }
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(AdminCreateUserViewModel vm)
         {
             ViewData["Title"] = "New User";
+            ViewBag.Roles = StaffRoles;
 
             if (string.IsNullOrWhiteSpace(vm.Email) || string.IsNullOrWhiteSpace(vm.Password))
             {
@@ -183,13 +191,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 return View(vm);
             }
 
-            if (vm.MakeAdmin)
-                await _userManager.AddToRoleAsync(user, "Admin");
+            // Every created user is staff: give them a backend role (which also lets them shop the
+            // storefront). Full "Admin" is never assignable here.
+            var role = StaffRoles.Contains(vm.Role) ? vm.Role : StaffRoles.First();
+            await _userManager.AddToRoleAsync(user, role);
 
-            await LogAsync("Create", "User", user.Id,
-                $"Created {(vm.MakeAdmin ? "admin" : "customer")} account {user.Email}");
-
-            TempData["Success"] = $"User {user.Email} created" + (vm.MakeAdmin ? " as admin." : ".");
+            await LogAsync("Create", "User", user.Id, $"Created staff account {user.Email} ({role})");
+            TempData["Success"] = $"User {user.Email} created as {role}. They can sign in to the backend and the storefront.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -291,6 +299,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
             role = (role ?? "Customer").Trim();
 
+            // Full admin access can't be granted here.
+            if (role == "Admin")
+            {
+                TempData["Error"] = "Full administrator access can't be granted from this list.";
+                return RedirectToAction(nameof(Index));
+            }
+
             // Validate the target role exists (Customer = no backend role)
             if (role != "Customer" && !await _roleManager.RoleExistsAsync(role))
             {
@@ -298,7 +313,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Remove all current roles, then assign the chosen one (Customer = none)
+            // Replace all current roles with the chosen one (Customer = none).
             var current = await _userManager.GetRolesAsync(user);
             if (current.Any())
                 await _userManager.RemoveFromRolesAsync(user, current);
@@ -306,8 +321,12 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             if (role != "Customer")
                 await _userManager.AddToRoleAsync(user, role);
 
+            // Invalidate any live session so the user immediately loses access to the previous role
+            // and must sign in again under the new one.
+            await _userManager.UpdateSecurityStampAsync(user);
+
             await LogAsync("Update", "User", user.Id, $"Set role of {user.Email} to {role}");
-            TempData["Success"] = $"{user.Email} is now {role}.";
+            TempData["Success"] = $"{user.Email} is now {role}. Any active session has been signed out.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -339,6 +358,50 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             await _userManager.UpdateAsync(user);
             await LogAsync("Update", "User", user.Id, $"Restored access for {user.Email}");
             TempData["Success"] = $"{user.Email}'s access has been restored.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ── Delete a user (admin-only; safe — never orphans order history) ────────
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            if (user.Email == User.Identity?.Name)
+            {
+                TempData["Error"] = "You cannot delete your own account.";
+                return RedirectToAction(nameof(Index));
+            }
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                TempData["Error"] = "Administrator accounts cannot be deleted.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Never orphan order history — block deletion and suggest revoking instead.
+            var orders = await _db.Orders.CountAsync(o => o.UserId == id || o.CustomerUserId == id);
+            if (orders > 0)
+            {
+                TempData["Error"] = $"{user.Email} has {orders} order(s) on record — revoke their access instead of deleting, to keep the history.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            try
+            {
+                var result = await _userManager.DeleteAsync(user);
+                if (!result.Succeeded)
+                {
+                    TempData["Error"] = "Could not delete: " + string.Join("; ", result.Errors.Select(e => e.Description));
+                    return RedirectToAction(nameof(Index));
+                }
+                await LogAsync("Delete", "User", id, $"Deleted user {user.Email}");
+                TempData["Success"] = $"{user.Email} has been deleted.";
+            }
+            catch
+            {
+                TempData["Error"] = "Could not delete this account — it's still linked to other records. Revoke their access instead.";
+            }
             return RedirectToAction(nameof(Index));
         }
 

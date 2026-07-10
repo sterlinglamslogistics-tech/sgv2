@@ -43,7 +43,7 @@ public static class AdminSections
 
         // ── Settings & administration ─────────────────────────────────────────
         new("Stores",     "Stores",     "Stores",     "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z", "Settings"),
-        new("Users",      "Users",      "Users",      "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", "Settings"),
+        new("Users",      "Users",      "Users",      "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", "Settings", OwnerOnly: true),
         new("Roles",      "Roles & Permissions", "Roles", "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", "Settings", OwnerOnly: true),
         new("Integrations", "Integrations", "Integrations", "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", "Settings", OwnerOnly: true),
         new("Subscribe",  "Subscribe",  "Subscribe",  "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", "Settings", OwnerOnly: true),

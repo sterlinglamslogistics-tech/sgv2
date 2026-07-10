@@ -54,11 +54,16 @@
                 <p class="text-[11px] text-neutral-400 mt-1">Minimum 8 characters. Share this securely with the user.</p>
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
-                <input asp-for="MakeAdmin" type="checkbox" class="rounded accent-neutral-900" />
-                Grant admin access
-                <span class="text-neutral-400 text-xs font-light">(full access to this admin console)</span>
-            </label>
+            <div>
+                <label asp-for="Role" class="block text-xs text-neutral-500 mb-1">Role <span class="text-red-400">*</span></label>
+                <select asp-for="Role" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:border-neutral-400">
+                    @foreach (var r in (ViewBag.Roles as string[]) ?? Array.Empty<string>())
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </select>
+                <p class="text-[11px] text-neutral-400 mt-1">Staff members can sign in to the backend (with this role) and shop the storefront. To add a storefront-only account, use “New customer” on the Customers page.</p>
+            </div>
         </div>
 
         <div class="flex gap-3">

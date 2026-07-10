@@ -19,6 +19,10 @@
            class="px-4 py-2 border border-neutral-300 text-neutral-700 text-xs rounded-sm hover:border-neutral-500 transition-colors whitespace-nowrap">
             ↓ Export CSV
         </a>
+        <a asp-area="Admin" asp-controller="Customers" asp-action="Create"
+           class="px-4 py-2 bg-neutral-900 text-white text-xs rounded-sm hover:bg-neutral-700 transition-colors whitespace-nowrap">
+            + New customer
+        </a>
     </div>
     <div class="flex flex-wrap items-center gap-2">
         <select name="segment" onchange="this.form.submit()" class="@selCls">
@@ -50,12 +54,14 @@
                 <th class="text-left px-6 py-3 text-xs text-neutral-400 font-medium">Joined</th>
                 <th class="text-left px-6 py-3 text-xs text-neutral-400 font-medium">Last Order</th>
                 <th class="text-left px-6 py-3 text-xs text-neutral-400 font-medium">Segments</th>
+                @{ var isFullAdmin = ViewData["IsFullAdmin"] as bool? == true; }
+                @if (isFullAdmin) { <th class="text-right px-6 py-3 text-xs text-neutral-400 font-medium"></th> }
             </tr>
         </thead>
         <tbody class="divide-y divide-neutral-50">
             @if (!Model.Customers.Any())
             {
-                <tr><td colspan="8" class="px-6 py-12 text-center text-neutral-400 text-sm">No customers found.</td></tr>
+                <tr><td colspan="@(isFullAdmin ? 9 : 8)" class="px-6 py-12 text-center text-neutral-400 text-sm">No customers found.</td></tr>
             }
             @foreach (var c in Model.Customers)
             {
@@ -82,6 +88,24 @@
                             }
                         </div>
                     </td>
+                    @if (isFullAdmin)
+                    {
+                        <td class="px-6 py-3 text-right whitespace-nowrap">
+                            @if (c.OrderCount == 0)
+                            {
+                                <form asp-area="Admin" asp-controller="Customers" asp-action="Delete" asp-route-id="@c.Id"
+                                      method="post" class="inline"
+                                      onsubmit="return confirm('Permanently delete @c.Email? This cannot be undone.')">
+                                    @Html.AntiForgeryToken()
+                                    <button data-no-loading="1" class="text-xs font-medium text-red-500 hover:text-red-700 transition-colors">Delete</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-[10px] text-neutral-300" title="Has orders — kept for history">—</span>
+                            }
+                        </td>
+                    }
                 </tr>
             }
         </tbody>

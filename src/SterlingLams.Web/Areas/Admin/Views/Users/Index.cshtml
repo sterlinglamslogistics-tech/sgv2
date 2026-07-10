@@ -130,8 +130,9 @@
                     </td>
                     <td class="px-4 py-3 text-xs text-neutral-500">@(string.IsNullOrEmpty(u.Phone) ? "—" : u.Phone)</td>
                     <td class="px-4 py-3">
-                        @if (isSelf)
+                        @if (isSelf || u.IsAdmin)
                         {
+                            @* Own account and full administrators aren't editable from this list. *@
                             <span class="text-[10px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">@u.RoleName</span>
                         }
                         else
@@ -141,8 +142,8 @@
                                 @Html.AntiForgeryToken()
                                 <select name="role" onchange="this.form.submit()"
                                         class="text-[11px] border border-neutral-200 rounded-sm px-2 py-1 bg-white focus:outline-none focus:border-neutral-400 cursor-pointer
-                                               @(u.RoleName == "Admin" ? "text-violet-700" : u.RoleName == "Customer" ? "text-neutral-500" : "text-neutral-700")">
-                                    @foreach (var r in Model.AvailableRoles)
+                                               @(u.RoleName == "Customer" ? "text-neutral-500" : "text-neutral-700")">
+                                    @foreach (var r in Model.AssignableRoles)
                                     {
                                         <option value="@r" selected="@(u.RoleName == r)">@r</option>
                                     }
@@ -201,6 +202,15 @@
                                         @(u.IsRevoked ? "Restore" : "Revoke")
                                     </button>
                                 </form>
+                                @if (!u.IsAdmin)
+                                {
+                                    <form asp-area="Admin" asp-controller="Users" asp-action="Delete" asp-route-id="@u.Id"
+                                          method="post" class="inline"
+                                          onsubmit="return confirm('Permanently delete @u.Email? This cannot be undone. (Accounts with orders can\'t be deleted — revoke instead.)')">
+                                        @Html.AntiForgeryToken()
+                                        <button data-no-loading="1" class="text-xs font-medium text-red-500 hover:text-red-700 transition-colors">Delete</button>
+                                    </form>
+                                }
                             </div>
                         }
                         else
