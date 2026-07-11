@@ -115,4 +115,57 @@ public static class OrderEmailTemplate
 
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Lighter status-update email body (Processing / Ready for pickup / Shipped / Delivered):
+    /// heading + intro + a compact order-summary table + optional extra block/button. Shared by the
+    /// real status emails (OrdersController) and the Email Customizer preview so both look identical.
+    /// </summary>
+    public static string BuildStatusUpdate(
+        string heading,
+        string introHtml,
+        string orderNumber,
+        IReadOnlyList<Item> items,
+        decimal total,
+        string currency = "₦",
+        string? extraHtml = null,
+        string? buttonLabel = null,
+        string? buttonHref = null)
+    {
+        static string E(string? s) => WebUtility.HtmlEncode(s ?? "");
+        string Money(decimal v) => $"{currency}{v:N0}";
+
+        var sb = new StringBuilder();
+        sb.Append($@"<h1 style=""font-size:22px;font-weight:bold;margin:0 0 12px;color:#1c1917;"">{E(heading)}</h1>");
+        sb.Append($@"<p style=""margin:0 0 8px;color:#44403c;font-size:14px;line-height:1.6;"">{introHtml}</p>");
+        if (!string.IsNullOrEmpty(extraHtml)) sb.Append(extraHtml);
+
+        // ORDER divider
+        sb.Append($@"
+<table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin:24px 0 8px;"">
+  <tr>
+    <td style=""border-bottom:1px solid {Line};""></td>
+    <td style=""padding:0 12px;white-space:nowrap;font-size:11px;letter-spacing:1px;color:#78716c;"">ORDER {E(orderNumber)}</td>
+    <td style=""border-bottom:1px solid {Line};""></td>
+  </tr>
+</table>");
+
+        // Compact item list + total
+        sb.Append($@"<table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""font-size:14px;border-collapse:collapse;"">");
+        foreach (var it in items)
+        {
+            var variant = string.IsNullOrWhiteSpace(it.Variant) ? "" : $@" <span style=""color:#78716c;"">({E(it.Variant)})</span>";
+            sb.Append($@"<tr><td style=""padding:6px 0;color:#374151;"">{E(it.Name)}{variant} &times; {it.Quantity}</td><td align=""right"" style=""padding:6px 0;color:#111;"">{Money(it.LineTotal)}</td></tr>");
+        }
+        sb.Append($@"<tr><td style=""padding-top:8px;border-top:1px solid {Line};font-weight:700;color:#1c1917;"">Total</td><td align=""right"" style=""padding-top:8px;border-top:1px solid {Line};font-weight:700;color:#1c1917;"">{Money(total)}</td></tr>");
+        sb.Append("</table>");
+
+        if (!string.IsNullOrWhiteSpace(buttonLabel) && !string.IsNullOrWhiteSpace(buttonHref))
+            sb.Append($@"
+<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""margin:24px 0 0;""><tr>
+  <td style=""background:#ec1c8e;border-radius:2px;""><a href=""{buttonHref}"" style=""display:inline-block;padding:12px 28px;color:#fff;font-size:13px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;"">{E(buttonLabel)}</a></td>
+</tr></table>");
+
+        return sb.ToString();
+    }
 }

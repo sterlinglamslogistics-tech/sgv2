@@ -20,7 +20,11 @@ public class EmailCustomizerController : AdminBaseController
     // The customer-facing emails whose subject + intro are editable.
     public static readonly (string Key, string Label, string DefaultSubject, string DefaultIntro)[] Types = new[]
     {
-        ("order_confirmed", "Order confirmation", "Your order is being processed", "Your order {order} ({date}) has been received and is now being processed."),
+        ("order_confirmed",  "Order confirmation", "Your order is being processed", "Your order {order} ({date}) has been received and is now being processed."),
+        ("order_processing", "Processing",         "Your order is being prepared",  "Good news {name} — your order {order} is now being prepared and will be on its way soon."),
+        ("ready_for_pickup", "Ready for pickup",   "Your order is ready for pickup", "Your order {order} is ready to collect. Show the QR code below at the counter and we'll hand it over."),
+        ("order_shipped",    "Shipped",            "Your order is on its way",      "Great news — your order {order} has been shipped and is on its way to you."),
+        ("order_delivered",  "Delivered",          "Your order has been delivered", "Your order {order} has been delivered. We hope you love it — thank you for shopping with us!"),
         ("back_in_stock",   "Back in stock",      "Good news — it's back in stock", "An item you wanted is available again. These pieces sell quickly, so don't wait."),
         ("abandoned_cart",  "Abandoned cart",     "You left something in your bag", "You have items waiting in your bag — we've saved them for you."),
         ("password_reset",  "Password reset",     "Reset your password", "We received a request to reset your password. Click below to choose a new one. This link expires shortly."),
@@ -132,6 +136,27 @@ public class EmailCustomizerController : AdminBaseController
                 billingLines: new[] { "Zino Idoro", "Victoria crest 3 estate Augusta amadi chevron", "Lagos", "08163866044", "zinoidoro@gmail.com" },
                 shippingLines: new[] { "Zino Idoro", "Victoria crest 3 estate Augusta amadi chevron", "Lagos" });
             return (subject, body0);
+        }
+
+        // Order-status update emails (Processing / Ready for pickup / Shipped / Delivered) — share the
+        // compact order-summary layout used by the real status emails.
+        if (type is "order_processing" or "ready_for_pickup" or "order_shipped" or "order_delivered")
+        {
+            var sampleDate = DateTime.UtcNow;
+            var introHtml = OrderEmailTemplate.ApplyPlaceholders(intro, "62175", sampleDate, "Zino");
+            var sampleItems = new List<OrderEmailTemplate.Item>
+            {
+                new("Pearl Dangle Loop Earrings", "Silver", 2, 15000m, null),
+                new("2-Tone Band Ring", null, 1, 6000m, null),
+            };
+            string? extra = type == "ready_for_pickup"
+                ? @"<div style=""text-align:center;margin:18px 0;""><img src=""https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=SAMPLE"" alt=""Pickup QR code"" width=""160"" height=""160"" style=""width:160px;height:160px;"" /><br/><span style=""font:12px monospace;color:#6b7280;"">62175</span></div>"
+                : null;
+            var statusBody = OrderEmailTemplate.BuildStatusUpdate(subject, introHtml, "62175", sampleItems, 21000m,
+                extraHtml: extra,
+                buttonLabel: type == "ready_for_pickup" ? "View pickup pass" : null,
+                buttonHref: type == "ready_for_pickup" ? "#" : null);
+            return (subject, statusBody);
         }
 
         string body = type switch

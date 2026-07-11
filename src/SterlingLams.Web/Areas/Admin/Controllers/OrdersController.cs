@@ -25,11 +25,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
         private readonly IGiftCardService _giftCards;
         private readonly IOrderFulfilmentService _fulfilment;
         private readonly IEmailService _email;
+        private readonly ISettingsService _settings;
         private readonly SterlingLams.Web.Services.Logistics.ILogisticsDispatchService _logistics;
         private const int PageSize = 25;
 
         public OrdersController(ApplicationDbContext db, IStockService stock, IPaymentService payment,
             ILoyaltyService loyalty, IGiftCardService giftCards, IOrderFulfilmentService fulfilment, IEmailService email,
+            ISettingsService settings,
             SterlingLams.Web.Services.Logistics.ILogisticsDispatchService logistics)
         {
             _db = db;
@@ -39,6 +41,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             _giftCards = giftCards;
             _fulfilment = fulfilment;
             _email = email;
+            _settings = settings;
             _logistics = logistics;
         }
 
@@ -263,13 +266,23 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 // (covers the post-transfer "ready" moment + manual confirmation). Idempotent + guarded.
                 await _logistics.PushOrderAsync(order.Id);
 
-                // Store-pickup orders: email the customer their QR pickup pass the first time staff
-                // mark it Ready for pickup (sent once, guarded by PickupReadyEmailedAt).
-                if (order.Status == OrderStatus.ReadyForPickup
-                    && order.FulfillmentType == FulfillmentType.StorePickup
-                    && order.PickupReadyEmailedAt == null)
+                // Keep the customer posted as their order reaches each milestone. Only on a real
+                // transition (old != new) so re-saving the same status never re-sends. Subjects and
+                // intros for these emails are editable in the Email Customizer.
+                if (old != order.Status)
                 {
-                    await SendPickupReadyEmailAsync(order.Id);
+                    if (order.Status == OrderStatus.ReadyForPickup
+                        && order.FulfillmentType == FulfillmentType.StorePickup)
+                    {
+                        // Store-pickup: the QR pickup-pass email (sent once, guarded by PickupReadyEmailedAt).
+                        if (order.PickupReadyEmailedAt == null)
+                            await SendPickupReadyEmailAsync(order.Id);
+                    }
+                    else if (order.Status is OrderStatus.Processing or OrderStatus.Shipped
+                             or OrderStatus.Delivered or OrderStatus.ReadyForPickup)
+                    {
+                        await SendStatusUpdateEmailAsync(order.Id, order.Status);
+                    }
                 }
             }
 
@@ -300,6 +313,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             var firstName = order.User?.FirstName ?? order.Customer?.FirstName ?? "there";
             string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
 
+            // Subject + intro are editable in the Email Customizer ("Ready for pickup" template).
+            var def = EmailCustomizerController.Types.FirstOrDefault(t => t.Key == "ready_for_pickup");
+            var subject = await _settings.GetAsync("email.ready_for_pickup.subject",
+                def.DefaultSubject ?? $"Your order {order.OrderNumber} is ready for pickup");
+            var introText = await _settings.GetAsync("email.ready_for_pickup.intro", def.DefaultIntro ?? "");
+            var introHtml = OrderEmailTemplate.ApplyPlaceholders(introText, order.OrderNumber, order.CreatedAt, firstName);
+
             var items = string.Join("", order.Items.Select(i =>
                 $"<tr><td style=\"padding:4px 0;color:#374151\">{Enc(i.ProductName)}{(i.VariantName != null ? " (" + Enc(i.VariantName) + ")" : "")} &times; {i.Quantity}</td>"
                 + $"<td style=\"padding:4px 0;text-align:right;color:#111\">₦{i.LineTotal:N0}</td></tr>"));
@@ -311,7 +331,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
             var body =
                 $"<p>Hi {Enc(firstName)},</p>"
-                + $"<p>Good news — your order <strong>{Enc(order.OrderNumber)}</strong> is <strong>ready for pickup</strong>. Show the QR code below at the counter and we'll hand it over.</p>"
+                + $"<p>{introHtml}</p>"
                 + $"<div style=\"text-align:center;margin:18px 0\"><img src=\"{qrUrl}\" alt=\"Pickup QR code\" width=\"200\" height=\"200\" style=\"width:200px;height:200px\" /><br/>"
                 + $"<span style=\"font:12px monospace;color:#6b7280\">{Enc(order.OrderNumber)}</span></div>"
                 + $"<div style=\"text-align:center;margin:0 0 18px\"><a href=\"{passUrl}\" style=\"display:inline-block;background:#ed028b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600\">View pickup pass</a></div>"
@@ -320,12 +340,55 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 + $"<tr><td style=\"padding-top:8px;border-top:1px solid #eee;font-weight:700\">Total</td><td style=\"padding-top:8px;border-top:1px solid #eee;text-align:right;font-weight:700\">₦{order.Total:N0}</td></tr></table>"
                 + "<p style=\"color:#6b7280;font-size:13px;margin-top:16px\">Please bring a valid ID. This pass is unique to your order.</p>";
 
-            var sent = await _email.SendAsync(email!, $"Your order {order.OrderNumber} is ready for pickup", body,
+            var sent = await _email.SendAsync(email!, subject, body,
                 order.User?.FullName ?? order.Customer?.FullName);
             if (sent)
             {
                 order.PickupReadyEmailedAt = DateTime.UtcNow;
                 OrderNotes.AddSystem(_db, order.Id, "Ready-for-pickup email with QR pass sent to the customer.");
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        // Maps an order status to its Email Customizer template key.
+        private static string StatusTemplateKey(OrderStatus s) => s switch
+        {
+            OrderStatus.Processing     => "order_processing",
+            OrderStatus.ReadyForPickup => "ready_for_pickup",
+            OrderStatus.Shipped        => "order_shipped",
+            OrderStatus.Delivered      => "order_delivered",
+            _                          => "order_confirmed",
+        };
+
+        // Sends a customer-facing status-update email (Processing / Shipped / Delivered, plus Ready for
+        // pickup on delivery orders). Subject + intro come from the Email Customizer; body is the shared
+        // compact order summary. Best-effort — a missing customer email or SMTP failure is a no-op.
+        private async Task SendStatusUpdateEmailAsync(int orderId, OrderStatus status)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items).Include(o => o.User).Include(o => o.Customer)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+            if (order == null) return;
+            var email = order.User?.Email ?? order.Customer?.Email;
+            if (string.IsNullOrWhiteSpace(email)) return;
+
+            var key = StatusTemplateKey(status);
+            var def = EmailCustomizerController.Types.FirstOrDefault(t => t.Key == key);
+            var subject = await _settings.GetAsync($"email.{key}.subject", def.DefaultSubject ?? "Your order update");
+            var introText = await _settings.GetAsync($"email.{key}.intro", def.DefaultIntro ?? "");
+
+            var firstName = order.User?.FirstName ?? order.Customer?.FirstName ?? "there";
+            var introHtml = OrderEmailTemplate.ApplyPlaceholders(introText, order.OrderNumber, order.CreatedAt, firstName);
+            var items = order.Items
+                .Select(i => new OrderEmailTemplate.Item(i.ProductName, i.VariantName, i.Quantity, i.LineTotal, null))
+                .ToList();
+
+            var body = OrderEmailTemplate.BuildStatusUpdate(subject, introHtml, order.OrderNumber, items, order.Total);
+            var sent = await _email.SendAsync(email!, subject, body,
+                order.User?.FullName ?? order.Customer?.FullName);
+            if (sent)
+            {
+                OrderNotes.AddSystem(_db, order.Id, $"'{def.Label ?? status.ToString()}' status email sent to the customer.");
                 await _db.SaveChangesAsync();
             }
         }
