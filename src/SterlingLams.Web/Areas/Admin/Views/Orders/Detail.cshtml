@@ -36,8 +36,33 @@
                 <tbody class="divide-y divide-neutral-50">
                     @foreach (var item in Model.Order.Items)
                     {
+                        var sku = !string.IsNullOrWhiteSpace(item.ProductSku) ? item.ProductSku
+                            : (item.ProductVariant?.Sku ?? item.Product?.Sku);
+                        var imgUrl = item.Product?.Images?
+                            .OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder)
+                            .FirstOrDefault()?.Url;
+                        var thumb = SterlingLams.Web.Infrastructure.Img.Cld(imgUrl, 80, 80);
                         <tr>
-                            <td class="px-6 py-3 text-xs font-medium text-neutral-800">@item.ProductName</td>
+                            <td class="px-6 py-3">
+                                <div class="flex items-center gap-3">
+                                    @if (!string.IsNullOrEmpty(thumb))
+                                    {
+                                        <img src="@thumb" alt="@item.ProductName" width="40" height="40"
+                                             class="w-10 h-10 rounded object-cover border border-neutral-100 flex-shrink-0" />
+                                    }
+                                    else
+                                    {
+                                        <div class="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center flex-shrink-0 text-neutral-300 text-base">◇</div>
+                                    }
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-medium text-neutral-800">@item.ProductName</div>
+                                        @if (!string.IsNullOrWhiteSpace(sku))
+                                        {
+                                            <div class="text-[11px] text-neutral-400">SKU: @sku</div>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
                             <td class="px-6 py-3 text-xs text-neutral-500">@(item.VariantName ?? "—")</td>
                             <td class="px-6 py-3 text-xs text-right">@item.Quantity</td>
                             <td class="px-6 py-3 text-xs text-right">₦@item.UnitPrice.ToString("N0")</td>

@@ -131,7 +131,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             ViewData["Title"] = "Order Detail";
 
             var order = await _db.Orders
-                .Include(o => o.Items).ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product).ThenInclude(p => p.Images)
                 .Include(o => o.Items).ThenInclude(i => i.ProductVariant)
                 .Include(o => o.PickupStore)
                 .Include(o => o.DeliveryAddress)

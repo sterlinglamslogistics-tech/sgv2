@@ -63,6 +63,14 @@ public class TransferWorkflowService : ITransferWorkflowService
     /// in the same order) instead of racing on stale QuantityReserved/QuantityOnHand snapshots.
     /// Caller must already be inside a transaction. Rows that don't exist yet lock nothing.
     /// </summary>
+    /// <summary>Short "3× Ring, 1× Bangle" summary of the transfer lines with a positive quantity
+    /// (under the given selector), for order-timeline notes.</summary>
+    private static string Summarize(IEnumerable<StockTransferItem> items, Func<StockTransferItem, int> qty)
+    {
+        var parts = items.Where(i => qty(i) > 0).Select(i => $"{qty(i)}× {i.ProductName}").ToList();
+        return parts.Count == 0 ? "the requested items" : string.Join(", ", parts);
+    }
+
     private async Task LockInventoryRowsAsync(IEnumerable<(int ProductId, int StoreId)> pairs)
     {
         if (!_db.Database.IsNpgsql()) return; // FOR UPDATE is Postgres-only (SQLite test harness no-ops)
@@ -124,7 +132,7 @@ public class TransferWorkflowService : ITransferWorkflowService
     public async Task<TransferActionResult> ApproveAsync(int transferId, List<ItemQtyDto> items, string? userId)
     {
         var transfer = await _db.StockTransfers
-            .Include(t => t.Items).Include(t => t.FromStore)
+            .Include(t => t.Items).Include(t => t.FromStore).Include(t => t.ToStore)
             .FirstOrDefaultAsync(t => t.Id == transferId);
         if (transfer == null) return TransferActionResult.Fail("Transfer not found.");
         if (transfer.Status != TransferStatus.PendingApproval)
@@ -178,6 +186,11 @@ public class TransferWorkflowService : ITransferWorkflowService
         transfer.ApprovedByUserId = userId;
         transfer.ApprovedAt = DateTime.UtcNow;
 
+        // Timeline note on the order this transfer is fulfilling (if any).
+        if (transfer.OrderId.HasValue)
+            OrderNotes.AddSystem(_db, transfer.OrderId.Value,
+                $"Inter-branch transfer {transfer.TransferNumber} approved — {Summarize(transfer.Items, i => i.ApprovedQty ?? 0)} from {transfer.FromStore.Name} → {transfer.ToStore.Name}. Awaiting dispatch.");
+
         try
         {
             await _db.SaveChangesAsync();
@@ -205,6 +218,10 @@ public class TransferWorkflowService : ITransferWorkflowService
         transfer.RejectedAt = DateTime.UtcNow;
         transfer.RejectionReason = reason;
 
+        if (transfer.OrderId.HasValue)
+            OrderNotes.AddSystem(_db, transfer.OrderId.Value,
+                $"Inter-branch transfer {transfer.TransferNumber} was rejected: {reason}");
+
         await _db.SaveChangesAsync();
         return TransferActionResult.Ok();
     }
@@ -212,7 +229,7 @@ public class TransferWorkflowService : ITransferWorkflowService
     public async Task<TransferActionResult> DispatchAsync(int transferId, List<ItemQtyDto> items, string? trackingNumber, string? courierName, string? notes, string? userId)
     {
         var transfer = await _db.StockTransfers
-            .Include(t => t.Items).Include(t => t.ToStore)
+            .Include(t => t.Items).Include(t => t.ToStore).Include(t => t.FromStore)
             .FirstOrDefaultAsync(t => t.Id == transferId);
         if (transfer == null) return TransferActionResult.Fail("Transfer not found.");
         if (transfer.Status != TransferStatus.Approved)
@@ -267,6 +284,14 @@ public class TransferWorkflowService : ITransferWorkflowService
         transfer.CourierName = string.IsNullOrWhiteSpace(courierName) ? null : courierName.Trim();
         transfer.DispatchNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 
+        if (transfer.OrderId.HasValue)
+        {
+            var carrier = new[] { transfer.CourierName, transfer.TrackingNumber }.Where(s => !string.IsNullOrWhiteSpace(s));
+            var carrierText = carrier.Any() ? $" ({string.Join(", ", carrier)})" : "";
+            OrderNotes.AddSystem(_db, transfer.OrderId.Value,
+                $"Inter-branch transfer {transfer.TransferNumber} dispatched — {Summarize(transfer.Items, i => i.DispatchedQty ?? 0)} from {transfer.FromStore.Name} → {transfer.ToStore.Name}{carrierText}. In transit.");
+        }
+
         try
         {
             await _db.SaveChangesAsync();
@@ -286,7 +311,7 @@ public class TransferWorkflowService : ITransferWorkflowService
     public async Task<TransferActionResult> ReceiveAsync(int transferId, List<ReceiveLineDto> lines, string? notes, string? userId)
     {
         var transfer = await _db.StockTransfers
-            .Include(t => t.Items).Include(t => t.FromStore)
+            .Include(t => t.Items).Include(t => t.FromStore).Include(t => t.ToStore)
             .FirstOrDefaultAsync(t => t.Id == transferId);
         if (transfer == null) return TransferActionResult.Fail("Transfer not found.");
         // Receiving can happen on the first arrival (InTransit) and again to reconcile what was
@@ -317,6 +342,8 @@ public class TransferWorkflowService : ITransferWorkflowService
         var now = DateTime.UtcNow;
         await using var tx = await _db.Database.BeginTransactionAsync();
 
+        var receivedParts = new List<string>();
+        var shortfallParts = new List<string>();
         foreach (var item in transfer.Items)
         {
             if (!byItem.TryGetValue(item.Id, out var l)) continue;
@@ -331,6 +358,10 @@ public class TransferWorkflowService : ITransferWorkflowService
             item.ReceivedQty = (item.ReceivedQty ?? 0) + l.Received;
             item.DamagedQty = (item.DamagedQty ?? 0) + l.Damaged;
             item.WontFulfilQty = (item.WontFulfilQty ?? 0) + l.WontFulfil;
+
+            if (l.Received > 0) receivedParts.Add($"{l.Received}× {item.ProductName}");
+            if (l.Damaged > 0 || l.WontFulfil > 0)
+                shortfallParts.Add($"{item.ProductName} ({l.Damaged} damaged, {l.WontFulfil} won't-fulfil)");
         }
 
         // Fully reconciled (nothing still pending on any line) → Completed, else PartiallyReceived.
@@ -339,6 +370,15 @@ public class TransferWorkflowService : ITransferWorkflowService
         transfer.ReceivedByUserId = userId;
         transfer.ReceivedAt = now;
         transfer.ReceiveNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+
+        if (transfer.OrderId.HasValue)
+        {
+            var word = anyPending ? "partially received" : "received in full";
+            var summary = receivedParts.Count > 0 ? string.Join(", ", receivedParts) : "no good units this round";
+            var shortfall = shortfallParts.Count > 0 ? $" Shortfall: {string.Join("; ", shortfallParts)}." : "";
+            OrderNotes.AddSystem(_db, transfer.OrderId.Value,
+                $"Inter-branch transfer {transfer.TransferNumber} {word} at {transfer.ToStore.Name} — {summary}.{shortfall}");
+        }
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
@@ -396,6 +436,10 @@ public class TransferWorkflowService : ITransferWorkflowService
         transfer.CancelledByUserId = userId;
         transfer.CancelledAt = DateTime.UtcNow;
         transfer.CancellationReason = reason;
+
+        if (transfer.OrderId.HasValue)
+            OrderNotes.AddSystem(_db, transfer.OrderId.Value,
+                $"Inter-branch transfer {transfer.TransferNumber} was cancelled: {reason}");
 
         try
         {
