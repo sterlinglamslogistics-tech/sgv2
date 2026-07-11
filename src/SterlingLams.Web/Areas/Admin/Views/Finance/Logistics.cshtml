@@ -1,0 +1,128 @@
+@model SterlingLams.Web.Areas.Admin.Controllers.FinanceController.LogisticsVm
+@{
+    ViewData["Title"] = "Finance — Logistics P&L";
+    string Money(decimal v) => "₦" + v.ToString("N0");
+    var fromStr = Model.From.ToString("yyyy-MM-dd");
+    var toStr = Model.To.ToString("yyyy-MM-dd");
+}
+
+<partial name="_FinanceTabs" model="@("Logistics")" />
+
+<div class="flex items-center justify-between mb-5">
+    <p class="text-xs text-neutral-400">In-house delivery profitability — delivery-fee revenue minus recorded logistics costs (fuel, rider pay, etc.).</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="mb-5 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">@TempData["Success"]</div>
+}
+
+<form method="get" class="flex flex-wrap items-end gap-3 mb-6">
+    <div>
+        <label class="block text-xs text-neutral-500 mb-1">From</label>
+        <input type="date" name="from" value="@fromStr" class="border border-neutral-200 rounded-sm px-3 py-1.5 text-sm" />
+    </div>
+    <div>
+        <label class="block text-xs text-neutral-500 mb-1">To</label>
+        <input type="date" name="to" value="@toStr" class="border border-neutral-200 rounded-sm px-3 py-1.5 text-sm" />
+    </div>
+    <div>
+        <label class="block text-xs text-neutral-500 mb-1">Branch</label>
+        <select name="storeId" class="border border-neutral-200 rounded-sm px-3 py-1.5 text-sm">
+            <option value="">All branches</option>
+            @foreach (var s in Model.Stores)
+            {
+                <option value="@s.Id" selected="@(Model.StoreId == s.Id)">@s.Name</option>
+            }
+        </select>
+    </div>
+    <button class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Apply</button>
+</form>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <p class="text-xs text-neutral-400">Delivery revenue</p><p class="text-xl font-light text-neutral-900 mt-1">@Money(Model.Revenue)</p>
+        <p class="mt-1 text-[11px] text-neutral-400">@Model.Deliveries delivery order(s)</p>
+    </div>
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <p class="text-xs text-neutral-400">Logistics costs</p><p class="text-xl font-light text-red-600 mt-1">@Money(Model.Expenses)</p>
+    </div>
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <p class="text-xs text-neutral-400">Logistics profit</p><p class="text-xl font-light mt-1 @(Model.Net < 0 ? "text-red-600" : "text-emerald-600")">@Money(Model.Net)</p>
+    </div>
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <p class="text-xs text-neutral-400">Logistics margin</p><p class="text-xl font-light mt-1 @(Model.Net < 0 ? "text-red-600" : "text-emerald-600")">@Model.Margin.ToString("P0")</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Add expense -->
+    <div class="bg-white border border-neutral-100 rounded-sm p-4">
+        <h2 class="text-sm font-medium text-neutral-800 mb-3">Record a logistics cost</h2>
+        <form method="post" asp-action="AddExpense" class="space-y-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="from" value="@fromStr" />
+            <input type="hidden" name="to" value="@toStr" />
+            <input type="hidden" name="category" value="Logistics" />
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Amount (₦)</label>
+                <input type="number" name="amount" step="0.01" min="0" required class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Date</label>
+                <input type="date" name="occurredOn" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Branch (optional)</label>
+                <select name="storeId" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm">
+                    <option value="">— none —</option>
+                    @foreach (var s in Model.Stores)
+                    {
+                        <option value="@s.Id" selected="@(Model.StoreId == s.Id)">@s.Name</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-neutral-500 mb-1">Note</label>
+                <input type="text" name="note" placeholder="e.g. fuel, rider wages" class="w-full border border-neutral-200 rounded-sm px-3 py-2 text-sm" />
+            </div>
+            <button class="w-full px-4 py-2 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Add cost</button>
+        </form>
+    </div>
+
+    <!-- Expense list -->
+    <div class="lg:col-span-2 bg-white border border-neutral-100 rounded-sm overflow-hidden self-start">
+        <div class="px-4 py-2.5 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">Logistics costs in range</div>
+        <table class="w-full text-sm">
+            <thead><tr class="text-xs text-neutral-400">
+                <th class="px-4 py-2 text-left font-medium">Date</th>
+                <th class="px-4 py-2 text-left font-medium">Note</th>
+                <th class="px-4 py-2 text-left font-medium">Branch</th>
+                <th class="px-4 py-2 text-right font-medium">Amount</th>
+                <th class="px-4 py-2"></th>
+            </tr></thead>
+            <tbody class="divide-y divide-neutral-100">
+                @if (!Model.Items.Any()) { <tr><td colspan="5" class="px-4 py-8 text-center text-neutral-400">No logistics costs recorded in range.</td></tr> }
+                @foreach (var e in Model.Items)
+                {
+                    <tr class="hover:bg-neutral-50">
+                        <td class="px-4 py-2.5 text-neutral-600">@e.On.ToString("dd MMM yyyy")</td>
+                        <td class="px-4 py-2.5 text-neutral-600">@(string.IsNullOrWhiteSpace(e.Note) ? "—" : e.Note)</td>
+                        <td class="px-4 py-2.5 text-neutral-500">@(e.Store ?? "—")</td>
+                        <td class="px-4 py-2.5 text-right text-neutral-800">@Money(e.Amount)</td>
+                        <td class="px-4 py-2.5 text-right">
+                            <form method="post" asp-action="DeleteExpense" onsubmit="return confirm('Delete this cost?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@e.Id" />
+                                <input type="hidden" name="from" value="@fromStr" />
+                                <input type="hidden" name="to" value="@toStr" />
+                                <input type="hidden" name="storeId" value="@Model.StoreId" />
+                                <button class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

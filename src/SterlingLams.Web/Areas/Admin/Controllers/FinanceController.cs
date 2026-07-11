@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -695,6 +696,86 @@ public class FinanceController : AdminBaseController
             RevenueAll = rows.Sum(r => r.Revenue),
             Rows = rows
         });
+    }
+
+    // ── Logistics P&L (in-house delivery revenue vs logistics costs) ───────────
+    public record ExpenseRow(int Id, DateTime On, string Category, decimal Amount, string? Note, string? Store);
+
+    public class LogisticsVm
+    {
+        public DateTime From { get; set; }
+        public DateTime To { get; set; }
+        public int? StoreId { get; set; }
+        public List<Store> Stores { get; set; } = new();
+        public decimal Revenue { get; set; }
+        public decimal Expenses { get; set; }
+        public decimal Net => Revenue - Expenses;
+        public decimal Margin => Revenue > 0 ? Net / Revenue : 0;
+        public int Deliveries { get; set; }
+        public List<ExpenseRow> Items { get; set; } = new();
+    }
+
+    public async Task<IActionResult> Logistics(string? from, string? to, int? storeId)
+    {
+        ViewData["Title"] = "Finance — Logistics P&L";
+        var (f, t) = Range(from, to);
+        var stores = await _db.Stores.OrderBy(s => s.Name).ToListAsync();
+
+        var deliveries = _db.Orders.Where(o => o.IsPaid && o.FulfillmentType == FulfillmentType.Delivery
+            && o.CreatedAt >= f && o.CreatedAt < t);
+        if (storeId.HasValue) deliveries = deliveries.Where(o => o.PickupStoreId == storeId || o.FulfillingStoreId == storeId);
+        var revenue = await deliveries.SumAsync(o => (decimal?)o.DeliveryFee) ?? 0;
+        var count = await deliveries.CountAsync(o => o.DeliveryFee > 0);
+
+        var expQ = _db.Expenses.Include(e => e.Store)
+            .Where(e => e.Category == "Logistics" && e.OccurredOn >= f && e.OccurredOn < t);
+        if (storeId.HasValue) expQ = expQ.Where(e => e.StoreId == storeId);
+        var expList = await expQ.OrderByDescending(e => e.OccurredOn).ThenByDescending(e => e.Id).ToListAsync();
+
+        return View(new LogisticsVm
+        {
+            From = f, To = t.AddDays(-1), StoreId = storeId, Stores = stores,
+            Revenue = revenue,
+            Expenses = expList.Sum(e => e.Amount),
+            Deliveries = count,
+            Items = expList.Select(e => new ExpenseRow(e.Id, e.OccurredOn, e.Category, e.Amount, e.Note, e.Store?.Name)).ToList()
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddExpense(string category, decimal amount, DateTime? occurredOn,
+        string? note, int? storeId, string? from, string? to)
+    {
+        if (amount > 0)
+        {
+            _db.Expenses.Add(new Expense
+            {
+                Category = string.IsNullOrWhiteSpace(category) ? "Logistics" : category.Trim(),
+                Amount = amount,
+                OccurredOn = DateTime.SpecifyKind((occurredOn ?? DateTime.UtcNow).Date, DateTimeKind.Utc),
+                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+                StoreId = storeId,
+                CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+            await LogAsync("Create", "Expense", null, $"Recorded {category} expense ₦{amount:N0}");
+            TempData["Success"] = "Expense recorded.";
+        }
+        return RedirectToAction(nameof(Logistics), new { from, to, storeId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteExpense(int id, string? from, string? to, int? storeId)
+    {
+        var e = await _db.Expenses.FindAsync(id);
+        if (e != null)
+        {
+            _db.Expenses.Remove(e);
+            await _db.SaveChangesAsync();
+            await LogAsync("Delete", "Expense", id.ToString(), $"Deleted expense ₦{e.Amount:N0}");
+        }
+        return RedirectToAction(nameof(Logistics), new { from, to, storeId });
     }
 
     private async Task<FinanceVm> BuildAsync(string? from, string? to, int? storeId, string? channel, string? period)
