@@ -31,6 +31,7 @@ public class WishlistController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Toggle(int productId)
     {
         var userId = GetUserId();
@@ -56,6 +57,7 @@ public class WishlistController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Remove(int productId)
     {
         var userId = GetUserId();
