@@ -666,7 +666,21 @@
                 <div class="space-y-2">
                     <div class="flex justify-between text-xs"><span class="text-neutral-400">Units sold</span><span class="font-medium">@sb.UnitsSold90</span></div>
                     <div class="flex justify-between text-xs"><span class="text-neutral-400">Revenue</span><span class="font-medium text-emerald-700">₦@sb.Revenue90.ToString("N0")</span></div>
-                    <div class="flex justify-between text-xs"><span class="text-neutral-400">Last sold</span><span class="text-neutral-600">@(sb.LastSold?.ToLocalTime().ToString("dd MMM yyyy") ?? "never")</span></div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-neutral-400">Last sold</span>
+                        @if (sb.LastSold != null && sb.LastSoldOrderId != null)
+                        {
+                            <a asp-area="Admin" asp-controller="Orders" asp-action="Detail" asp-route-id="@sb.LastSoldOrderId"
+                               class="text-neutral-700 hover:text-neutral-900 underline decoration-dotted underline-offset-2"
+                               title="Open order @sb.LastSoldOrderNumber">
+                                @sb.LastSold?.ToLocalTime().ToString("dd MMM yyyy") · @sb.LastSoldOrderNumber
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-neutral-600">never</span>
+                        }
+                    </div>
                 </div>
             </div>
         </aside>

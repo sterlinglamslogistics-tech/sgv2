@@ -220,6 +220,14 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
             var since90 = DateTime.UtcNow.Date.AddDays(-90);
             var soldItems = _db.OrderItems.Where(oi => oi.ProductId == id && oi.Order.IsPaid && oi.Order.CreatedAt >= since90);
+
+            // The most recent paid sale of this product (all-time), for one-click order tracing.
+            var lastSale = await _db.OrderItems
+                .Where(oi => oi.ProductId == id && oi.Order.IsPaid)
+                .OrderByDescending(oi => oi.Order.CreatedAt)
+                .Select(oi => new { oi.Order.CreatedAt, oi.OrderId, oi.Order.OrderNumber })
+                .FirstOrDefaultAsync();
+
             vm.Sidebar = new ProductEditSidebar
             {
                 LowStockThreshold = product.LowStockThreshold,
@@ -228,11 +236,9 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 TotalReserved = branches.Sum(b => b.Reserved),
                 UnitsSold90 = await soldItems.SumAsync(oi => (int?)oi.Quantity) ?? 0,
                 Revenue90 = await soldItems.SumAsync(oi => (decimal?)(oi.Quantity * oi.UnitPrice - oi.DiscountAmount)) ?? 0,
-                LastSold = await _db.OrderItems
-                    .Where(oi => oi.ProductId == id && oi.Order.IsPaid)
-                    .OrderByDescending(oi => oi.Order.CreatedAt)
-                    .Select(oi => (DateTime?)oi.Order.CreatedAt)
-                    .FirstOrDefaultAsync()
+                LastSold = lastSale?.CreatedAt,
+                LastSoldOrderId = lastSale?.OrderId,
+                LastSoldOrderNumber = lastSale?.OrderNumber
             };
 
             return View(vm);

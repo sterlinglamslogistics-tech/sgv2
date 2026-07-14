@@ -283,6 +283,8 @@ namespace SterlingLams.Web.Areas.Admin.ViewModels
         public int UnitsSold90 { get; set; }
         public decimal Revenue90 { get; set; }
         public DateTime? LastSold { get; set; }
+        public int? LastSoldOrderId { get; set; }
+        public string? LastSoldOrderNumber { get; set; }
     }
     public class ProductBranchStock
     {
