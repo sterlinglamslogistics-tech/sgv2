@@ -221,6 +221,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 }
 
                 var old = order.Status;
+                var staff = await CurrentStaffNameAsync();
 
                 // Deduct stock when staff move an online order forward for the first time (e.g. they
                 // confirmed an offline/bank-transfer payment). The fulfilment engine allocates from the
@@ -245,7 +246,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                     if (order.Status != OrderStatus.AwaitingTransfer)
                     {
                         order.Status = newStatus;
-                        OrderNotes.AddSystem(_db, order.Id, $"Marked {newStatus} by staff (stock deducted).");
+                        OrderNotes.AddSystem(_db, order.Id, $"Marked {newStatus} by {staff} (stock deducted).");
                     }
                     order.UpdatedAt = DateTime.UtcNow;
                     await _db.SaveChangesAsync();
@@ -254,7 +255,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 {
                     order.Status = newStatus;
                     order.UpdatedAt = DateTime.UtcNow;
-                    OrderNotes.AddSystem(_db, order.Id, $"Order status changed from {old} to {newStatus} by staff.");
+                    OrderNotes.AddSystem(_db, order.Id, $"Order status changed from {old} to {newStatus} by {staff}.");
                     await _db.SaveChangesAsync();
                 }
 
@@ -287,6 +288,24 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             }
 
             return RedirectToAction(nameof(Detail), new { id });
+        }
+
+        // Display name ("First Last", else username) of the signed-in staff member — for order notes.
+        private async Task<string> CurrentStaffNameAsync()
+        {
+            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(id))
+            {
+                var u = await _db.Users.Where(x => x.Id == id)
+                    .Select(x => new { x.FirstName, x.LastName, x.UserName }).FirstOrDefaultAsync();
+                if (u != null)
+                {
+                    var name = $"{u.FirstName} {u.LastName}".Trim();
+                    if (!string.IsNullOrWhiteSpace(name)) return name;
+                    if (!string.IsNullOrWhiteSpace(u.UserName)) return u.UserName;
+                }
+            }
+            return User.Identity?.Name ?? "staff";
         }
 
         // Sends the "ready for pickup" email with the QR pass (hosted image + pass link). Generates
