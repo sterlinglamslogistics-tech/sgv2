@@ -29,6 +29,8 @@ public class ProductCardViewModel
         ? (int)Math.Round((Price - SalePrice!.Value) / Price * 100m)
         : 0;
     public bool IsAvailable { get; set; }
+    /// <summary>Total on-hand across branches — drives the "Only N left" low-stock badge on cards.</summary>
+    public int TotalStock { get; set; }
     public bool IsInWishlist { get; set; }
     public bool IsNewArrival { get; set; }
     public bool HasVariants { get; set; }

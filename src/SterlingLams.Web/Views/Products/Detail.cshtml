@@ -214,6 +214,15 @@
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 <span id="low-stock-text">@(showCountNudge ? $"Only {totalLeft} left — order soon" : "Low stock — order soon")</span>
             </p>
+            @{
+                // Positive "in stock" affirmation — shown when comfortably in stock (not low, not sold out).
+                var inStockStores = Model.StoreStock.Count(s => s.Quantity > 0);
+                var showInStock = !Model.Variants.Any() && Model.IsAvailableAnywhere && !nudgeVisible;
+            }
+            <p id="in-stock-line" class="text-sm text-emerald-700 font-medium mb-6 flex items-center gap-2 @(showInStock ? "" : "hidden")">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                <span>In stock@(inStockStores > 1 ? $" — available at {inStockStores} stores" : inStockStores == 1 ? " — ready to collect or ship" : ", ready to ship")</span>
+            </p>
 
             @if (!string.IsNullOrEmpty(Model.ShortDescription))
             {

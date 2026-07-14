@@ -1,9 +1,16 @@
 @model List<SterlingLams.Web.Models.ViewModels.ProductCardViewModel>
+@inject SterlingLams.Web.Services.ISettingsService SettingsService
 @*
     Renders the product cards only (no grid wrapper). Used both by the listing grid on
     first paint and by the "View more" endpoint (?partial=cards) which appends the next
     page of cards into the existing grid without a full reload.
 *@
+@{
+    // Low-stock badge threshold (mirrors the product page); 0 = the nudge is switched off.
+    var cardLowThreshold = await SettingsService.GetBoolAsync("inventory.show_low_stock_nudge", true)
+        ? (int)await SettingsService.GetDecimalAsync("inventory.low_stock_threshold", 5)
+        : 0;
+}
 @foreach (var product in Model)
 {
     <div class="group flex flex-col h-full">
@@ -28,9 +35,16 @@
             }
             @if (!product.IsAvailable)
             {
-                <div class="absolute inset-0 bg-white/50 flex items-center justify-center">
-                    <span class="text-xs tracking-widest uppercase text-neutral-500">Sold Out</span>
+                <div class="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+                    <span class="text-[11px] tracking-[0.2em] uppercase text-neutral-600 border border-neutral-300 px-3 py-1.5 bg-white/80">Sold Out</span>
                 </div>
+            }
+            else if (cardLowThreshold > 0 && product.TotalStock > 0 && product.TotalStock <= cardLowThreshold)
+            {
+                <span class="absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-white/90 backdrop-blur text-amber-700 text-[10px] tracking-wide uppercase px-2.5 py-1 rounded-full shadow-sm">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Only @product.TotalStock left
+                </span>
             }
 
             <!-- Quick actions on hover: Compare / Quick View / Wishlist -->
