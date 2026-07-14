@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Render Blueprint — Sterlin Glams platform. Developed by Dev Rapheal.
-#  Creates a free web service (built from the Dockerfile) + a free PostgreSQL,
-#  wired together automatically. Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+#  Web service runs on the Pro instance (4 GB / 1 CPU); PostgreSQL is still on the free plan.
+#  Wired together automatically. Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
 # ─────────────────────────────────────────────────────────────────────────────
 databases:
   - name: sterlinglams-db
@@ -14,7 +14,7 @@ services:
   - type: web
     name: sterlinglams
     runtime: docker
-    plan: free
+    plan: pro          # Pro instance: 4 GB / 1 CPU (upgraded from free — no more spin-down/cold starts)
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
