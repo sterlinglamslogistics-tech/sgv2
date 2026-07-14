@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SterlingLams.Web.Areas.Admin.ViewModels;
@@ -17,11 +19,13 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly IConfiguration _config;
 
-        public CategoriesController(ApplicationDbContext db, IWebHostEnvironment env)
+        public CategoriesController(ApplicationDbContext db, IWebHostEnvironment env, IConfiguration config)
         {
             _db = db;
             _env = env;
+            _config = config;
         }
 
         public async Task<IActionResult> Index()
@@ -108,13 +112,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             // Image: a freshly uploaded file wins; otherwise keep the URL field value.
             if (imageFile != null && imageFile.Length > 0)
             {
-                var ext = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
-                var dir = Path.Combine(_env.WebRootPath, "uploads", "categories");
-                Directory.CreateDirectory(dir);
-                var fileName = $"{Guid.NewGuid():N}{ext}";
-                await using var stream = System.IO.File.Create(Path.Combine(dir, fileName));
-                await imageFile.CopyToAsync(stream);
-                category.ImageUrl = $"/uploads/categories/{fileName}";
+                category.ImageUrl = await SaveCategoryImageAsync(imageFile);
             }
             else
             {
@@ -127,6 +125,39 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 $"{(isNew ? "Created" : "Updated")} category '{category.Name}'");
             TempData["Success"] = $"Category '{category.Name}' saved.";
             return RedirectToAction(nameof(Index));
+        }
+
+        /// <summary>Persists a category image — Cloudinary when configured (survives redeploys on
+        /// ephemeral hosts like Render), otherwise the local wwwroot/uploads folder (dev only).</summary>
+        private async Task<string> SaveCategoryImageAsync(IFormFile file)
+        {
+            var cloudName = _config["Cloudinary:CloudName"];
+            var apiKey    = _config["Cloudinary:ApiKey"];
+            var apiSecret = _config["Cloudinary:ApiSecret"];
+            if (!string.IsNullOrWhiteSpace(cloudName) && !string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(apiSecret))
+            {
+                var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret)) { Api = { Secure = true } };
+                await using var s = file.OpenReadStream();
+                var result = await cloudinary.UploadAsync(new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, s),
+                    Folder = "sterlinglams/categories",
+                    PublicId = Guid.NewGuid().ToString("N"),
+                    UniqueFilename = false,
+                    Overwrite = false
+                });
+                if (result.StatusCode == System.Net.HttpStatusCode.OK && result.SecureUrl != null)
+                    return result.SecureUrl.ToString();
+            }
+
+            // Fallback: local disk (Cloudinary not configured — dev only, NOT persistent on Render).
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var dir = Path.Combine(_env.WebRootPath, "uploads", "categories");
+            Directory.CreateDirectory(dir);
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            await using var stream = System.IO.File.Create(Path.Combine(dir, fileName));
+            await file.CopyToAsync(stream);
+            return $"/uploads/categories/{fileName}";
         }
 
         [HttpPost]
