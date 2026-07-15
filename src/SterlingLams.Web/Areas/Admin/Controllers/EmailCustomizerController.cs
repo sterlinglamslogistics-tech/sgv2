@@ -29,6 +29,9 @@ public class EmailCustomizerController : AdminBaseController
         ("abandoned_cart",  "Abandoned cart",     "You left something in your bag", "You have items waiting in your bag — we've saved them for you."),
         ("password_reset",  "Password reset",     "Reset your password", "We received a request to reset your password. Click below to choose a new one. This link expires shortly."),
         ("email_confirm",   "Email confirmation", "Confirm your email", "Thanks for creating an account with us. Please confirm this is your email address by clicking below."),
+        // Branch/staff emails — sent to a store's email (not the customer). Placeholders: {branch}, {order}.
+        ("branch_transfer_request", "Transfer request (to branch)", "Send stock to {branch} — order {order}", "Please pack and send the stock below to {branch} so order {order} can be fulfilled."),
+        ("branch_dispatch",         "Order dispatch (to branch)",   "Dispatch order {order}",                 "All stock for order {order} is now at your branch — please pack and fulfil it."),
     };
 
     public async Task<IActionResult> Index(string type = "order_confirmed")
@@ -157,6 +160,25 @@ public class EmailCustomizerController : AdminBaseController
                 buttonLabel: type == "ready_for_pickup" ? "View pickup pass" : null,
                 buttonHref: type == "ready_for_pickup" ? "#" : null);
             return (subject, statusBody);
+        }
+
+        // Branch/staff emails — subject + intro carry {branch}/{order}; the rest (item list, transfer
+        // reference) is filled by the real send. Sample uses placeholder values.
+        if (type is "branch_transfer_request" or "branch_dispatch")
+        {
+            string Fill(string s) => s.Replace("{branch}", "Lekki").Replace("{order}", "62175");
+            var introText = Fill(intro);
+            var items = @"<li style=""padding:3px 0;"">Pearl Dangle Loop Earrings (Silver) &times; 2</li><li style=""padding:3px 0;"">2-Tone Band Ring &times; 1</li>";
+            var bodyBr = type == "branch_transfer_request"
+                ? $@"<h2 style=""font-size:18px;margin:0 0 12px;"">Transfer needed — order 62175</h2>
+                     <p style=""color:#44403c;"">{E(introText)}</p>
+                     <ul style=""color:#374151;padding-left:18px;margin:14px 0;"">{items}</ul>
+                     <p style=""color:#57534e;font-size:13px;"">Transfer reference <strong>TRF-260715-101530-2</strong>. Mark it dispatched in <strong>Inventory System → Stock transfer</strong> once sent.</p>"
+                : $@"<h2 style=""font-size:18px;margin:0 0 12px;"">Order 62175 ready to dispatch</h2>
+                     <p style=""color:#44403c;"">{E(introText)}</p>
+                     <ul style=""color:#374151;padding-left:18px;margin:14px 0;"">{items}</ul>
+                     <p style=""color:#57534e;font-size:13px;"">Deliver to Lekki, Lagos.</p>";
+            return (Fill(subject), bodyBr);
         }
 
         string body = type switch

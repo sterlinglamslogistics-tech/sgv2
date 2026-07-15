@@ -445,13 +445,18 @@ public class OrderFulfilmentService : IOrderFulfilmentService
     {
         if (!await _settings.GetBoolAsync("notifications.branch_fulfilment", true)) return;
         var dest = fulfilStore.Name.Replace("Sterlin Glams ", "");
+        // Subject + intro are editable in Admin → Emails ("Transfer request (to branch)"); {branch}/{order} filled here.
+        var subjT = await _settings.GetAsync("email.branch_transfer_request.subject", "Send stock to {branch} — order {order}");
+        var introT = await _settings.GetAsync("email.branch_transfer_request.intro", "Please pack and send the stock below to {branch} so order {order} can be fulfilled.");
+        string Fill(string s) => s.Replace("{branch}", dest).Replace("{order}", order.OrderNumber);
+        var intro = System.Net.WebUtility.HtmlEncode(Fill(introT));
         foreach (var n in notices)
         {
-            var html = $"<h2>Transfer needed for online order {order.OrderNumber}</h2>"
-                + $"<p>Please pack and send the following to <strong>{System.Net.WebUtility.HtmlEncode(dest)}</strong> so the order can be fulfilled:</p>"
-                + $"<ul>{ItemRows(n.Items)}</ul>"
-                + $"<p>Transfer reference <strong>{n.Ref}</strong>. Mark it dispatched in Inventory System → Stock transfer once sent.</p>";
-            await SendBranchAsync(n.Source.Email, $"Send stock to {dest} — order {order.OrderNumber}", html);
+            var html = $"<h2 style=\"font-size:18px;margin:0 0 12px;\">Transfer needed — order {System.Net.WebUtility.HtmlEncode(order.OrderNumber)}</h2>"
+                + $"<p style=\"color:#44403c;\">{intro}</p>"
+                + $"<ul style=\"color:#374151;padding-left:18px;margin:14px 0;\">{ItemRows(n.Items)}</ul>"
+                + $"<p style=\"color:#57534e;font-size:13px;\">Transfer reference <strong>{n.Ref}</strong>. Mark it dispatched in Inventory System → Stock transfer once sent.</p>";
+            await SendBranchAsync(n.Source.Email, Fill(subjT), html);
         }
     }
 
@@ -459,13 +464,20 @@ public class OrderFulfilmentService : IOrderFulfilmentService
     private async Task NotifyReadyToDispatchAsync(Order order, Store fulfilStore)
     {
         if (!await _settings.GetBoolAsync("notifications.branch_fulfilment", true)) return;
+        var branch = fulfilStore.Name.Replace("Sterlin Glams ", "");
+        // Editable in Admin → Emails ("Order dispatch (to branch)"); {branch}/{order} filled here.
+        var subjT = await _settings.GetAsync("email.branch_dispatch.subject", "Dispatch order {order}");
+        var introT = await _settings.GetAsync("email.branch_dispatch.intro", "All stock for order {order} is now at your branch — please pack and fulfil it.");
+        string Fill(string s) => s.Replace("{branch}", branch).Replace("{order}", order.OrderNumber);
         var items = order.Items.Select(i => (i.VariantName == null ? i.ProductName : $"{i.ProductName} ({i.VariantName})", i.Quantity));
         var where = order.FulfillmentType == FulfillmentType.StorePickup
-            ? $"Customer pickup at {System.Net.WebUtility.HtmlEncode(fulfilStore.Name.Replace("Sterlin Glams ", ""))}."
+            ? $"Customer pickup at {System.Net.WebUtility.HtmlEncode(branch)}."
             : $"Deliver to {System.Net.WebUtility.HtmlEncode((order.DeliveryAddress?.City + ", " + order.DeliveryAddress?.State).Trim(' ', ','))}.";
-        var html = $"<h2>Order {order.OrderNumber} ready to dispatch</h2>"
-            + $"<p>All stock is now at your branch. Please pack and fulfil:</p><ul>{ItemRows(items)}</ul><p>{where}</p>";
-        await SendBranchAsync(fulfilStore.Email, $"Dispatch order {order.OrderNumber}", html);
+        var html = $"<h2 style=\"font-size:18px;margin:0 0 12px;\">Order {System.Net.WebUtility.HtmlEncode(order.OrderNumber)} ready to dispatch</h2>"
+            + $"<p style=\"color:#44403c;\">{System.Net.WebUtility.HtmlEncode(Fill(introT))}</p>"
+            + $"<ul style=\"color:#374151;padding-left:18px;margin:14px 0;\">{ItemRows(items)}</ul>"
+            + $"<p style=\"color:#57534e;font-size:13px;\">{where}</p>";
+        await SendBranchAsync(fulfilStore.Email, Fill(subjT), html);
     }
 
     // Cancel + refund a paid order whose item sold out before its payment landed (the "first to
