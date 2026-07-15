@@ -3,8 +3,10 @@
     ViewData["Title"] = "Compare Products";
     Layout = "_Layout";
     string Money(decimal v) => "₦" + v.ToString("N0");
-    string Img(SterlingLams.Web.Models.Domain.Product p) =>
-        p.Images.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "/images/placeholder.jpg";
+    string? Img(SterlingLams.Web.Models.Domain.Product p) =>
+        SterlingLams.Web.Infrastructure.Img.Cld(
+            p.Images.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "/images/placeholder.jpg",
+            600, 600);
     var slugsJson = System.Text.Json.JsonSerializer.Serialize(Model.Select(p => p.Slug));
 }
 <script>window.__comparePageSlugs = @Html.Raw(slugsJson);</script>

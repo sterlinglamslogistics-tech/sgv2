@@ -110,7 +110,7 @@ else
                             <div class="flex items-center gap-3">
                                 @if (!string.IsNullOrEmpty(p.CoverImageUrl))
                                 {
-                                    <img src="@p.CoverImageUrl" alt="" class="w-10 h-10 object-cover rounded-sm flex-shrink-0" />
+                                    <img src="@Img.Cld(p.CoverImageUrl, 96, 96)" alt="" loading="lazy" class="w-10 h-10 object-cover rounded-sm flex-shrink-0" />
                                 }
                                 <div>
                                     <div class="text-neutral-800 font-medium">@p.Title</div>

@@ -650,8 +650,8 @@
                 {
                     <a asp-controller="Products" asp-action="Detail" asp-route-slug="@p.Slug" class="group">
                         <div class="aspect-square bg-neutral-50 mb-3 overflow-hidden">
-                            <img src="@p.PrimaryImageUrl" alt="@p.Name"
-                                 loading="lazy" width="400" height="400"
+                            <img src="@Img.Cld(p.PrimaryImageUrl, 400, 400)" alt="@p.Name"
+                                 loading="lazy" decoding="async" width="400" height="400"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         </div>
                         <h3 class="text-sm font-light text-neutral-700 group-hover:text-neutral-900 transition-colors">@p.Name</h3>
@@ -682,8 +682,8 @@
                 {
                     <a asp-controller="Products" asp-action="Detail" asp-route-slug="@p.Slug" class="group">
                         <div class="aspect-square bg-neutral-50 mb-3 overflow-hidden">
-                            <img src="@p.PrimaryImageUrl" alt="@p.Name"
-                                 loading="lazy" width="400" height="400"
+                            <img src="@Img.Cld(p.PrimaryImageUrl, 400, 400)" alt="@p.Name"
+                                 loading="lazy" decoding="async" width="400" height="400"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         </div>
                         <h3 class="text-sm font-light text-neutral-700 group-hover:text-neutral-900 transition-colors">@p.Name</h3>

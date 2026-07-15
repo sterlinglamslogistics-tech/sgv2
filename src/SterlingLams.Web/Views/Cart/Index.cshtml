@@ -29,8 +29,8 @@
             @foreach (var item in Model.Items)
             {
                 <div class="flex gap-6 py-6 border-b border-neutral-100">
-                    <img src="@item.ImageUrl" alt="@item.ProductName"
-                         loading="lazy"
+                    <img src="@Img.Cld(item.ImageUrl, 224, 224)" alt="@item.ProductName"
+                         loading="lazy" decoding="async" width="112" height="112"
                          class="w-28 h-28 object-cover flex-shrink-0" />
                     <div class="flex-1 min-w-0">
                         <h3 class="font-light text-neutral-800 mb-1">@item.ProductName</h3>

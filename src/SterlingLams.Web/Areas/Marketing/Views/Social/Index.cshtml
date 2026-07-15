@@ -133,7 +133,7 @@ else
             <div class="bg-white border border-neutral-200 rounded-sm p-4 flex items-start gap-4">
                 @if (!string.IsNullOrEmpty(p.ImageUrl))
                 {
-                    <img src="@p.ImageUrl" alt="" class="w-16 h-16 object-cover rounded-sm flex-shrink-0" />
+                    <img src="@Img.Cld(p.ImageUrl, 128, 128)" alt="" loading="lazy" class="w-16 h-16 object-cover rounded-sm flex-shrink-0" />
                 }
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">

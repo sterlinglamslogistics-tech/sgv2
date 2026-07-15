@@ -148,7 +148,7 @@
                             <td data-col="description" class="px-4 py-3 text-neutral-500">@Trunc(p.Description, 60)</td>
                             <td data-col="trackstock" class="px-4 py-3 text-center">@(p.TrackStock ? "✓" : "—")</td>
                             <td data-col="image" class="px-4 py-3 text-center">
-                                @if (!string.IsNullOrEmpty(p.ImageUrl)) { <img src="@p.ImageUrl" class="w-8 h-8 object-cover rounded inline-block" alt="" /> } else { <span class="text-neutral-300">—</span> }
+                                @if (!string.IsNullOrEmpty(p.ImageUrl)) { <img src="@Img.Cld(p.ImageUrl, 80, 80)" loading="lazy" class="w-8 h-8 object-cover rounded inline-block" alt="" /> } else { <span class="text-neutral-300">—</span> }
                             </td>
                             <td data-col="sellweb" class="px-4 py-3 text-center">@(p.IsActive ? "✓" : "—")</td>
                             <td data-col="actions" class="px-2 py-3 text-right">

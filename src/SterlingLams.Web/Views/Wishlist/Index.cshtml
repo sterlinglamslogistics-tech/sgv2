@@ -30,7 +30,8 @@
                 <div class="group relative">
                     <a asp-controller="Products" asp-action="Detail" asp-route-slug="@product.Slug"
                        class="block aspect-square bg-neutral-50 overflow-hidden mb-4">
-                        <img src="@primaryImage" alt="@product.Name"
+                        <img src="@Img.Cld(primaryImage, 600, 600)" alt="@product.Name"
+                             loading="lazy" decoding="async" width="600" height="600"
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     </a>
 

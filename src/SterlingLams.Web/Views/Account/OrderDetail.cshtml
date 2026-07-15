@@ -59,7 +59,8 @@
                     <div class="w-20 h-20 bg-neutral-50 rounded-sm flex-shrink-0 overflow-hidden">
                         @if (img != null)
                         {
-                            <img src="@img.Url" alt="@item.ProductName"
+                            <img src="@Img.Cld(img.Url, 160, 160)" alt="@item.ProductName"
+                                 loading="lazy" decoding="async" width="80" height="80"
                                  class="w-full h-full object-cover" />
                         }
                     </div>

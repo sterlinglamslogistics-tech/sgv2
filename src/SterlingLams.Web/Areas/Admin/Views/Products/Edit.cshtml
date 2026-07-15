@@ -420,7 +420,7 @@
                                         </td>
                                         <td class="py-2.5 pr-4">
                                             <div class="flex items-center gap-2">
-                                                <img src="@v.ImageUrl" alt="" id="vimg-prev-@v.Id"
+                                                <img src="@Img.Cld(v.ImageUrl, 96, 96)" alt="" id="vimg-prev-@v.Id" loading="lazy"
                                                      class="w-9 h-9 object-cover rounded border border-neutral-200 @(string.IsNullOrEmpty(v.ImageUrl) ? "hidden" : "")" />
                                                 <input name="img_@v.Id" id="vimg-@v.Id" value="@v.ImageUrl" placeholder="/uploads/… or https://…"
                                                        class="w-40 border border-neutral-200 rounded-sm px-2 py-1.5 text-xs focus:outline-none focus:border-neutral-400" />
@@ -489,7 +489,7 @@
                     @foreach (var img in Model.Images)
                     {
                         <div class="relative group w-24">
-                            <img src="@img.Url" alt="@img.AltText"
+                            <img src="@Img.Cld(img.Url, 200, 200)" alt="@img.AltText" loading="lazy"
                                  class="w-24 h-24 object-cover rounded border @(img.IsPrimary ? "border-neutral-900 ring-1 ring-neutral-900" : img.IsHover ? "border-emerald-500 ring-1 ring-emerald-500" : "border-neutral-200")" />
                             @if (img.IsPrimary)
                             {

@@ -232,7 +232,7 @@ else
                         <td class="px-3 py-2">
                             @if (!string.IsNullOrEmpty(row.ImageUrl))
                             {
-                                <img src="@row.ImageUrl" alt="@row.ProductName"
+                                <img src="@Img.Cld(row.ImageUrl, 96, 96)" alt="@row.ProductName" loading="lazy"
                                      class="w-10 h-10 object-cover rounded-sm border border-neutral-100"
                                      onerror="this.style.display='none'" />
                             }

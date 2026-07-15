@@ -204,14 +204,19 @@
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+                @{ var catIdx = 0; }
                 @foreach (var cat in shopCategories)
                 {
+                    // First row (up to 6 across on desktop) loads eagerly so the tiles don't pop in
+                    // as you reach this section; the rest stay lazy.
+                    var catEager = catIdx < 6;
                     <a asp-controller="Products" asp-action="Index" asp-route-category="@cat.Slug"
                        class="group block text-center">
                         <div class="aspect-square overflow-hidden bg-neutral-100 mb-4">
                             @if (!string.IsNullOrWhiteSpace(cat.ImageUrl))
                             {
-                                <img src="@Img.Cld(cat.ImageUrl, 700)" alt="@cat.Name" loading="lazy"
+                                <img src="@Img.Cld(cat.ImageUrl, 700, 700)" alt="@cat.Name"
+                                     loading="@(catEager ? "eager" : "lazy")" decoding="async" width="700" height="700"
                                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                             }
                             else
@@ -227,6 +232,7 @@
                         <!-- Brand-colour underline that grows on hover -->
                         <div class="mx-auto mt-3 h-0.5 w-full max-w-[10rem] bg-brand-500 origin-center scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                     </a>
+                    catIdx++;
                 }
             </div>
         </div>

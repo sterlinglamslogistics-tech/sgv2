@@ -45,7 +45,7 @@
 @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
 {
     <div class="max-w-4xl mx-auto px-6 mb-2">
-        <img src="@Model.CoverImageUrl" alt="@Model.Title" class="w-full max-h-[34rem] object-cover" />
+        <img src="@Img.Cld(Model.CoverImageUrl, 1200)" alt="@Model.Title" decoding="async" class="w-full max-h-[34rem] object-cover" />
     </div>
 }
 
@@ -62,7 +62,7 @@
                     <div class="aspect-[4/3] overflow-hidden bg-neutral-100 mb-3">
                         @if (!string.IsNullOrEmpty(p.CoverImageUrl))
                         {
-                            <img src="@p.CoverImageUrl" alt="@p.Title" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img src="@Img.Cld(p.CoverImageUrl, 600)" alt="@p.Title" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         }
                     </div>
                     <h3 class="font-cormorant text-xl font-light text-neutral-900 group-hover:text-brand-600 transition-colors leading-snug">@p.Title</h3>
