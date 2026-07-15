@@ -411,60 +411,7 @@
     </div>
 </section>
 
-<!-- ─── Newsletter signup ─────────────────────────────────────────────────── -->
-<section class="relative overflow-hidden bg-black" aria-label="Newsletter signup">
-    <!-- bold diagonal stripe backdrop -->
-    <div class="absolute inset-0 opacity-90"
-         style="background: repeating-linear-gradient(135deg, #000 0, #000 13px, #ffffff 13px, #ffffff 26px);"></div>
-    <div class="relative max-w-7xl mx-auto px-6 py-24 flex justify-center">
-        <div class="w-full max-w-xl bg-black/85 backdrop-blur-sm px-8 sm:px-12 py-14 text-center">
-            <p class="text-xs tracking-[0.3em] uppercase text-neutral-400 mb-3">Enjoy amazing discounts</p>
-            <h2 class="font-cormorant text-4xl sm:text-5xl font-semibold text-white mb-8">Join Our Newsletter</h2>
-
-            <form id="newsletter-form" class="text-left">
-                <label for="newsletter-email" class="block text-sm font-medium text-white mb-2">Email address:</label>
-                <input id="newsletter-email" name="email" type="email" required placeholder="Your email address"
-                       class="w-full bg-transparent border border-neutral-600 text-white placeholder-neutral-500 px-4 py-3 mb-5 focus:outline-none focus:border-brand-500 transition-colors" />
-                <div class="text-center">
-                    <button type="submit"
-                            class="bg-white text-neutral-900 text-xs tracking-[0.2em] uppercase px-12 py-3.5 hover:bg-brand-500 hover:text-white transition-colors duration-300 disabled:opacity-60">
-                        Sign Up
-                    </button>
-                </div>
-                <p id="newsletter-msg" class="text-sm text-center mt-4 min-h-[1.25rem]"></p>
-            </form>
-        </div>
-    </div>
-</section>
-
 @section Scripts {
-<script nonce="@Context.Items["csp-nonce"]">
-(function () {
-    const form = document.getElementById('newsletter-form');
-    if (!form) return;
-    const msg = document.getElementById('newsletter-msg');
-    const btn = form.querySelector('button[type=submit]');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('newsletter-email').value.trim();
-        btn.disabled = true; msg.textContent = ''; msg.className = 'text-sm text-center mt-4 min-h-[1.25rem] text-neutral-300';
-        try {
-            const res = await fetch('/Home/Subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'email=' + encodeURIComponent(email)
-            });
-            const data = await res.json();
-            msg.textContent = data.message;
-            msg.classList.add(data.success ? 'text-emerald-400' : 'text-red-400');
-            if (data.success) form.reset();
-        } catch {
-            msg.textContent = 'Something went wrong. Please try again.';
-            msg.classList.add('text-red-400');
-        } finally { btn.disabled = false; }
-    });
-}());
-</script>
 <script nonce="@Context.Items["csp-nonce"]">
 // Hero campaign slider — fade between images, auto-advance, arrows + dots.
 (function () {
