@@ -247,7 +247,10 @@ public class FinanceController : AdminBaseController
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SendReportNow(string? recipients)
     {
-        var (ok, msg) = await _report.SendAsync(string.IsNullOrWhiteSpace(recipients) ? null : recipients.Trim());
+        // Fall back to the signed-in admin's own email so the test always has a recipient,
+        // even before the scheduled recipient list has been saved.
+        var to = string.IsNullOrWhiteSpace(recipients) ? User.Identity?.Name : recipients.Trim();
+        var (ok, msg) = await _report.SendAsync(string.IsNullOrWhiteSpace(to) ? null : to);
         TempData[ok ? "Success" : "Error"] = ok ? $"Finance summary sent. {msg}" : $"Not sent: {msg}";
         return RedirectToAction(nameof(Index));
     }

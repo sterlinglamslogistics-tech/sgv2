@@ -350,10 +350,12 @@
             </div>
             <button class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-sm hover:bg-neutral-700 transition-colors">Save</button>
         </form>
-        <form method="post" asp-action="SendReportNow" class="mt-3">
+        <form method="post" asp-action="SendReportNow" class="mt-3 flex flex-wrap items-center gap-2">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="recipients" value="@ViewBag.ReportTo" />
-            <button class="text-xs text-neutral-500 hover:text-neutral-800 underline">Send a test summary now</button>
+            <label class="text-xs text-neutral-500">Send a test to</label>
+            <input type="email" name="recipients" value="@(string.IsNullOrWhiteSpace((string?)ViewBag.ReportTo) ? User.Identity?.Name : ViewBag.ReportTo)"
+                   placeholder="you@example.com" class="border border-neutral-200 rounded-sm px-3 py-1.5 text-sm w-64" />
+            <button class="px-3 py-1.5 text-xs border border-neutral-200 rounded-sm hover:border-neutral-400 transition-colors">Send test now</button>
         </form>
     </div>
 }
