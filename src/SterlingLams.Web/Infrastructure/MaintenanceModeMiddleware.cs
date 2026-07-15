@@ -32,6 +32,9 @@ public class MaintenanceModeMiddleware
         var siteName = await settings.GetAsync("general.site_name", "Sterlin Glams");
         var tagline = await settings.GetAsync("general.tagline", "");
         var email = await settings.GetAsync("general.contact_email", "");
+        var logoUrl = await settings.GetAsync("general.logo_url", "");
+        // Prefer the site's WhatsApp number for the contact line; fall back to the plain contact phone.
+        var whatsapp = await settings.GetAsync("general.whatsapp_number", "");
         var phone = await settings.GetAsync("general.contact_phone", "");
 
         // Physical stores stay open while the online shop is down — show visitors where to reach us.
@@ -52,7 +55,7 @@ public class MaintenanceModeMiddleware
         ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         ctx.Response.Headers.RetryAfter = "3600";
         ctx.Response.ContentType = "text/html; charset=utf-8";
-        await ctx.Response.WriteAsync(Page(siteName, tagline, email, phone, stores));
+        await ctx.Response.WriteAsync(Page(siteName, tagline, email, whatsapp, phone, logoUrl, stores));
     }
 
     // Areas/paths that must keep working so staff can manage the shop + the page can render.
@@ -76,7 +79,7 @@ public class MaintenanceModeMiddleware
         return AdminSections.DefaultStaffRoles.Any(user.IsInRole);
     }
 
-    private static string Page(string siteName, string tagline, string email, string phone, List<Store> stores)
+    private static string Page(string siteName, string tagline, string email, string whatsapp, string phone, string logoUrl, List<Store> stores)
     {
         static string Enc(string s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
         // tel: links must be digits/+ only
@@ -84,17 +87,34 @@ public class MaintenanceModeMiddleware
 
         var name = Enc(string.IsNullOrWhiteSpace(siteName) ? "Sterlin Glams" : siteName);
 
-        // ── Contact row ──────────────────────────────────────────────────────
+        // ── Logo / wordmark at the top ───────────────────────────────────────
+        // Use the uploaded logo image when set (general.logo_url); otherwise fall back to a large
+        // serif wordmark of the site name.
+        var topBrand = string.IsNullOrWhiteSpace(logoUrl)
+            ? $@"<div class=""wordmark"">{name}</div>"
+            : $@"<img class=""logo"" src=""{Enc(Img.Cld(logoUrl, 400) ?? logoUrl)}"" alt=""{name}"" />";
+
+        // ── Contact row (email + WhatsApp/phone) ─────────────────────────────
         var contact = new StringBuilder();
-        if (!string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(phone))
+        var hasWa = !string.IsNullOrWhiteSpace(whatsapp);
+        var number = hasWa ? whatsapp : phone;
+        if (!string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(number))
         {
             contact.Append(@"<div class=""contact"">");
             if (!string.IsNullOrWhiteSpace(email))
                 contact.Append($@"<a href=""mailto:{Enc(email)}"">{Enc(email)}</a>");
-            if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(phone))
+            if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(number))
                 contact.Append(@"<span class=""dot"">&middot;</span>");
-            if (!string.IsNullOrWhiteSpace(phone))
-                contact.Append($@"<a href=""tel:{Enc(TelHref(phone))}"">{Enc(phone)}</a>");
+            if (!string.IsNullOrWhiteSpace(number))
+            {
+                // WhatsApp number → click-to-chat (wa.me, digits only, same format as the footer);
+                // a plain contact phone stays a tel: link.
+                var href = hasWa
+                    ? "https://wa.me/" + new string(number.Where(char.IsDigit).ToArray())
+                    : "tel:" + TelHref(number);
+                var extra = hasWa ? @" target=""_blank"" rel=""noopener""" : "";
+                contact.Append($@"<a href=""{href}""{extra}>{Enc(number)}</a>");
+            }
             contact.Append(@"</div>");
         }
 
@@ -139,7 +159,8 @@ public class MaintenanceModeMiddleware
        text-align:center;padding:48px 24px;
        background-image:radial-gradient(circle at 50% 0%,rgba(200,164,92,.10),transparent 60%);}}
   .wrap{{max-width:640px;width:100%}}
-  .brand{{font-size:13px;letter-spacing:5px;text-transform:uppercase;color:#c8a45c;margin-bottom:8px}}
+  .logo{{height:104px;width:auto;max-width:300px;object-fit:contain;display:block;margin:0 auto 22px}}
+  .wordmark{{font-size:36px;letter-spacing:5px;text-transform:uppercase;color:#f5f5f4;margin-bottom:14px;font-weight:400}}
   .tagline{{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#78716c;margin-bottom:40px}}
   .rule{{width:48px;height:1px;background:#c8a45c;margin:28px auto;opacity:.7}}
   h1{{font-weight:300;font-size:38px;letter-spacing:1px;margin:0 0 18px;line-height:1.2}}
@@ -156,10 +177,10 @@ public class MaintenanceModeMiddleware
   .store-line a{{color:#c8a45c;text-decoration:none}}
   .store-line a:hover{{color:#e7d9bb}}
   .foot{{margin-top:44px;font-size:11px;letter-spacing:1px;color:#57534e}}
-  @media(max-width:520px){{h1{{font-size:30px}}}}
+  @media(max-width:520px){{h1{{font-size:30px}} .logo{{height:80px}} .wordmark{{font-size:28px;letter-spacing:3px}}}}
 </style></head>
 <body><div class=""wrap"">
-  <div class=""brand"">{name}</div>
+  {topBrand}
   {taglineHtml}
   <h1>We&rsquo;ll be right back</h1>
   <p class=""lead"">Our online store is closed for a short while as we make a few refinements.
