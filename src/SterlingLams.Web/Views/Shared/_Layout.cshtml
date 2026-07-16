@@ -103,7 +103,17 @@
 <body class="bg-canvas text-neutral-900 font-inter antialiased">
 
     <!-- ─── Page loader (self-drawing line diamond; hidden by app.js once ready) ── -->
-    <div id="page-loader" aria-hidden="true">
+    @{
+        // How long to keep the drawing diamond up on each page. "Staff only" lets the owner enjoy it
+        // without slowing real shoppers. Clamped to 2s so it always clears before the CSS safety timer.
+        var loaderMinMs   = await SettingsService.GetIntAsync("loader.min_ms", 700);
+        var loaderStaffOnly = await SettingsService.GetBoolAsync("loader.staff_only", false);
+        var isStaffViewer = User?.Identity?.IsAuthenticated == true &&
+            (User.IsInRole(SterlingLams.Web.Areas.Admin.AdminSections.AdminRole)
+             || SterlingLams.Web.Areas.Admin.AdminSections.DefaultStaffRoles.Any(r => User.IsInRole(r)));
+        var loaderEffMs = Math.Clamp((loaderStaffOnly && !isStaffViewer) ? 0 : loaderMinMs, 0, 2000);
+    }
+    <div id="page-loader" aria-hidden="true" data-min-ms="@loaderEffMs">
         <div class="pl-diamond">
             <svg viewBox="0 0 200 190" width="74" height="70" fill="none" aria-hidden="true">
                 <g class="pl-draw" stroke="#1c1917" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

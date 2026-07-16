@@ -7,8 +7,15 @@
     const hide = () => { loader.style.opacity = '0'; loader.style.visibility = 'hidden'; loader.style.pointerEvents = 'none'; };
     const show = () => { loader.style.opacity = '1'; loader.style.visibility = 'visible'; loader.style.pointerEvents = 'auto'; };
 
-    hide();                                        // DOM is ready by the time app.js runs
-    window.addEventListener('pageshow', hide);     // restored from bfcache → don't stay covered
+    // Keep the drawing diamond up for at least data-min-ms from when the page started loading, so the
+    // animation has time to show (admin-tunable via Settings → Homepage). performance.now() ≈ elapsed
+    // since navigation start, so we only wait out the remainder.
+    const minMs = parseInt(loader.getAttribute('data-min-ms') || '0', 10) || 0;
+    const elapsed = (window.performance && performance.now) ? performance.now() : 0;
+    setTimeout(hide, Math.max(0, minMs - elapsed));
+
+    // Only hide instantly when restored from bfcache; on a normal load the min-time timeout above owns it.
+    window.addEventListener('pageshow', function (e) { if (e.persisted) hide(); });
     window.addEventListener('pagehide', show);     // leaving the page → cover the gap to the next one
 
     // Show the loader immediately when a same-origin navigation starts (nicer than waiting for unload).
