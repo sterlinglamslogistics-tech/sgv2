@@ -24,7 +24,7 @@
 
 /* ─── Components ─────────────────────────────────────────────────────────── */
 @layer components {
-  /* Page loader — a slowly turning diamond over the canvas while a page loads. Visible by default;
+  /* Page loader — a self-drawing line diamond over the canvas while a page loads. Visible by default;
      app.js hides it once the DOM is ready and re-shows it during navigation. A CSS safety timer
      hides it even if the script fails, so it can never trap the page. */
   #page-loader {
@@ -41,18 +41,22 @@
   }
   @keyframes plSafety { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
-  .pl-diamond { perspective: 320px; }
-  .pl-diamond svg {
-    transform-origin: center;
-    animation: plTurn 1.5s cubic-bezier(.65, 0, .35, 1) infinite;
-    filter: drop-shadow(0 2px 6px rgba(237, 2, 139, .25));
+  /* The outline + facet lines trace themselves in, hold, then flow back out on a loop — a calm,
+     hand-drawn Tiffany-style wireframe. pathLength="1" on each <path> normalises every segment so
+     they all draw at the same rate and finish together. */
+  .pl-draw path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: plDraw 2.6s ease-in-out infinite;
   }
-  @keyframes plTurn {
-    0%   { transform: rotateY(0deg); }
-    100% { transform: rotateY(360deg); }
+  @keyframes plDraw {
+    0%   { stroke-dashoffset: 1; }   /* undrawn */
+    42%  { stroke-dashoffset: 0; }   /* fully traced */
+    58%  { stroke-dashoffset: 0; }   /* hold */
+    100% { stroke-dashoffset: -1; }  /* flows back off, then loops */
   }
   @media (prefers-reduced-motion: reduce) {
-    .pl-diamond svg { animation: none; }
+    .pl-draw path { stroke-dashoffset: 0; animation: none; }
   }
 
   .btn-primary {

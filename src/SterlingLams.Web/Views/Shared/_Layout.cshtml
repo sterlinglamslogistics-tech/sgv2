@@ -102,15 +102,18 @@
 </head>
 <body class="bg-canvas text-neutral-900 font-inter antialiased">
 
-    <!-- ─── Page loader (spinning diamond; hidden by app.js once ready) ────── -->
+    <!-- ─── Page loader (self-drawing line diamond; hidden by app.js once ready) ── -->
     <div id="page-loader" aria-hidden="true">
         <div class="pl-diamond">
-            <svg viewBox="0 0 100 100" width="50" height="50" fill="none" aria-hidden="true">
-                <g stroke="#ed028b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
-                    <path d="M50 6 L88 40 L50 94 L12 40 Z" />
-                    <path d="M12 40 H88" />
-                    <path d="M50 6 L34 40 M50 6 L66 40" />
-                    <path d="M34 40 L50 94 M66 40 L50 94" />
+            <svg viewBox="0 0 200 190" width="74" height="70" fill="none" aria-hidden="true">
+                <g class="pl-draw" stroke="#1c1917" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path pathLength="1" d="M60 44 L140 44 L180 82 L100 176 L20 82 Z" />
+                    <path pathLength="1" d="M20 82 H180" />
+                    <path pathLength="1" d="M60 44 L54 82" />
+                    <path pathLength="1" d="M140 44 L146 82" />
+                    <path pathLength="1" d="M54 82 L100 176" />
+                    <path pathLength="1" d="M100 82 L100 176" />
+                    <path pathLength="1" d="M146 82 L100 176" />
                 </g>
             </svg>
         </div>
