@@ -367,37 +367,66 @@ function toggleFulfillment(type) {
     }
 }
 
-// ── State change → detect zone → show delivery options ────────────────────
-function onStateChanged(state) {
-    // Lagos LGA dropdown
-    const lagosSelect = document.getElementById('lagos-lga-select');
-    const cityInput   = document.getElementById('city-input');
-    const isLagos     = state === 'Lagos' || PRICING.lagosLGAs.some(lga => lga === state);
-
-    if (isLagos) {
-        lagosSelect.classList.remove('hidden');
-        cityInput.classList.add('hidden');
-        // Keep the (required, now-hidden) City field in sync with the chosen area so it isn't
-        // silently left empty — and re-select the saved area after a postback.
-        if (lagosSelect.value) {
-            cityInput.value = lagosSelect.value;
-        } else if (cityInput.value && [...lagosSelect.options].some(o => o.value === cityInput.value)) {
-            lagosSelect.value = cityInput.value;
-        }
-    } else {
-        lagosSelect.classList.add('hidden');
-        cityInput.classList.remove('hidden');
+// ── State / area change → resolve distance zone → show delivery options ───
+function currentStateValue() {
+    var el = document.querySelector('[name="DeliveryAddress.State"]');
+    return el ? el.value : '';
+}
+function stateKeyFor(state) {
+    if (state === 'Lagos' || PRICING.lagosLGAs.some(function (l) { return l === state; })) return 'Lagos';
+    if (PRICING.abujaKeywords.some(function (kw) { return state.indexOf(kw) >= 0; })) return 'Abuja';
+    return 'National';
+}
+function zoneForArea(key, area) {
+    var zones = (PRICING.zones && PRICING.zones[key]) ? PRICING.zones[key] : null;
+    if (!zones || !zones.length) return null;
+    if (area) {
+        var a = String(area).trim().toLowerCase();
+        var m = zones.find(function (z) { return (z.areas || []).some(function (x) { return String(x).trim().toLowerCase() === a; }); });
+        if (m) return m;
     }
+    return zones[0]; // area not listed → the state's first zone is the default
+}
+function onStateChanged(state) {
+    var areaSelect = document.getElementById('lagos-lga-select');
+    var cityInput  = document.getElementById('city-input');
+    var key = stateKeyFor(state);
+    var zones = (PRICING.zones && PRICING.zones[key]) ? PRICING.zones[key] : null;
 
-    // Detect zone
-    const isAbuja = PRICING.abujaKeywords.some(kw => state.includes(kw));
-    const zone    = isLagos ? 'lagos' : isAbuja ? 'abuja' : 'national';
-    const options = (zone === 'lagos' || zone === 'abuja') ? PRICING.lagosAbuja : PRICING.national;
-
-    renderDeliveryOptions(options, zone);
+    if (zones && zones.length) {
+        // Rebuild the area dropdown from this state's zones (grouped by zone name).
+        var prev = (areaSelect.value || cityInput.value || '');
+        areaSelect.innerHTML = '<option value="">— Select area —</option>';
+        zones.forEach(function (z) {
+            var og = document.createElement('optgroup'); og.label = z.name;
+            (z.areas || []).forEach(function (a) { var o = document.createElement('option'); o.value = a; o.textContent = a; og.appendChild(o); });
+            areaSelect.appendChild(og);
+        });
+        if (prev && [].slice.call(areaSelect.options).some(function (o) { return o.value === prev; })) areaSelect.value = prev;
+        areaSelect.classList.remove('hidden');
+        cityInput.classList.add('hidden');
+        onAreaChanged();
+    } else {
+        areaSelect.classList.add('hidden');
+        cityInput.classList.remove('hidden');
+        renderDeliveryOptions(PRICING.national, 'National', '');
+    }
+}
+function onAreaChanged() {
+    var areaSelect = document.getElementById('lagos-lga-select');
+    var cityInput  = document.getElementById('city-input');
+    var key = stateKeyFor(currentStateValue());
+    var area = areaSelect.value;
+    if (area) cityInput.value = area;   // keep the (required, hidden) City field in sync
+    var z = zoneForArea(key, area);
+    if (!z) { renderDeliveryOptions(PRICING.national, 'National', ''); return; }
+    renderDeliveryOptions([
+        { type: 'Express',  label: 'Express Delivery',  fee: z.expressFee,  timeframe: z.expressDays  },
+        { type: 'Standard', label: 'Standard Delivery', fee: z.standardFee, timeframe: z.standardDays },
+    ], key, z.name);
 }
 
-function renderDeliveryOptions(options, zone) {
+function renderDeliveryOptions(options, key, zoneName) {
     const section = document.getElementById('delivery-options-section');
     const grid    = document.getElementById('delivery-options-grid');
     const note    = document.getElementById('delivery-zone-note');
@@ -405,8 +434,9 @@ function renderDeliveryOptions(options, zone) {
     grid.innerHTML = '';
     section.classList.remove('hidden');
 
-    const zoneLabels = { lagos: 'Lagos', abuja: 'Abuja FCT', national: 'Nationwide' };
-    note.textContent = `Showing delivery options for ${zoneLabels[zone] || 'your area'}.`;
+    const stateLabels = { Lagos: 'Lagos', Abuja: 'Abuja FCT', National: 'Nationwide' };
+    const stateLabel = stateLabels[key] || 'your area';
+    note.textContent = zoneName ? `Delivery to ${zoneName} — ${stateLabel}.` : `Showing delivery options for ${stateLabel}.`;
 
     options.forEach((opt, i) => {
         const card = document.createElement('label');
@@ -456,9 +486,7 @@ function updateSummary(fee) {
     document.querySelectorAll('input[name="FulfillmentType"]').forEach(r =>
         r.addEventListener('change', () => toggleFulfillment(r.value === 'StorePickup' ? 'pickup' : 'delivery')));
     document.getElementById('state-select')?.addEventListener('change', e => onStateChanged(e.target.value));
-    document.getElementById('lagos-lga-select')?.addEventListener('change', e => {
-        document.getElementById('city-input').value = e.target.value;
-    });
+    document.getElementById('lagos-lga-select')?.addEventListener('change', () => onAreaChanged());
     document.getElementById('redeem-points')?.addEventListener('change', () => updateSummary(CURRENT_FEE));
 
     // Saved-address picker: fill the form from the chosen saved address (or clear for a new one).

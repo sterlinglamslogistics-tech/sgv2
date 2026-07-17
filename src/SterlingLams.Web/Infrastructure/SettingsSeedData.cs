@@ -90,6 +90,9 @@ public static class SettingsSeedData
         // Lagos & Abuja — Standard
         new() { Key = "shipping.lagos_abuja_standard_fee", Group = "Shipping", Label = "Lagos & Abuja Standard Fee (N)",        Type = "number", Value = "2000",               Description = "Standard delivery fee for Lagos and Abuja FCT.",               SortOrder = 3 },
         new() { Key = "shipping.lagos_abuja_standard_days",Group = "Shipping", Label = "Lagos & Abuja Standard Timeframe",      Type = "text",   Value = "2 - 4 working days", Description = "Timeframe shown to customers for standard delivery.",          SortOrder = 4 },
+        // Distance-based delivery zones (JSON) — managed in Admin → Delivery Zones. Empty = use the
+        // built-in default zones (DeliveryZoneService.DefaultZones) until edited.
+        new() { Key = "shipping.delivery_zones", Group = "Shipping", Label = "", Type = "hidden", Value = "", Description = "", SortOrder = 99 },
         // National — Standard
         new() { Key = "shipping.national_standard_fee",   Group = "Shipping", Label = "Nationwide Standard Fee (N)",           Type = "number", Value = "7500",               Description = "Delivery fee for all other Nigerian states.",                  SortOrder = 5 },
         new() { Key = "shipping.national_standard_days",  Group = "Shipping", Label = "Nationwide Standard Timeframe",         Type = "text",   Value = "2 - 5 working days", Description = "Timeframe shown to customers for nationwide standard delivery.", SortOrder = 6 },

@@ -185,26 +185,31 @@ public class CheckoutController : Controller
     // Build the client-side delivery-pricing JSON (zone detection + fees).
     private async Task<string> BuildDeliveryPricingJsonAsync()
     {
-        var lagosExpressFee   = await _settings.GetDecimalAsync("shipping.lagos_abuja_express_fee",  4000);
-        var lagosExpressDays  = await _settings.GetAsync("shipping.lagos_abuja_express_days",        "24 - 48 hours");
-        var lagosStdFee       = await _settings.GetDecimalAsync("shipping.lagos_abuja_standard_fee", 2000);
-        var lagosStdDays      = await _settings.GetAsync("shipping.lagos_abuja_standard_days",       "2 - 4 working days");
-        var natStdFee         = await _settings.GetDecimalAsync("shipping.national_standard_fee",    7500);
-        var natStdDays        = await _settings.GetAsync("shipping.national_standard_days",          "2 - 5 working days");
+        // Distance zones per state (Lagos/Abuja), each with its own Standard + Express fees and the
+        // areas it covers — the checkout resolves the fee from the customer's chosen area.
+        var zones = await _zones.GetZonesAsync();
+        var byState = zones
+            .GroupBy(z => z.State, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(z => new
+            {
+                name = z.Name,
+                standardFee = z.StandardFee, expressFee = z.ExpressFee,
+                standardDays = z.StandardDays, expressDays = z.ExpressDays,
+                areas = z.Areas,
+            }).ToArray());
+
+        var natStdFee  = await _settings.GetDecimalAsync("shipping.national_standard_fee", 7500);
+        var natStdDays = await _settings.GetAsync("shipping.national_standard_days", "2 - 5 working days");
 
         return System.Text.Json.JsonSerializer.Serialize(new
         {
-            lagosAbuja = new[]
-            {
-                new { type = "Express",  label = "Express Delivery",  fee = lagosExpressFee, timeframe = lagosExpressDays },
-                new { type = "Standard", label = "Standard Delivery", fee = lagosStdFee,     timeframe = lagosStdDays     },
-            },
+            zones = byState,   // { "Lagos": [ { name, standardFee, expressFee, standardDays, expressDays, areas[] } ], "Abuja": [...] }
             national = new[]
             {
                 new { type = "Standard", label = "Standard Delivery", fee = natStdFee, timeframe = natStdDays },
             },
-            lagosLGAs       = SterlingLams.Web.Services.DeliveryZoneService.LagosLGAs,
-            abujaKeywords   = new[] { "FCT", "Abuja", "Federal Capital" },
+            lagosLGAs     = SterlingLams.Web.Services.DeliveryZoneService.LagosLGAs,
+            abujaKeywords = new[] { "FCT", "Abuja", "Federal Capital" },
         });
     }
 
@@ -478,7 +483,7 @@ public class CheckoutController : Controller
         // Calculate delivery fee server-side (never trust client-submitted amount)
         decimal deliveryFee = 0;
         if (vm.FulfillmentType == FulfillmentChoice.Delivery)
-            deliveryFee = await _zones.CalculateFeeAsync(vm.DeliveryAddress.State, vm.SelectedDeliveryType);
+            deliveryFee = await _zones.CalculateFeeAsync(vm.DeliveryAddress.State, vm.DeliveryAddress.City, vm.SelectedDeliveryType);
         if (freeShipping) deliveryFee = 0;   // free-shipping discount waives the fee
 
         // ── Loyalty redemption ──────────────────────────────────────────────

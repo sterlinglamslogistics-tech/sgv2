@@ -26,6 +26,17 @@
 {
     var slug = Slug(group.Key);
     <div id="panel-@slug" class="tab-panel @(group.Key == activeTab ? "" : "hidden") max-w-2xl">
+        @if (group.Key == "Shipping")
+        {
+            <a asp-area="Admin" asp-controller="DeliveryZones" asp-action="Index"
+               class="flex items-center justify-between gap-3 mb-4 p-4 bg-neutral-900 text-white rounded-sm hover:bg-black transition-colors">
+                <span>
+                    <span class="block text-sm font-medium">Delivery Zones (Lagos &amp; Abuja)</span>
+                    <span class="block text-xs text-neutral-300 mt-0.5">Set Standard &amp; Express prices per distance band. Manages the area-based checkout fees.</span>
+                </span>
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        }
         <form asp-area="Admin" asp-controller="Settings" asp-action="Save" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="group" value="@group.Key" />

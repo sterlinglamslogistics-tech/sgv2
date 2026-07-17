@@ -1,0 +1,164 @@
+@using System.Text.Json
+@model List<SterlingLams.Web.Services.DeliveryZoneDef>
+@{
+    ViewData["Title"] = "Delivery Zones";
+    var json = JsonSerializer.Serialize(Model, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+}
+
+@Html.AntiForgeryToken()
+
+<div class="flex items-start justify-between gap-4 mb-2 flex-wrap">
+    <div>
+        <h1 class="text-xl font-semibold text-neutral-900">Delivery Zones</h1>
+        <p class="text-sm text-neutral-500 mt-1 max-w-2xl">
+            Group Lagos &amp; Abuja areas into distance bands and set the <strong>Standard</strong> and
+            <strong>Express</strong> price for each. At checkout the customer picks their area and the
+            matching zone's price is applied automatically. Areas you don't list fall back to the state's
+            first zone.
+        </p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+        <button type="button" id="dz-reset" class="px-4 py-2 border border-neutral-200 text-neutral-600 text-sm rounded-md hover:border-neutral-400">Reset to defaults</button>
+        <button type="button" id="dz-save" class="px-6 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-black">Save changes</button>
+    </div>
+</div>
+
+<div id="dz-toast" class="hidden fixed top-5 right-5 z-50 px-4 py-3 rounded-md text-sm text-white shadow-lg"></div>
+
+<div class="space-y-8 mt-6">
+    @foreach (var state in new[] { "Lagos", "Abuja" })
+    {
+        <section data-state="@state">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-sm font-semibold tracking-wide uppercase text-neutral-700">@(state == "Abuja" ? "Abuja (FCT)" : state)</h2>
+                <button type="button" class="dz-add text-sm text-neutral-900 hover:underline" data-state="@state">+ Add zone</button>
+            </div>
+            <div class="dz-zones space-y-4" data-state="@state"></div>
+        </section>
+    }
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var ZONES = @Html.Raw(json) || [];
+    var token = document.querySelector('input[name="__RequestVerificationToken"]');
+    var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+    function toast(msg, ok) {
+        var t = document.getElementById('dz-toast');
+        t.textContent = msg;
+        t.className = 'fixed top-5 right-5 z-50 px-4 py-3 rounded-md text-sm text-white shadow-lg ' + (ok ? 'bg-emerald-600' : 'bg-red-600');
+        t.classList.remove('hidden');
+        setTimeout(function () { t.classList.add('hidden'); }, 2600);
+    }
+
+    function zoneCard(z) {
+        var areas = (z.areas || []).join(', ');
+        return ''
+        + '<div class="dz-zone bg-white border border-neutral-200 rounded-md p-4">'
+        +   '<div class="flex items-center justify-between gap-3 mb-3">'
+        +     '<input data-f="name" value="' + esc(z.name) + '" placeholder="Zone name (e.g. Island — VI / Ikoyi)" class="flex-1 border border-neutral-200 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:border-neutral-500" />'
+        +     '<button type="button" data-remove class="text-neutral-400 hover:text-red-600 text-sm shrink-0">✕ Remove</button>'
+        +   '</div>'
+        +   '<div class="grid grid-cols-2 gap-3 mb-3">'
+        +     fee('Standard fee (₦)', 'standardFee', z.standardFee)
+        +     fee('Express fee (₦)', 'expressFee', z.expressFee)
+        +     txt('Standard timeframe', 'standardDays', z.standardDays || '2 - 4 working days')
+        +     txt('Express timeframe', 'expressDays', z.expressDays || '24 - 48 hours')
+        +   '</div>'
+        +   '<label class="block text-xs text-neutral-500 mb-1">Areas covered (comma-separated)</label>'
+        +   '<textarea data-f="areas" rows="2" placeholder="Victoria Island, Ikoyi, Lekki Phase 1…" class="w-full border border-neutral-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-neutral-500">' + esc(areas) + '</textarea>'
+        + '</div>';
+    }
+    function fee(label, f, v) {
+        return '<div><label class="block text-xs text-neutral-500 mb-1">' + label + '</label>'
+            + '<input type="number" min="0" step="50" data-f="' + f + '" value="' + (v == null ? '' : v) + '" class="w-full border border-neutral-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-neutral-500" /></div>';
+    }
+    function txt(label, f, v) {
+        return '<div><label class="block text-xs text-neutral-500 mb-1">' + label + '</label>'
+            + '<input data-f="' + f + '" value="' + esc(v) + '" class="w-full border border-neutral-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-neutral-500" /></div>';
+    }
+
+    function render() {
+        ['Lagos', 'Abuja'].forEach(function (state) {
+            var host = document.querySelector('.dz-zones[data-state="' + state + '"]');
+            var list = ZONES.filter(function (z) { return (z.state || 'Lagos') === state; });
+            host.innerHTML = list.length ? list.map(zoneCard).join('') : '<p class="text-sm text-neutral-400">No zones yet — add one.</p>';
+        });
+    }
+
+    // Add / remove
+    document.querySelectorAll('.dz-add').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            ZONES.push({ state: btn.dataset.state, name: '', standardFee: 0, expressFee: 0, standardDays: '2 - 4 working days', expressDays: '24 - 48 hours', areas: [] });
+            collect(); render();
+            // focus the new card's name field
+            var cards = document.querySelectorAll('.dz-zones[data-state="' + btn.dataset.state + '"] .dz-zone');
+            if (cards.length) cards[cards.length - 1].querySelector('[data-f="name"]').focus();
+        });
+    });
+    document.addEventListener('click', function (e) {
+        var rem = e.target.closest('[data-remove]');
+        if (!rem) return;
+        var card = rem.closest('.dz-zone');
+        var section = rem.closest('[data-state]');
+        var idxInState = Array.prototype.indexOf.call(card.parentNode.children, card);
+        var state = section.dataset.state;
+        collect();
+        var seen = -1;
+        for (var i = 0; i < ZONES.length; i++) {
+            if ((ZONES[i].state || 'Lagos') === state) { seen++; if (seen === idxInState) { ZONES.splice(i, 1); break; } }
+        }
+        render();
+    });
+
+    // Read the DOM inputs back into ZONES (keeps unsaved edits across add/remove/render)
+    function collect() {
+        var next = [];
+        ['Lagos', 'Abuja'].forEach(function (state) {
+            var host = document.querySelector('.dz-zones[data-state="' + state + '"]');
+            host.querySelectorAll('.dz-zone').forEach(function (card) {
+                function v(f) { var i = card.querySelector('[data-f="' + f + '"]'); return i ? i.value : ''; }
+                next.push({
+                    state: state,
+                    name: v('name').trim(),
+                    standardFee: parseFloat(v('standardFee')) || 0,
+                    expressFee: parseFloat(v('expressFee')) || 0,
+                    standardDays: v('standardDays').trim(),
+                    expressDays: v('expressDays').trim(),
+                    areas: v('areas').split(',').map(function (a) { return a.trim(); }).filter(function (a) { return a.length; })
+                });
+            });
+        });
+        ZONES = next;
+    }
+
+    document.getElementById('dz-save').addEventListener('click', function () {
+        collect();
+        var invalid = ZONES.filter(function (z) { return !z.name; });
+        if (invalid.length) { toast('Every zone needs a name.', false); return; }
+        fetch('@Url.Action("Save", "DeliveryZones", new { area = "Admin" })', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token ? token.value : '' },
+            body: JSON.stringify(ZONES)
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok) toast('Saved ' + d.count + ' zone(s). Changes are live at checkout.', true);
+            else toast((d && d.error) || 'Save failed.', false);
+        }).catch(function () { toast('Save failed.', false); });
+    });
+
+    document.getElementById('dz-reset').addEventListener('click', function () {
+        if (!confirm('Replace the current zones with the built-in defaults? (You still need to Save.)')) return;
+        fetch('@Url.Action("Reset", "DeliveryZones", new { area = "Admin" })', {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': token ? token.value : '' }
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok) { ZONES = d.zones || []; render(); toast('Defaults loaded — review, then Save.', true); }
+        }).catch(function () { toast('Could not load defaults.', false); });
+    });
+
+    render();
+})();
+</script>
+}
