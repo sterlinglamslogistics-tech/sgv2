@@ -45,7 +45,7 @@ jobs:
       - run: npm run build:css
 
       # ── .NET publish (BuildTailwind=false: CSS already built above) ──
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet restore ${{ env.PROJECT }}
