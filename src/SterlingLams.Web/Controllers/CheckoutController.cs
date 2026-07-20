@@ -547,6 +547,7 @@ public class CheckoutController : Controller
                 : FulfillmentType.Delivery,
             PickupStoreId = vm.FulfillmentType == FulfillmentChoice.StorePickup ? vm.SelectedStoreId : null,
             Notes = string.IsNullOrWhiteSpace(vm.OrderNotes) ? null : vm.OrderNotes.Trim(),
+            WhatsAppOptIn = vm.WhatsAppOptIn,   // checkout opt-in (default ticked)
             // Order attribution (WooCommerce-style)
             CustomerIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
             DeviceType = SterlingLams.Web.Infrastructure.OrderAttributionMiddleware.DeviceFromUserAgent(Request.Headers.UserAgent.ToString()),
@@ -713,7 +714,10 @@ public class CheckoutController : Controller
                     $"Payment via {_payment.ProviderName} successful (Transaction Reference: {refToVerify}).");
             await _db.SaveChangesAsync();
             if (wasUnpaid)
+            {
                 try { await _audit.LogAsync("Payment", "Order", order.Id.ToString(), $"Payment received for {order.OrderNumber} — ₦{order.Total:N0} ({_payment.ProviderName})"); } catch { }
+                _ = _whatsapp.NotifyOrderAsync(order.Id, SterlingLams.Web.Services.WhatsAppOrderEvent.PaymentReceived);
+            }
 
             // Commit stock first-come-first-served. If an item sold out before this payment
             // landed, auto-cancel + refund instead of confirming.

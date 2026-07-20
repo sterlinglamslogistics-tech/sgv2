@@ -27,6 +27,7 @@ public class PosController : Controller
     private readonly SterlingLams.Web.Services.IAuditService _audit;
     private readonly SterlingLams.Web.Services.ISettingsService _settings;
     private readonly SterlingLams.Web.Services.IEmailService _email;
+    private readonly SterlingLams.Web.Services.IWhatsAppService _whatsapp;
     private readonly SterlingLams.Web.Services.IOrderNumberService _orderNumbers;
 
     public PosController(ApplicationDbContext db, IStockService stock,
@@ -37,6 +38,7 @@ public class PosController : Controller
         SterlingLams.Web.Services.IAuditService audit,
         SterlingLams.Web.Services.ISettingsService settings,
         SterlingLams.Web.Services.IEmailService email,
+        SterlingLams.Web.Services.IWhatsAppService whatsapp,
         SterlingLams.Web.Services.IOrderNumberService orderNumbers)
     {
         _db = db;
@@ -49,6 +51,7 @@ public class PosController : Controller
         _audit = audit;
         _settings = settings;
         _email = email;
+        _whatsapp = whatsapp;
         _orderNumbers = orderNumbers;
     }
 
@@ -1468,6 +1471,10 @@ public class PosController : Controller
         await _loyalty.RedeemForOrderAsync(order.Id);
 
         try { await _audit.LogAsync("Sale", "Order", order.Id.ToString(), $"POS sale {orderNumber} — ₦{order.Total:N0} ({req.PaymentMethod}) at {register.Name}{discountApprovalNote}"); } catch { }
+
+        // WhatsApp receipt/confirmation to the attached customer (self-gates: no-op for a walk-in with
+        // no customer/phone, or when the toggle is off). Fire-and-forget.
+        _ = _whatsapp.NotifyOrderAsync(order.Id, SterlingLams.Web.Services.WhatsAppOrderEvent.OrderConfirmed);
 
         return Json(new { success = true, orderId = order.Id, orderNumber, total = order.Total, change = order.ChangeGiven });
     }

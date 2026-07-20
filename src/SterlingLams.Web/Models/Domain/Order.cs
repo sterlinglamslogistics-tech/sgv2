@@ -45,6 +45,11 @@ public class Order
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public FulfillmentType FulfillmentType { get; set; }
 
+    /// <summary>Whether the customer agreed to receive order updates on WhatsApp (checkout opt-in).
+    /// Defaults true so POS (in-person consent) and legacy orders still notify; the online checkout
+    /// checkbox lets a shopper opt out. Gates <see cref="Services.WhatsAppService.NotifyOrderAsync"/>.</summary>
+    public bool WhatsAppOptIn { get; set; } = true;
+
     /// <summary>Where the sale came from. POS orders are rung up in-store by a cashier.</summary>
     public OrderChannel Channel { get; set; } = OrderChannel.Online;
 

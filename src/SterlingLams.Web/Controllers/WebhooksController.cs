@@ -22,6 +22,7 @@ public class WebhooksController : ControllerBase
     private readonly ILogger<WebhooksController> _logger;
 
     private readonly SterlingLams.Web.Services.IAuditService _audit;
+    private readonly SterlingLams.Web.Services.IWhatsAppService _whatsapp;
 
     public WebhooksController(
         ApplicationDbContext db,
@@ -32,6 +33,7 @@ public class WebhooksController : ControllerBase
         SterlingLams.Web.Services.Logistics.ILogisticsDispatchService logistics,
         ISubscriptionPaymentService subPay,
         SterlingLams.Web.Services.IAuditService audit,
+        SterlingLams.Web.Services.IWhatsAppService whatsapp,
         ILogger<WebhooksController> logger)
     {
         _db = db;
@@ -42,6 +44,7 @@ public class WebhooksController : ControllerBase
         _logistics = logistics;
         _subPay = subPay;
         _audit = audit;
+        _whatsapp = whatsapp;
         _logger = logger;
     }
 
@@ -171,7 +174,10 @@ public class WebhooksController : ControllerBase
                         $"Payment via Paystack successful (Transaction Reference: {reference}).");
                 await _db.SaveChangesAsync();
                 if (wasUnpaid)
+                {
                     try { await _audit.LogAsync("Payment", "Order", order.Id.ToString(), $"Payment received for {order.OrderNumber} — ₦{order.Total:N0} (Paystack)"); } catch { }
+                    _ = _whatsapp.NotifyOrderAsync(order.Id, SterlingLams.Web.Services.WhatsAppOrderEvent.PaymentReceived);
+                }
 
                 // Deduct stock through the in-house ledger. Idempotent, so it's safe whether the
                 // browser callback already fulfilled this order or the webhook is the only path

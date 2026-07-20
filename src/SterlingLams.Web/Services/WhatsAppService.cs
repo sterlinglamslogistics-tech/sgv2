@@ -169,7 +169,7 @@ public class WhatsAppService : IWhatsAppService
             var order = await db.Orders
                 .Include(o => o.User).Include(o => o.Customer).Include(o => o.PickupStore)
                 .FirstOrDefaultAsync(o => o.Id == orderId, ct);
-            if (order == null) return;
+            if (order == null || !order.WhatsAppOptIn) return; // customer opted out at checkout
 
             // POS: the buyer is Order.Customer (Order.User is the cashier). Online: the buyer is Order.User.
             var buyer = order.Channel == OrderChannel.Pos ? order.Customer : order.User;

@@ -26,6 +26,9 @@ public class CheckoutViewModel : IValidatableObject
     public string? GiftCardCode { get; set; }           // posted: code the customer typed in
     public decimal GiftCardAmount { get; set; }         // ₦ drawn from the card (reflected in Total)
 
+    // WhatsApp order-update opt-in (default ticked; unchecking posts false).
+    public bool WhatsAppOptIn { get; set; } = true;
+
     // Delivery
     public DeliveryAddressViewModel DeliveryAddress { get; set; } = new();
 
