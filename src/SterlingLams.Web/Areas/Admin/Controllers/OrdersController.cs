@@ -27,12 +27,14 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
         private readonly IEmailService _email;
         private readonly ISettingsService _settings;
         private readonly SterlingLams.Web.Services.Logistics.ILogisticsDispatchService _logistics;
+        private readonly IWhatsAppService _whatsapp;
         private const int PageSize = 25;
 
         public OrdersController(ApplicationDbContext db, IStockService stock, IPaymentService payment,
             ILoyaltyService loyalty, IGiftCardService giftCards, IOrderFulfilmentService fulfilment, IEmailService email,
             ISettingsService settings,
-            SterlingLams.Web.Services.Logistics.ILogisticsDispatchService logistics)
+            SterlingLams.Web.Services.Logistics.ILogisticsDispatchService logistics,
+            IWhatsAppService whatsapp)
         {
             _db = db;
             _stock = stock;
@@ -43,6 +45,7 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
             _email = email;
             _settings = settings;
             _logistics = logistics;
+            _whatsapp = whatsapp;
         }
 
         public async Task<IActionResult> Index(string status = "", string q = "", string channel = "",
@@ -437,6 +440,17 @@ namespace SterlingLams.Web.Areas.Admin.Controllers
                 OrderNotes.AddSystem(_db, order.Id, $"'{def.Label ?? status.ToString()}' status email sent to the customer.");
                 await _db.SaveChangesAsync();
             }
+
+            // Fire the matching WhatsApp alongside the email (own scope, never throws, gated by the
+            // whatsapp.notify.* toggle + a customer phone). Fire-and-forget so it doesn't slow the UI.
+            var waEvent = status switch
+            {
+                OrderStatus.ReadyForPickup => (WhatsAppOrderEvent?)WhatsAppOrderEvent.ReadyForPickup,
+                OrderStatus.Shipped        => WhatsAppOrderEvent.Shipped,
+                OrderStatus.Delivered      => WhatsAppOrderEvent.Delivered,
+                _ => null,
+            };
+            if (waEvent is { } ev) _ = _whatsapp.NotifyOrderAsync(orderId, ev);
         }
 
         // Re-send a customer email for an order: an order summary, or (for store-pickup orders) the

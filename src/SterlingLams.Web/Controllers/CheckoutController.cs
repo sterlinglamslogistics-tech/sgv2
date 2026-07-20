@@ -27,6 +27,7 @@ public class CheckoutController : Controller
     private readonly SterlingLams.Web.Services.DeliveryZoneService _zones;
     private readonly SterlingLams.Web.Services.IDiscountService _discounts;
     private readonly SterlingLams.Web.Services.IEmailService _email;
+    private readonly SterlingLams.Web.Services.IWhatsAppService _whatsapp;
     private readonly SterlingLams.Web.Services.ILoyaltyService _loyalty;
     private readonly SterlingLams.Web.Services.IGiftCardService _giftCards;
     private readonly SterlingLams.Web.Services.Logistics.ILogisticsDispatchService _logistics;
@@ -47,6 +48,7 @@ public class CheckoutController : Controller
         SterlingLams.Web.Services.DeliveryZoneService zones,
         SterlingLams.Web.Services.IDiscountService discounts,
         SterlingLams.Web.Services.IEmailService email,
+        SterlingLams.Web.Services.IWhatsAppService whatsapp,
         SterlingLams.Web.Services.ILoyaltyService loyalty,
         SterlingLams.Web.Services.IGiftCardService giftCards,
         SterlingLams.Web.Services.Logistics.ILogisticsDispatchService logistics,
@@ -66,6 +68,7 @@ public class CheckoutController : Controller
         _zones = zones;
         _discounts = discounts;
         _email = email;
+        _whatsapp = whatsapp;
         _loyalty = loyalty;
         _giftCards = giftCards;
         _logistics = logistics;
@@ -884,6 +887,10 @@ public class CheckoutController : Controller
                     shippingLines: shipping);
                 await _email.SendAsync(customerEmail!, subject, body, ct: HttpContext.RequestAborted);
             }
+
+            // WhatsApp order confirmation — self-gated by whatsapp.notify.order_confirmed + a customer
+            // phone, independent of the email setting above. Fire-and-forget (own scope, never throws).
+            _ = _whatsapp.NotifyOrderAsync(order.Id, SterlingLams.Web.Services.WhatsAppOrderEvent.OrderConfirmed);
 
             // Admin new-order alert
             if (await _settings.GetBoolAsync("notifications.new_order", true))
