@@ -60,3 +60,8 @@ services:
         sync: false
       - key: Cloudinary__ApiSecret
         sync: false
+      # Sentry error monitoring. Optional: the app stays inert until this DSN is set (Program.cs
+      # gates on Sentry:Dsn). Set the VALUE in the Render Dashboard (Environment tab); it's the
+      # DSN from your Sentry project — not a secret that must be hidden, but kept out of the repo.
+      - key: Sentry__Dsn
+        sync: false
